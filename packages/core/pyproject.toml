@@ -53,7 +53,7 @@ test = [
 # Upper bounds cap major-version bumps; Dependabot lifts them after review.
 nats = ["nats-py>=2.7,<3"]
 kafka = ["aiokafka>=0.11,<1"]
-rabbitmq = ["aio-pika>=9.0,<11"]
+rabbitmq = ["aio-pika>=9.6.2,<11"]
 redis = ["redis>=5.0,<7"]
 
 [dependency-groups]
