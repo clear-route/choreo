@@ -52,7 +52,7 @@ test = [
 # `pip install choreo[nats]` pulls the NATS client only when it's needed.
 # Upper bounds cap major-version bumps; Dependabot lifts them after review.
 nats = ["nats-py>=2.7,<3"]
-kafka = ["aiokafka>=0.11,<1"]
+kafka = ["aiokafka>=0.13.0,<1"]
 rabbitmq = ["aio-pika>=9.0,<11"]
 redis = ["redis>=5.0,<7"]
 
