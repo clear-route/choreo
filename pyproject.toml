@@ -1,0 +1,68 @@
+# Root-level pytest config only.
+#
+# The actual packages live under `packages/`:
+#   - packages/core           (the harness library)
+#   - packages/core-reporter  (pytest plugin, PRD-007)
+#
+# Running `pytest` from the repo root picks up both suites. Each package also
+# has its own `pyproject.toml` with the same config so you can `cd packages/<name>
+# && pytest` for a focused run.
+
+[tool.pytest.ini_options]
+testpaths = [
+    "packages/core/tests",
+    "packages/core-reporter/tests",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "e2e: requires docker-compose services (NATS, Kafka, RabbitMQ, Redis). Run with `pytest -m e2e`; excluded by default via `pytest -m 'not e2e'`.",
+]
+# Default addopts:
+#   --harness-report-disable: keep the reporter plugin quiet during the core
+#     suite; individual core-reporter tests opt into reporting via their own
+#     pytester sessions.
+#   -n auto: pytest-xdist parallelism across logical CPUs. Tests are isolated
+#     by scope correlation IDs (ADR-0002) and UUID-suffixed topics in e2e, so
+#     parallel is safe. Override with `-n 0` (serial) or `-p no:xdist` when
+#     debugging a single failure and you want deterministic stdout order.
+addopts = "--harness-report-disable -n auto"
+
+# Ruff: single source of truth for lint + format across the monorepo.
+# Invoke from the repo root: `ruff check packages/` and `ruff format packages/`.
+# Pre-commit (see .pre-commit-config.yaml) runs both on every commit.
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "build",
+    "dist",
+    ".venv",
+]
+
+[tool.ruff.lint]
+# Conservative-but-useful ruleset:
+#   E/W  pycodestyle errors and warnings
+#   F    pyflakes (undefined names, unused imports)
+#   I    isort (import ordering)
+#   UP   pyupgrade (modernise to target Python)
+#   B    flake8-bugbear (common bug patterns)
+#   C4   flake8-comprehensions
+#   RUF  ruff-native rules
+# Opinionated checks deliberately not enabled yet: SIM (stylistic), N (naming
+# bikesheds), PT (pytest-specific rules carry false positives on our suite).
+select = ["E", "W", "F", "I", "UP", "B", "C4", "RUF"]
+ignore = [
+    "RUF100",  # keeps hand-placed `# noqa` annotations
+    "E501",    # line-too-long — the formatter handles wrap; avoid fighting long comments/strings
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests can use bare asserts, module-level mutability, etc.
+"**/tests/**" = ["B011", "B015", "B017"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

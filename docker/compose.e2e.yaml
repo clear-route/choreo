@@ -1,0 +1,93 @@
+# Docker Compose stack for end-to-end transport tests.
+#
+# Runs the dependencies the e2e suite needs. No harness code runs in a
+# container — tests execute on the host and connect out to the exposed
+# ports. Contract tests (`tests/e2e/contract/`) run once per installed +
+# reachable transport; each service below corresponds to one transport
+# factory. Services are grouped by profile so a dev can bring up only
+# what they need.
+#
+# Usage:
+#   # everything
+#   docker compose -f docker/compose.e2e.yaml --profile all up -d
+#
+#   # a single transport
+#   docker compose -f docker/compose.e2e.yaml --profile nats up -d
+#   docker compose -f docker/compose.e2e.yaml --profile kafka up -d
+#   docker compose -f docker/compose.e2e.yaml --profile rabbitmq up -d
+#   docker compose -f docker/compose.e2e.yaml --profile redis up -d
+#
+#   pytest -m e2e
+#   docker compose -f docker/compose.e2e.yaml --profile all down
+
+services:
+  nats:
+    image: nats:2.10-alpine
+    container_name: choreo-e2e-nats
+    profiles: ["all", "nats"]
+    ports:
+      - "4222:4222"   # client protocol
+      - "8222:8222"   # monitoring / healthcheck
+    command: ["-js", "-m", "8222"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  # Kafka in single-node KRaft mode (no separate Zookeeper). The
+  # KAFKA_LISTENER_* envs below are the standard single-broker recipe for
+  # Confluent's KRaft image: one internal listener for controller traffic,
+  # one external listener for clients connecting from the host.
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: choreo-e2e-kafka
+    profiles: ["all", "kafka"]
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      # Generate a stable cluster id so restarts don't invalidate the log dir.
+      CLUSTER_ID: "choreo-e2e-cluster-id"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 3s
+      timeout: 5s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:3.13-alpine
+    container_name: choreo-e2e-rabbitmq
+    profiles: ["all", "rabbitmq"]
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # management UI (diagnostic only)
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: choreo-e2e-redis
+    profiles: ["all", "redis"]
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 10

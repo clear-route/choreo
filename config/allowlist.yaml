@@ -1,0 +1,46 @@
+# Allowlist for Transport.connect() (ADR-0006).
+#
+# Single source of truth for which endpoints are permitted for this
+# deployment. Each transport's connect() refuses any value not listed here
+# before opening a socket.
+#
+# One file per deployment. This file ships the values the framework's own
+# test suite uses. Consumers ship their own allowlist file(s) — one per
+# deployment they support.
+#
+# Production endpoints do not appear here by design — the harness has no
+# production mode. See ADR-0006 §Non-Goals.
+#
+# Categories are transport-defined; unknown categories are ignored, so one
+# file can cover several transports.
+
+# Mock endpoints permitted by MockTransport. MockTransport is in-memory so
+# these values never reach a socket — they demonstrate the allowlist-enforce
+# pattern that real transports use.
+mock_endpoints:
+  - "mock://localhost"
+
+# NATS servers permitted by NatsTransport (used by the e2e suite).
+nats_servers:
+  - "nats://localhost:4222"
+  - "nats://127.0.0.1:4222"
+  - "nats://nats:4222"
+
+# Kafka bootstrap servers permitted by KafkaTransport (used by the e2e suite).
+# Bare host:port form — Kafka bootstrap entries do not carry a URL scheme.
+kafka_brokers:
+  - "localhost:9092"
+  - "127.0.0.1:9092"
+  - "kafka:9092"
+
+# RabbitMQ URLs permitted by RabbitTransport (used by the e2e suite).
+amqp_brokers:
+  - "amqp://guest:guest@localhost:5672/"
+  - "amqp://guest:guest@127.0.0.1:5672/"
+  - "amqp://guest:guest@rabbitmq:5672/"
+
+# Redis URLs permitted by RedisTransport (used by the e2e suite).
+redis_servers:
+  - "redis://localhost:6379/0"
+  - "redis://127.0.0.1:6379/0"
+  - "redis://redis:6379/0"

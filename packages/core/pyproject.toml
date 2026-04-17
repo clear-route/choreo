@@ -1,0 +1,96 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "core"
+dynamic = ["version"]
+description = "Choreo — a declarative async test harness for message-driven systems"
+readme = "../../README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["../../LICENSE"]
+authors = [{ name = "The Choreo Authors" }]
+keywords = ["testing", "async", "pubsub", "messaging", "pytest", "nats", "kafka", "rabbitmq", "redis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Distributed Computing",
+    "Typing :: Typed",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/clear-route/choreo"
+Repository = "https://github.com/clear-route/choreo"
+Issues = "https://github.com/clear-route/choreo/issues"
+Changelog = "https://github.com/clear-route/choreo/blob/main/CHANGELOG.md"
+
+# Version derived from the lockstep `vX.Y.Z` git tag (see CHANGELOG.md).
+# Dev builds between tags resolve to `X.Y.Z.devN+g<sha>`; `fallback-version`
+# keeps `pip install` working inside a source archive with no git history.
+[tool.hatch.version]
+source = "vcs"
+raw-options.root = "../.."
+fallback-version = "0.0.0"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24,<2.0",
+    "pyyaml>=6.0",
+]
+# Transport backends — install the ones your tests actually use.
+# `pip install core[nats]` pulls the NATS client only when it's needed.
+nats = ["nats-py>=2.7"]
+kafka = ["aiokafka>=0.11"]
+rabbitmq = ["aio-pika>=9.0"]
+redis = ["redis>=5.0"]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+    "vulture>=2.14",
+]
+
+[tool.vulture]
+paths = ["src/core", "tests"]
+min_confidence = 80
+sort_by_size = true
+exclude = ["**/__pycache__/**"]
+# Protocol-signature parameters vulture can't see are used by callers.
+# `source` is part of the Dispatcher.dispatch() signature transports call;
+# `tb` is required by the async context-manager `__aexit__` protocol.
+ignore_names = ["source", "tb"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/core"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/core/py.typed" = "core/py.typed"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# No `pythonpath` — the package is editable-installed, and adding
+# `src` to pythonpath creates a duplicate `core` module in sys.modules
+# that breaks shared state in `core._reporting`. Install with
+# `pip install -e .` before running the suite.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "e2e: requires docker-compose services (NATS, Kafka, RabbitMQ, Redis). Run with `pytest -m e2e`; excluded by default via `pytest -m 'not e2e'`.",
+]
+# Parallel by default via pytest-xdist. Tests are isolated by scope correlation
+# IDs (ADR-0002) and UUID-suffixed topics in e2e. Override with `-n 0` when
+# debugging a single failure.
+addopts = "-n auto"

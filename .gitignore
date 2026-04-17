@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+
+# Build artefacts
+build/
+dist/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# core-reporter output (PRD-007)
+test-report/
+
+# Editor/OS
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Claude Code per-user settings (keep settings.json, ignore local overrides)
+.claude/settings.local.json
+
+.design-engineer/
+
+.playwright-mcp

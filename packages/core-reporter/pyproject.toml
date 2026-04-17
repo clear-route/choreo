@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "core-reporter"
+dynamic = ["version"]
+description = "Pytest plugin: interactive HTML + JSON test report for Choreo (PRD-007)"
+readme = "../../README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["../../LICENSE"]
+authors = [{ name = "The Choreo Authors" }]
+keywords = ["testing", "pytest", "reporter", "html", "choreo"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "core",
+    "pytest>=8.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/clear-route/choreo"
+Repository = "https://github.com/clear-route/choreo"
+Issues = "https://github.com/clear-route/choreo/issues"
+
+# Shares the lockstep `vX.Y.Z` tag with `core`; see packages/core/pyproject.toml.
+[tool.hatch.version]
+source = "vcs"
+raw-options.root = "../.."
+fallback-version = "0.0.0"
+
+[project.optional-dependencies]
+test = [
+    "pytest-asyncio>=0.24,<2.0",
+    "pytest-xdist>=3.5",
+    "jsonschema>=4.18",
+    "beautifulsoup4>=4.12",
+    "pyyaml>=6.0",
+]
+
+[project.entry-points.pytest11]
+core_reporter = "core_reporter.plugin"
+
+[tool.vulture]
+paths = ["src/core_reporter", "tests"]
+min_confidence = 80
+sort_by_size = true
+exclude = ["**/__pycache__/**"]
+# Pytest hook signatures are fixed by pytest's API — we must accept the
+# parameters even when we don't use them.
+ignore_names = ["nextitem", "exitstatus"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/core_reporter"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/core_reporter/py.typed" = "core_reporter/py.typed"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# No `pythonpath` — same rationale as packages/core/pyproject.toml.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+# The reporter's own test suite must not write a report on top of its own
+# pytester-run fixtures. Individual tests opt into reporting by passing
+# --harness-report=<tmp_path> to their pytester sessions.
+#
+# -n auto: parallel via pytest-xdist. Override with `-n 0` for serial.
+addopts = "--harness-report-disable -n auto"

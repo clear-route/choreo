@@ -1,0 +1,94 @@
+name: release
+
+# Lockstep release for `core` + `core-reporter`: push a `vX.Y.Z` tag and the
+# workflow builds both packages and (once un-commented) attaches wheels +
+# sdists to a GitHub Release.
+#
+# The publish step is intentionally commented out while we get the repo
+# open-source-ready. Until then this workflow acts as a tag-gated build
+# check — artefacts are still uploaded to the workflow run so you can
+# download and inspect what *would* have been released.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write  # needed by the (currently commented-out) release step
+
+jobs:
+  release:
+    name: build + publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # hatch-vcs reads the tag from git history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Install packages for test gate
+        run: |
+          pip install -e 'packages/core[nats,kafka,rabbitmq,redis,test]'
+          pip install -e 'packages/core-reporter[test]'
+
+      - name: Run unit tests
+        run: pytest -m "not e2e"
+
+      - name: Bring up broker stack
+        run: docker compose -f docker/compose.e2e.yaml --profile all up -d --wait
+
+      - name: Run e2e tests
+        run: pytest -m e2e
+
+      - name: Tear down broker stack
+        if: always()
+        run: docker compose -f docker/compose.e2e.yaml --profile all down -v
+
+      - name: Build wheels + sdists
+        run: |
+          python -m build packages/core --outdir dist/
+          python -m build packages/core-reporter --outdir dist/
+
+      - name: Validate distributions
+        run: twine check dist/*
+
+      - name: Upload build artefacts to workflow run
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.ref_name }}
+          path: dist/
+          retention-days: 30
+
+      # ---------------------------------------------------------------------
+      # Publish step — DISABLED until the repo is open-source-ready.
+      #
+      # When ready, delete the block comment below and push a fresh tag. The
+      # `softprops/action-gh-release` action reads `CHANGELOG.md` and creates
+      # a GitHub Release with the four artefacts (core + core-reporter, each
+      # as .whl + .tar.gz) attached.
+      #
+      # - name: Extract release notes from CHANGELOG
+      #   id: notes
+      #   run: |
+      #     python scripts/extract_changelog.py "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
+      #     echo "notes-file=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
+      #
+      # - name: Create GitHub Release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     tag_name: ${{ github.ref_name }}
+      #     name: ${{ github.ref_name }}
+      #     body_path: ${{ steps.notes.outputs.notes-file }}
+      #     files: dist/*
+      #     fail_on_unmatched_files: true
+      #     draft: false
+      #     prerelease: ${{ contains(github.ref_name, '-') }}

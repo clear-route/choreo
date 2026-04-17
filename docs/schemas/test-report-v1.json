@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clear-route/choreo/docs/schemas/test-report-v1.json",
+  "title": "Harness test report",
+  "description": "Structured capture of a single pytest run emitted by core-reporter (PRD-007 v1).",
+  "type": "object",
+  "required": ["schema_version", "run", "tests"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Major version; consumers gate on this. Minor additions keep this at '1'.",
+      "const": "1"
+    },
+    "run": { "$ref": "#/$defs/run" },
+    "tests": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/test" }
+    }
+  },
+
+  "$defs": {
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "started_at",
+        "finished_at",
+        "duration_ms",
+        "totals",
+        "project_name",
+        "transport",
+        "allowlist_path",
+        "python_version",
+        "harness_version",
+        "reporter_version",
+        "git_sha",
+        "git_branch",
+        "environment",
+        "hostname",
+        "xdist",
+        "truncated",
+        "redactions"
+      ],
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "finished_at": { "type": "string", "format": "date-time" },
+        "duration_ms": { "type": "number", "minimum": 0 },
+        "totals": { "$ref": "#/$defs/totals" },
+        "project_name": { "type": ["string", "null"] },
+        "transport": { "type": "string" },
+        "allowlist_path": { "type": ["string", "null"] },
+        "python_version": { "type": "string" },
+        "harness_version": { "type": "string" },
+        "reporter_version": { "type": "string" },
+        "git_sha": { "type": ["string", "null"] },
+        "git_branch": { "type": ["string", "null"] },
+        "environment": { "type": ["string", "null"] },
+        "hostname": { "type": "string" },
+        "xdist": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["workers", "incomplete_workers"],
+              "properties": {
+                "workers": { "type": "integer", "minimum": 1 },
+                "incomplete_workers": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          ]
+        },
+        "truncated": { "type": "boolean" },
+        "redactions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fields", "stream_matches"],
+          "properties": {
+            "fields": { "type": "integer", "minimum": 0 },
+            "stream_matches": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed", "errored", "skipped", "slow", "total"],
+      "properties": {
+        "passed":   { "type": "integer", "minimum": 0 },
+        "failed":   { "type": "integer", "minimum": 0 },
+        "errored":  { "type": "integer", "minimum": 0 },
+        "skipped":  { "type": "integer", "minimum": 0 },
+        "slow":     { "type": "integer", "minimum": 0 },
+        "total":    { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "test": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodeid",
+        "file",
+        "name",
+        "class",
+        "markers",
+        "outcome",
+        "duration_ms",
+        "traceback",
+        "stdout",
+        "stderr",
+        "log",
+        "skip_reason",
+        "worker_id",
+        "scenarios"
+      ],
+      "properties": {
+        "nodeid":       { "type": "string" },
+        "file":         { "type": "string" },
+        "name":         { "type": "string" },
+        "class":        { "type": ["string", "null"] },
+        "markers":      { "type": "array", "items": { "type": "string" } },
+        "outcome":      { "enum": ["passed", "failed", "errored", "skipped", "slow"] },
+        "duration_ms":  { "type": "number", "minimum": 0 },
+        "traceback":    { "type": ["string", "null"] },
+        "stdout":       { "type": "string" },
+        "stderr":       { "type": "string" },
+        "log":          { "type": "string" },
+        "skip_reason":  { "type": ["string", "null"] },
+        "worker_id":    { "type": ["string", "null"] },
+        "scenarios":    { "type": "array", "items": { "$ref": "#/$defs/scenario" } }
+      }
+    },
+
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "correlation_id",
+        "outcome",
+        "duration_ms",
+        "completed_normally",
+        "handles",
+        "timeline",
+        "timeline_dropped",
+        "replies",
+        "summary_text"
+      ],
+      "properties": {
+        "name":               { "type": "string" },
+        "correlation_id":     { "type": "string" },
+        "outcome":            { "enum": ["pass", "fail", "timeout", "slow"] },
+        "duration_ms":        { "type": "number", "minimum": 0 },
+        "completed_normally": { "type": "boolean" },
+        "handles":            { "type": "array", "items": { "$ref": "#/$defs/handle" } },
+        "timeline":           { "type": "array", "items": { "$ref": "#/$defs/timeline_entry" } },
+        "timeline_dropped":   { "type": "integer", "minimum": 0 },
+        "replies":            { "type": "array", "items": { "$ref": "#/$defs/reply_report" } },
+        "summary_text":       { "type": "string" }
+      }
+    },
+
+    "reply_report": {
+      "description": "PRD-008 / ADR-0017 reply report. Terminal state of a scope-bound reply. `builder_error` is the exception class name only (ADR-0017 §Security); `matcher_description` is redacted before serialisation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trigger_topic",
+        "reply_topic",
+        "state",
+        "matcher_description",
+        "candidate_count",
+        "match_count",
+        "reply_published",
+        "builder_error",
+        "correlation_overridden"
+      ],
+      "properties": {
+        "trigger_topic":          { "type": "string" },
+        "reply_topic":            { "type": "string" },
+        "state":                  { "enum": ["armed_no_match", "armed_matcher_rejected", "replied", "reply_failed"] },
+        "matcher_description":    { "type": "string" },
+        "candidate_count":        { "type": "integer", "minimum": 0 },
+        "match_count":            { "type": "integer", "minimum": 0 },
+        "reply_published":        { "type": "boolean" },
+        "builder_error":          { "type": ["string", "null"] },
+        "correlation_overridden": { "type": "boolean" }
+      }
+    },
+
+    "handle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "outcome",
+        "latency_ms",
+        "budget_ms",
+        "matcher_description",
+        "expected",
+        "actual",
+        "attempts",
+        "reason",
+        "truncated",
+        "failure",
+        "failures",
+        "failures_dropped",
+        "diagnosis"
+      ],
+      "properties": {
+        "topic":               { "type": "string" },
+        "outcome":             { "enum": ["pass", "fail", "timeout", "slow", "pending"] },
+        "latency_ms":          { "type": ["number", "null"], "minimum": 0 },
+        "budget_ms":           { "type": ["number", "null"], "minimum": 0 },
+        "matcher_description": { "type": "string" },
+        "expected":            {},
+        "actual":              {},
+        "attempts":            { "type": "integer", "minimum": 0 },
+        "reason":              { "type": "string" },
+        "truncated":           { "type": "boolean" },
+
+        "failure": {
+          "description": "Structured reason for a FAIL handle; null for other outcomes. Step 5 makes this the sole failure carrier; `reason` remains in v1 for transition.",
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/match_failure" }
+          ]
+        },
+        "failures": {
+          "description": "Every near-miss observed on this handle, oldest-first, bounded.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/match_failure" }
+        },
+        "failures_dropped": {
+          "description": "Count of near-misses beyond the retention cap.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnosis": {
+          "description": "Typed classification of the handle's outcome so the report UI composes prose from fields, not strings.",
+          "$ref": "#/$defs/handle_diagnosis"
+        }
+      }
+    },
+
+    "match_failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "expected"],
+      "properties": {
+        "kind": { "enum": ["missing", "mismatch", "type_mismatch", "predicate", "composed"] },
+        "path": { "type": "string" },
+        "expected": {},
+        "actual": {},
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/match_failure" }
+        }
+      }
+    },
+
+    "handle_diagnosis": {
+      "description": "Discriminated by `kind`. The UI composes any prose from these fields; the framework never emits English here.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "matched" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "latency_ms", "budget_ms"],
+          "properties": {
+            "kind": { "const": "over_budget" },
+            "latency_ms": { "type": "number", "minimum": 0 },
+            "budget_ms":  { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "attempts", "deadline_ms"],
+          "properties": {
+            "kind": { "const": "near_miss" },
+            "attempts":    { "type": "integer", "minimum": 1 },
+            "deadline_ms": { "type": "number",  "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "topic", "deadline_ms"],
+          "properties": {
+            "kind": { "const": "silent_timeout" },
+            "topic":       { "type": "string" },
+            "deadline_ms": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": { "kind": { "const": "pending" } }
+        }
+      ]
+    },
+
+    "timeline_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset_ms", "wall_clock", "topic", "action", "detail"],
+      "properties": {
+        "offset_ms":  { "type": "number" },
+        "wall_clock": { "type": "string", "format": "date-time" },
+        "topic":      { "type": "string" },
+        "action":     { "enum": ["published", "received", "matched", "mismatched", "deadline", "correlation_skipped", "replied", "reply_failed"] },
+        "detail":     { "type": "string" }
+      }
+    }
+  }
+}
