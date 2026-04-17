@@ -96,13 +96,22 @@ jobs:
         # reporter plugin writes to ./test-report/. Keeps xdist parallelism.
         run: pytest -m e2e -o "addopts=-n auto" --harness-report=test-report
 
-      - name: Upload test report
+      - name: Upload test report (workflow artefact)
         if: always()  # upload even on failure — the report is most useful when tests are broken
         uses: actions/upload-artifact@v4
         with:
           name: test-report-e2e
           path: test-report/
           retention-days: 30
+
+      - name: Upload test report (Pages artefact)
+        # Only build the Pages-format artefact on main pushes — PRs don't
+        # publish to the canonical site. `deploy-pages` in the follow-up job
+        # reads the single `github-pages` artefact this action produces.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: test-report/
 
       - name: Tear down broker stack
         if: always()
@@ -163,3 +172,22 @@ jobs:
 
       - name: pip-audit
         run: pip-audit --skip-editable
+
+  publish-report:
+    # Deploy the e2e test report to GitHub Pages so it lives at a stable URL.
+    # Only runs on main pushes: PRs generate the workflow artefact (above) but
+    # never overwrite the canonical published report.
+    name: publish test report (GitHub Pages)
+    needs: e2e
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write       # deploy-pages needs write
+      id-token: write    # OIDC for the Pages deployment
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
