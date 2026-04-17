@@ -7,15 +7,15 @@ Redis broker. These tests only cover:
   - allowlist enforcement at connect time
   - a clear TransportError when the optional redis dependency is absent
 """
+
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 import pytest
-
-from core.environment import HostNotInAllowlist
-from core.transports import RedisTransport, TransportError
+from choreo.environment import HostNotInAllowlist
+from choreo.transports import RedisTransport, TransportError
 
 
 def test_a_redis_transport_constructed_with_no_url_should_raise() -> None:
@@ -43,4 +43,24 @@ async def test_a_redis_transport_should_raise_transport_error_when_redis_is_miss
     with pytest.raises(TransportError) as exc:
         await transport.connect()
     assert "redis" in str(exc.value)
-    assert "core[redis]" in str(exc.value)
+    assert "choreo[redis]" in str(exc.value)
+
+
+async def test_a_redis_transport_should_not_leak_credentials_in_connect_errors(
+    tmp_path: Path,
+) -> None:
+    """TransportError must not echo the password segment of a redis:// URL.
+    Those strings reach CI logs and captured test output; they must stay in
+    memory only."""
+    allowlist = tmp_path / "allowlist.yaml"
+    allowlist.write_text('redis_servers:\n  - "redis://:secret_pw@127.0.0.1:1/0"\n')
+    transport = RedisTransport(
+        url="redis://:secret_pw@127.0.0.1:1/0",
+        allowlist_path=allowlist,
+        connect_timeout_s=0.05,
+    )
+    with pytest.raises(TransportError) as exc:
+        await transport.connect()
+    message = str(exc.value)
+    assert "secret_pw" not in message
+    assert "<redacted>" in message

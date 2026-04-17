@@ -10,6 +10,7 @@ Runs only under ``pytest -m e2e``. Requires:
 
     docker compose -f docker/compose.e2e.yaml --profile kafka up -d
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 
 pytestmark = pytest.mark.e2e
 
@@ -37,16 +37,19 @@ async def test_two_concurrent_scenarios_on_the_same_kafka_topic_should_only_fulf
     """Both scenarios subscribe to the same topic; Kafka broadcasts to each
     consumer group. The scope's correlation filter must drop the one whose
     correlation doesn't match."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import KafkaTransport
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import KafkaTransport
 
     topic = _topic("concurrent")
+    # DictFieldPolicy is what exercises the per-scope correlation filter;
+    # the harness's default is NoCorrelationPolicy (broadcast). Without an
+    # explicit policy here the "foreign correlation dropped" expectation
+    # doesn't hold — every scope sees every message (ADR-0019).
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -62,15 +65,11 @@ async def test_two_concurrent_scenarios_on_the_same_kafka_topic_should_only_fulf
                     # foreign traffic.
                     s = s.publish(
                         topic,
-                        json.dumps(
-                            {"correlation_id": "foreign", "k": "b"}
-                        ).encode(),
+                        json.dumps({"correlation_id": "foreign", "k": "b"}).encode(),
                     )
                 return handle, await s.await_all(timeout_ms=4000)
 
-        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(
-            run("a"), run("b")
-        )
+        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(run("a"), run("b"))
 
         result_a.assert_passed()
         assert handle_a.outcome is Outcome.PASS
@@ -89,8 +88,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
     """Kafka guarantees per-partition ordering. The auto-created topics in
     this suite have a single partition (cp-kafka's default), so every
     publish-to-the-same-topic sequence must arrive in order."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic = _topic("burst")
     count = 30
@@ -103,9 +102,7 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
             done.set()
 
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -129,16 +126,17 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
 ) -> None:
     """Any subscriber on a topic receives every publish to it; the scope's
     correlation filter is the only isolation boundary."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import KafkaTransport
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import KafkaTransport
 
     topic = _topic("foreign_corr")
+    # See note above on DictFieldPolicy — this test exists specifically to
+    # verify correlation filtering, so the policy must actually filter.
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -170,8 +168,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     """Unsubscribe must tear down the AIOKafkaConsumer, not just remove the
     callback from a dict. A regression where the consumer keeps polling
     would still invoke the callback for later publishes."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic = _topic("unsub")
     first_arrived = asyncio.Event()
@@ -182,9 +180,7 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
         first_arrived.set()
 
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -218,8 +214,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
 ) -> None:
     """An exception in one callback must not kill the reader task or block
     another subscriber's delivery."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic = _topic("bad_cb")
     good_got: list[bytes] = []
@@ -234,9 +230,7 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
             good_event.set()
 
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -265,21 +259,17 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     """Kafka routes by topic, so an AIOKafkaConsumer subscribed to topic X
     must not receive any record on topic Y even when both harnesses share
     the broker."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic_x = _topic("iso_x")
     topic_y = _topic("iso_y")
 
     h_x = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     h_y = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await h_x.connect()
     await h_y.connect()
@@ -295,9 +285,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
         h_x.publish(topic_x, b"x-message")
         h_y.publish(topic_y, b"y-message")
 
-        await asyncio.wait_for(
-            asyncio.gather(x_event.wait(), y_event.wait()), timeout=8.0
-        )
+        await asyncio.wait_for(asyncio.gather(x_event.wait(), y_event.wait()), timeout=8.0)
         await asyncio.sleep(0.5)
         assert x_got == [b"x-message"]
         assert y_got == [b"y-message"]
@@ -312,7 +300,7 @@ async def test_connecting_to_an_unreachable_kafka_port_should_raise_a_transport_
     """A real transport must surface a clear error when the broker is not
     reachable — tests need the distinction between 'wrong config' and
     'something weird happened'."""
-    from core.transports import KafkaTransport, TransportError
+    from choreo.transports import KafkaTransport, TransportError
 
     transport = KafkaTransport(
         bootstrap_servers=["127.0.0.1:1"],
@@ -320,10 +308,7 @@ async def test_connecting_to_an_unreachable_kafka_port_should_raise_a_transport_
     )
     with pytest.raises(TransportError) as exc:
         await transport.connect()
-    assert (
-        "127.0.0.1:1" in str(exc.value)
-        or "could not connect" in str(exc.value).lower()
-    )
+    assert "127.0.0.1:1" in str(exc.value) or "could not connect" in str(exc.value).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -339,16 +324,14 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     """Kafka's default max.message.bytes is 1 MiB; 64 KiB sits well below
     that but is large enough to force multiple TCP segments and exercise
     any truncation / framing bug in the aiokafka bridge."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import KafkaTransport
 
     topic = _topic("large")
     big = "x" * 65_536
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -379,14 +362,12 @@ async def test_a_subscriber_joining_after_a_publish_should_not_replay_the_earlie
     switched the consumer to ``earliest``, a subscribe following a publish
     would suddenly replay old records — breaking every test that assumes
     a silent topic means timeout."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic = _topic("late_sub")
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -406,9 +387,7 @@ async def test_a_subscriber_joining_after_a_publish_should_not_replay_the_earlie
         # If the consumer replayed from earliest, we'd see "pre-subscribe".
         await asyncio.sleep(2.0)
 
-        assert received == [], (
-            f"consumer replayed from earliest offset — got {received}"
-        )
+        assert received == [], f"consumer replayed from earliest offset — got {received}"
 
         # Now a post-subscribe publish should arrive.
         harness.publish(topic, b"post-subscribe")
@@ -432,14 +411,12 @@ async def test_two_subscribes_on_one_harness_should_each_receive_every_message(
     broadcast fan-out matches NATS/Redis. Without that, two subscribes would
     share a single group and split partitions — only one callback would see
     each message."""
-    from core import Harness
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.transports import KafkaTransport
 
     topic = _topic("fanout")
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:
@@ -455,9 +432,7 @@ async def test_two_subscribes_on_one_harness_should_each_receive_every_message(
         await asyncio.sleep(1.5)
         harness.publish(topic, b"tick")
 
-        await asyncio.wait_for(
-            asyncio.gather(ev_a.wait(), ev_b.wait()), timeout=8.0
-        )
+        await asyncio.wait_for(asyncio.gather(ev_a.wait(), ev_b.wait()), timeout=8.0)
         assert got_a == [b"tick"]
         assert got_b == [b"tick"]
     finally:
@@ -475,17 +450,19 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     _kafka_available: bool,
 ) -> None:
     """If the expected publish arrives after the scope's deadline, the
-    handle must stay TIMEOUT — it must not flip back to PASS."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import KafkaTransport
+    handle must stay TIMEOUT — it must not flip back to PASS.
+
+    Opts into `test_namespace()` because the late publish echoes
+    `s.correlation_id` onto its payload (ADR-0019)."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import KafkaTransport
 
     topic = _topic("late")
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -526,15 +503,13 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     """Kafka consumers are heavy; a leak would pile up consumer groups
     server-side and AIOKafkaConsumer instances client-side. Fewer iterations
     than the NATS equivalent because each Kafka sub takes ~500ms to join."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import KafkaTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import KafkaTransport
 
     topic = _topic("churn")
     harness = Harness(
-        KafkaTransport(
-            bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path
-        )
+        KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path)
     )
     await harness.connect()
     try:

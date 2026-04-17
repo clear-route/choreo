@@ -11,7 +11,7 @@
 
 [ADR-0001](0001-single-session-scoped-harness.md) concentrates every external connection into one session-scoped Harness. That is right for speed and cleanliness but carries a failure mode: if the Harness itself enters a corrupted state mid-suite — transport SDK thread hang, session death, callback queue exhaustion, socket leak — every remaining test in the session fails, often with confusing unrelated errors.
 
-Today there is no recovery policy. The architect review flagged this as a HIGH gap. This ADR is one of two blockers ([ADR-0010](0010-secret-management-in-harness.md) is the other) that must land before [ADR-0001](0001-single-session-scoped-harness.md) can move from Proposed to Accepted.
+Today there is no recovery policy. The architect review flagged this as a HIGH gap. This ADR is the last blocker that must land before [ADR-0001](0001-single-session-scoped-harness.md) can move from Proposed to Accepted.
 
 ### Background
 
@@ -138,8 +138,8 @@ When the Harness enters a corrupted state mid-suite, what should the framework d
 
 ### Security Considerations
 
-- Rebuild **must not** carry credentials from the old Harness to the new one. Fresh Harness pulls secrets fresh at its own `connect()` (per [ADR-0010](0010-secret-management-in-harness.md)).
-- Diagnostic snapshot on ERROR **must not** include payload content of inbound messages; only metadata (per [ADR-0009](0009-log-data-classification.md)).
+- Rebuild **must not** carry credentials from the old Harness to the new one. Fresh Harness pulls secrets fresh at its own `connect()`; credential handling is a consumer-repo concern (see SECURITY.md).
+- Diagnostic snapshot on ERROR **must not** include payload content of inbound messages; only metadata. Redaction scope is a consumer-repo concern (see SECURITY.md).
 - A hostile test that deliberately wedges the transport context to trigger rebuilds could potentially repeat this to observe timing side-channels between old/new Harnesses. Mitigation: cap rebuilds-per-session (N=3 default, configurable); after the cap, fall back to Option 1 behaviour.
 
 ---
@@ -167,7 +167,7 @@ Not applicable — greenfield.
 
 ### Timeline
 
-- Phase 1 (with real LBM transport work): implement `Harness.is_healthy()` and the per-test health gate. Stub rebuild as Option 1 behaviour initially.
+- Phase 1 (with the first native-SDK-backed transport): implement `Harness.is_healthy()` and the per-test health gate. Stub rebuild as Option 1 behaviour initially.
 - Phase 2: full rebuild machinery, diagnostic snapshot, rebuild ceiling.
 - Phase 3: operational tuning — adjust health-check thresholds, ceiling, and snapshot format based on observed CI behaviour.
 
@@ -195,8 +195,6 @@ Not applicable — greenfield.
 ## Related Decisions
 
 - [ADR-0001](0001-single-session-scoped-harness.md) — Single Harness (the decision this ADR unblocks).
-- [ADR-0009](0009-log-data-classification.md) — Diagnostic snapshot must respect the log classification policy.
-- [ADR-0010](0010-secret-management-in-harness.md) — Rebuild must not carry credentials.
 
 ---
 

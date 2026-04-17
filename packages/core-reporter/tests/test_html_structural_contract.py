@@ -4,6 +4,7 @@ These tests parse the generated `index.html` with BeautifulSoup and
 assert structural invariants that machine consumers (and the reporter
 author writing the JS) rely on. No text-layout matching.
 """
+
 from __future__ import annotations
 
 import json
@@ -76,14 +77,20 @@ def test_every_run_metadata_field_should_have_a_data_field_element(
     _, html, _ = run_with()
     soup = BeautifulSoup(html, "html.parser")
     required = [
-        "started_at", "duration_ms", "transport", "git_sha",
-        "environment", "hostname", "python_version",
-        "harness_version", "reporter_version",
+        "started_at",
+        "duration_ms",
+        "transport",
+        "git_sha",
+        "environment",
+        "hostname",
+        "python_version",
+        "harness_version",
+        "reporter_version",
     ]
     for field in required:
-        assert (
-            soup.select_one(f'[data-field="{field}"]') is not None
-        ), f"missing data-field={field!r}"
+        assert soup.select_one(f'[data-field="{field}"]') is not None, (
+            f"missing data-field={field!r}"
+        )
 
 
 def test_every_totals_field_should_have_a_data_field_element(
@@ -92,9 +99,9 @@ def test_every_totals_field_should_have_a_data_field_element(
     _, html, _ = run_with()
     soup = BeautifulSoup(html, "html.parser")
     for field in ("total", "passed", "failed", "slow", "skipped", "errored"):
-        assert (
-            soup.select_one(f'[data-field="{field}"]') is not None
-        ), f"missing data-field={field!r}"
+        assert soup.select_one(f'[data-field="{field}"]') is not None, (
+            f"missing data-field={field!r}"
+        )
 
 
 def test_the_percentile_fields_should_be_present(run_with) -> None:
@@ -110,22 +117,17 @@ def test_the_report_should_expose_a_project_name_slot(run_with) -> None:
     assert soup.select_one('[data-field="project_name"]') is not None
 
 
-def test_the_hero_should_credit_clearroute_next_to_the_title(run_with) -> None:
+def test_the_hero_should_expose_an_optional_project_credit_slot(run_with) -> None:
+    """A `project_credit` slot lives in the hero row so downstream consumers
+    can populate it (their organisation's name / link) via reporter config.
+    The default build leaves it empty and hidden; asserting on specific
+    contents belongs to whichever consumer populates the slot."""
     _, html, _ = run_with()
     soup = BeautifulSoup(html, "html.parser")
     hero = soup.select_one(".hr-hero")
     assert hero is not None
-    credit = hero.select_one(".hr-hero-credit")
-    assert credit is not None, "credit must live inside the hero row, next to the title"
-    link = credit.find("a")
-    assert link is not None
-    assert link.get("href") == "https://clearroute.io/"
-    assert link.get("target") == "_blank"
-    rel = link.get("rel") or []
-    rel_tokens = rel.split() if isinstance(rel, str) else rel
-    assert "noopener" in rel_tokens
-    assert "noreferrer" in rel_tokens
-    assert link.get_text(strip=True) == "ClearRoute"
+    credit = hero.select_one('[data-field="project_credit"]')
+    assert credit is not None, "hero must expose a project_credit slot"
 
 
 # ---------------------------------------------------------------------------

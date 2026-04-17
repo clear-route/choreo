@@ -4,6 +4,7 @@ MockTransport is the in-memory transport used when unit-testing the framework
 itself. It implements the `Transport` Protocol and honours the same
 subscribe / unsubscribe / publish contract as any real transport.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +13,7 @@ import pytest
 
 
 async def test_a_mock_transport_should_tolerate_repeated_connect_calls() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -21,7 +22,7 @@ async def test_a_mock_transport_should_tolerate_repeated_connect_calls() -> None
 
 
 async def test_a_mock_transport_should_tolerate_repeated_disconnect_calls() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -30,7 +31,7 @@ async def test_a_mock_transport_should_tolerate_repeated_disconnect_calls() -> N
 
 
 async def test_publishing_should_deliver_the_payload_to_a_subscribed_callback() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -48,7 +49,7 @@ async def test_publishing_should_deliver_the_payload_to_a_subscribed_callback() 
 
 
 async def test_publishing_should_fan_out_to_every_callback_on_the_topic() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -66,7 +67,7 @@ async def test_publishing_should_fan_out_to_every_callback_on_the_topic() -> Non
 
 
 async def test_publishing_to_a_topic_with_no_subscribers_should_not_raise() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -76,7 +77,7 @@ async def test_publishing_to_a_topic_with_no_subscribers_should_not_raise() -> N
 
 
 async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -101,7 +102,7 @@ async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages()
 
 
 async def test_a_disconnected_transport_should_reject_further_publishes() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -113,7 +114,7 @@ async def test_a_disconnected_transport_should_reject_further_publishes() -> Non
 
 
 async def test_a_mock_transport_should_record_every_publish_for_later_assertion() -> None:
-    from core.transports import MockTransport
+    from choreo.transports import MockTransport
 
     t = MockTransport()
     await t.connect()

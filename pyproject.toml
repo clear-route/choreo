@@ -21,7 +21,7 @@ markers = [
 ]
 # Default addopts:
 #   --harness-report-disable: keep the reporter plugin quiet during the core
-#     suite; individual core-reporter tests opt into reporting via their own
+#     suite; individual choreo-reporter tests opt into reporting via their own
 #     pytester sessions.
 #   -n auto: pytest-xdist parallelism across logical CPUs. Tests are isolated
 #     by scope correlation IDs (ADR-0002) and UUID-suffixed topics in e2e, so

@@ -13,7 +13,7 @@
 v2 incorporates a six-actor parallel review (architect, code review, security,
 performance, test-automation, frontend). Material changes from v1:
 
-- **Packaging.** The reporter ships as a **separate distribution `core-reporter`**, not as a submodule of `core`. `core` gains only a small observer seam; pytest is never in `core`'s dependency graph.
+- **Packaging.** The reporter ships as a **separate distribution `choreo-reporter`**, not as a submodule of `choreo`. `choreo` gains only a small observer seam; pytest is never in `choreo`'s dependency graph.
 - **xdist.** v1 now explicitly supports `pytest-xdist` via per-worker JSON files merged by the controller at session-finish.
 - **Security.** New Functional Requirement sections 9–12 codify an HTML rendering contract (no `innerHTML` of JSON-derived strings; escape `<` → `\u003c` in inlined JSON), hardened directory-wipe semantics, hardened git shell-out, and default credential-shape redaction.
 - **HTML packaging.** Safari `file://` blocks `fetch`; v2 always inlines `results.json` into a `<script type="application/json">` block. The sibling `results.json` file is retained only as a tooling artefact and is never fetched by the HTML.
@@ -29,7 +29,7 @@ performance, test-automation, frontend). Material changes from v1:
 
 Downstream consumer repos run the harness under `pytest` and get nothing back except the standard pytest terminal output. When a scenario fails, the author reads the terminal `failure_summary()` and hopes that is enough. The rich per-scenario data already captured in `ScenarioResult` (handles, outcomes, latencies, timeline entries from PRD-006) is invisible outside one printed block.
 
-This PRD introduces a **separate installable package `core-reporter`** that provides an opt-in pytest plugin. At the end of every pytest run it emits a directory containing:
+This PRD introduces a **separate installable package `choreo-reporter`** that provides an opt-in pytest plugin. At the end of every pytest run it emits a directory containing:
 
 1. A versioned **`results.json`** — full structured capture (run, tests, scenarios, handles, timelines, expected-vs-actual, stdout/stderr/log, traceback).
 2. A self-contained **`index.html`** with a small amount of vanilla JavaScript that consumes an **inlined** copy of the same JSON and renders an interactive report: filter/search, collapsed-by-default tree, drill-down into scenario timelines, side-by-side expected/actual diffs, pretty-printed JSON payloads, per-level numeric summaries.
@@ -68,8 +68,8 @@ That data is discarded at the end of the pytest process. Authors read the termin
 
 ### Primary Goals
 
-1. **A separate package `core-reporter`** that consumers install alongside `core`, providing an opt-in pytest plugin.
-2. **At the end of every pytest run, write `<report-dir>/results.json` + `<report-dir>/index.html`.** Default path `./test-report/`; overridable via `--harness-report=<path>` (CLI wins) or `HARNESS_REPORT_DIR` env var (plugin-layer only; `core` never reads env).
+1. **A separate package `choreo-reporter`** that consumers install alongside `choreo`, providing an opt-in pytest plugin.
+2. **At the end of every pytest run, write `<report-dir>/results.json` + `<report-dir>/index.html`.** Default path `./test-report/`; overridable via `--harness-report=<path>` (CLI wins) or `HARNESS_REPORT_DIR` env var (plugin-layer only; `choreo` never reads env).
 3. **`results.json` is a versioned, documented schema** (`schema_version: "1"`), described in `docs/schemas/test-report-v1.json` (JSON Schema draft 2020-12).
 4. **`index.html` is a single self-contained HTML file.** It embeds an inlined JSON block and never performs runtime `fetch` calls. A sibling `results.json` is also written for tooling.
 5. **Collapsed by default; failures auto-expanded.** A 100-test run opens with failing tests visible.
@@ -82,7 +82,7 @@ That data is discarded at the end of the pytest process. Authors read the termin
 
 ### Success Metrics
 
-- A consumer repo adds `core-reporter` to its test dependencies and enables the plugin; `pytest` produces `test-report/` on every invocation.
+- A consumer repo adds `choreo-reporter` to its test dependencies and enables the plugin; `pytest` produces `test-report/` on every invocation.
 - For a run of 100 tests where 3 fail, opening `index.html` shows the 3 failures expanded and 97 collapsed; the author can reach the failing payload's expected-vs-actual diff in ≤2 clicks from the page load.
 - `results.json` round-trips: writing it, reading it back, and rendering `index.html` from the re-read file produces the same UI.
 - The report is a static directory: uploading it as a GitHub Actions artefact is the only step needed to share.
@@ -179,19 +179,19 @@ That data is discarded at the end of the pytest process. Authors read the termin
 
 ### 1. Package + plugin layout
 
-- **New distribution `core-reporter`** with its own `pyproject.toml`, shipped in the same repo (monorepo) under `packages/core-reporter/`. Depends on `core` and `pytest>=8.0`. `core` itself has no dependency on `pytest` or `core-reporter`.
-- `core-reporter` exposes a pytest plugin registered via entry point `pytest11 = "core_reporter = core_reporter.plugin"`, so a consumer only needs `pip install core-reporter[test]` to activate it; no `pytest_plugins` edit required. Consumers who want explicit opt-in can pin via `-p core_reporter.plugin` or `addopts` in their `pyproject.toml`.
-- Optional opt-out: `--harness-report-disable` or `HARNESS_REPORT_DIR=""` (the plugin reads env; `core` does not).
+- **New distribution `choreo-reporter`** with its own `pyproject.toml`, shipped in the same repo (monorepo) under `packages/choreo-reporter/`. Depends on `choreo` and `pytest>=8.0`. `choreo` itself has no dependency on `pytest` or `choreo-reporter`.
+- `choreo-reporter` exposes a pytest plugin registered via entry point `pytest11 = "choreo_reporter = choreo_reporter.plugin"`, so a consumer only needs `pip install choreo-reporter[test]` to activate it; no `pytest_plugins` edit required. Consumers who want explicit opt-in can pin via `-p choreo_reporter.plugin` or `addopts` in their `pyproject.toml`.
+- Optional opt-out: `--harness-report-disable` or `HARNESS_REPORT_DIR=""` (the plugin reads env; `choreo` does not).
 - The plugin:
   - Registers `pytest_addoption` for `--harness-report=<path>` (default `./test-report`) and `--harness-report-disable`.
   - Reads `HARNESS_REPORT_DIR` as a fallback **in the plugin only**. Flag wins over env var.
   - Installs hooks for `pytest_sessionstart`, `pytest_runtest_protocol` (wrapper to set the nodeid contextvar), `pytest_runtest_logreport`, `pytest_sessionfinish`.
-  - Registers a scenario observer via `core._reporting.register_observer(...)`.
+  - Registers a scenario observer via `choreo._reporting.register_observer(...)`.
   - On `pytest_sessionstart`, kicks off git metadata lookup on a background thread (see §11) so the shell-out is already resolved by `sessionfinish`.
 
-### 2. Scenario observation hook (the only `core` surface change)
+### 2. Scenario observation hook (the only `choreo` surface change)
 
-- New module `packages/core/src/core/_reporting.py` with:
+- New module `packages/core/src/choreo/_reporting.py` with:
   - A contextvar `current_test_nodeid: ContextVar[str | None] = ContextVar("harness_current_test_nodeid", default=None)`.
   - `register_observer(cb: Callable[[ScenarioResult, str | None, bool], None]) -> None` — the third bool argument is `completed_normally`: `True` when `_do_await_all` returned the result, `False` when the scope exited via an exception before `await_all` ran.
   - `unregister_observer(cb) -> None`.
@@ -199,7 +199,7 @@ That data is discarded at the end of the pytest process. Authors read the termin
 - Instrumentation:
   - `_do_await_all` calls `_emit(result, completed_normally=True)` after constructing the `ScenarioResult`.
   - `_ScenarioScope.__aexit__` calls `_emit(partial_result, completed_normally=False)` when the scope body raised before `await_all` ran. `partial_result` carries the handles in their current state (typically `Outcome.PENDING`) plus the captured timeline so far; the observer decides what to do with it.
-- This is **the only library-surface change in `core`**. Env vars, pytest, and HTML all live in `core-reporter`.
+- This is **the only library-surface change in `choreo`**. Env vars, pytest, and HTML all live in `choreo-reporter`.
 - Observer errors never propagate. Observer calls are synchronous with the emitting code path; an observer that blocks delays the scenario scope — stated to the reporter author as a constraint.
 
 ### 3. `results.json` schema (v1)
@@ -243,8 +243,8 @@ Filter pills in the HTML operate at the **test level only**; scenario-level and 
 - `transport` — class name as a string
 - `allowlist_path` — string or null
 - `python_version` — string
-- `harness_version` — string (from `core.__version__`)
-- `reporter_version` — string (from `core_reporter.__version__`)
+- `harness_version` — string (from `choreo.__version__`)
+- `reporter_version` — string (from `choreo_reporter.__version__`)
 - `git_sha` — string or null
 - `git_branch` — string or null
 - `environment` — string or null (from `HARNESS_ENV` env var, read by the plugin only)
@@ -365,7 +365,7 @@ HARNESS_REPORT_DIR=/tmp/foo pytest            # via env (plugin reads only)
 HARNESS_ENV=dev pytest                        # stamped into run.environment
 ```
 
-Env vars are read **only** by `core_reporter.plugin`. `core` itself reads no env vars.
+Env vars are read **only** by `choreo_reporter.plugin`. `choreo` itself reads no env vars.
 
 ### 7. HTML packaging (no runtime fetch)
 
@@ -408,7 +408,7 @@ Env vars are read **only** by `core_reporter.plugin`. `core` itself reads no env
 - Before any payload / stream / traceback is serialised, a redactor walks the object tree and replaces the values of keys matching a credential-shape regex with `"<redacted>"`. Regex (case-insensitive, on keys): `(password|passwd|pwd|secret|token|api[_-]?key|authorization|auth|cookie|bearer|private[_-]?key|client[_-]?secret)`.
 - Traceback, stdout, stderr, and log content are scanned for common credential-value shapes (`authorization: bearer <token>`, `x-api-key: <token>`, etc.) and the token body is replaced with `<redacted>`.
 - A `run.redactions: { "fields": N, "stream_matches": M }` counter records how many redactions occurred so the author knows the report is not a 1:1 copy of their data.
-- Consumers who need domain-level PII redaction register an additional redactor via `core_reporter.register_redactor(fn)`. The default redactor always runs first; consumer redactors run after.
+- Consumers who need domain-level PII redaction register an additional redactor via `choreo_reporter.register_redactor(fn)`. The default redactor always runs first; consumer redactors run after.
 
 ---
 
@@ -453,7 +453,7 @@ Env vars are read **only** by `core_reporter.plugin`. `core` itself reads no env
 | 1 | Output = directory with `index.html` (inlined JSON) + sibling `results.json` + `.harness-report` sentinel | Safari `file://` blocks `fetch`; inlining avoids CORS; sibling JSON exists for tooling only |
 | 2 | Stack = vanilla JS, no build step, no third-party JS | Keeps harness dependency-light; CI artefact portability; no licence / CORS entanglement |
 | 3 | Trigger = pytest plugin, end of session | Matches where the data lives |
-| 4 | **Packaging: separate distribution `core-reporter`** | Keeps pytest out of `core`'s dependency graph; matches the CLAUDE.md "pure tool" rule |
+| 4 | **Packaging: separate distribution `choreo-reporter`** | Keeps pytest out of `choreo`'s dependency graph; matches the CLAUDE.md "pure tool" rule |
 | 5 | Single run only in v1; versioned JSON for later | Explicit forward-compatibility hook for a future aggregation system |
 | 6 | Reporting unit = nested (pytest test → scenario → handle + timeline) | Maps to the in-memory shape from PRDs 002 + 006 |
 | 7 | Collapsed by default, failures auto-expanded | Matches the typical scanning path |
@@ -469,7 +469,7 @@ Env vars are read **only** by `core_reporter.plugin`. `core` itself reads no env
 | 17 | **`data-*` DOM contract required** | Structural tests without text matching; stable HTML-test API |
 | 18 | **Single state object + `render()` + `location.hash` mirror** | Deterministic reactive pattern without a framework; shareable URLs |
 | 19 | **Default credential-shape redaction** | Prevents common secrets leakage into uploaded CI artefacts; domain PII remains consumer-owned |
-| 20 | **Env-var reads only in `core-reporter`, never in `core`** | Preserves the "pure tool" rule from CLAUDE.md |
+| 20 | **Env-var reads only in `choreo-reporter`, never in `choreo`** | Preserves the "pure tool" rule from CLAUDE.md |
 | 21 | **Per-payload cap: 8 KB (not 32 KB)** | Keeps worst-case memory within a documented bound |
 | 22 | **Total-file cap: 10 MB, hard refuse (not warn)** | Silent multi-MB uploads are a CI-budget footgun |
 | 23 | **Git lookup on background thread at sessionstart** | Removes 500 ms from the sessionfinish critical path |
@@ -521,7 +521,7 @@ None. All v1 open questions closed in Decisions Already Made (rows 26-29).
 
 ### JSON Schema tests
 
-- `tests/reporter/test_schema.py` (in the `core-reporter` package)
+- `tests/reporter/test_schema.py` (in the `choreo-reporter` package)
   - `test_schema_file_should_load_as_valid_json_schema`
   - `test_appendix_a_example_should_validate_against_the_schema`
   - `test_a_minimal_valid_document_should_validate`

@@ -10,6 +10,7 @@ Usage pattern inside a scenario scope:
 Calling `publish` before any `expect` or `await_all` before any `publish`
 raises `AttributeError` (ADR-0012 runtime enforcement).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -19,14 +20,17 @@ import pytest
 
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
-    from core import Harness
-    from core.transports import MockTransport
+    # Scenario tests assert on correlation stamping and per-scope isolation
+    # (ADR-0002). The library default under ADR-0019 is NoCorrelationPolicy;
+    # pass `test_namespace()` to reproduce the pre-ADR-0019 posture.
+    from choreo import Harness, test_namespace
+    from choreo.transports import MockTransport
 
     transport = MockTransport(
         allowlist_path=allowlist_yaml_path,
-        lbm_resolver="lbmrd:15380",
+        endpoint="mock://localhost",
     )
-    h = Harness(transport)
+    h = Harness(transport, correlation=test_namespace())
     await h.connect()
     try:
         yield h
@@ -40,14 +44,14 @@ async def harness(allowlist_yaml_path: Path):
 
 
 async def test_harness_scenario_should_enter_a_scenario(harness) -> None:
-    from core.scenario import Scenario
+    from choreo.scenario import Scenario
 
     async with harness.scenario("test.topic") as s:
         assert isinstance(s, Scenario)
 
 
 async def test_scenario_scope_should_release_subscriptions_on_clean_exit(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("test.topic") as s:
         s.expect("test.topic", field_equals("k", "v"))
@@ -59,7 +63,7 @@ async def test_scenario_scope_should_release_subscriptions_on_clean_exit(harness
 async def test_scenario_scope_should_release_subscriptions_when_the_test_raises(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     with pytest.raises(RuntimeError):
         async with harness.scenario("test.topic") as s:
@@ -93,7 +97,7 @@ async def test_calling_await_all_on_a_fresh_scenario_should_raise_attribute_erro
 async def test_calling_await_all_after_expect_but_before_publish_should_raise(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("test.topic") as s:
         s.expect("test.topic", field_equals("k", "v"))
@@ -104,7 +108,7 @@ async def test_calling_await_all_after_expect_but_before_publish_should_raise(
 async def test_calling_expect_after_publish_should_raise_attribute_error(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("test.topic") as s:
         s.expect("test.topic", field_equals("k", "v"))
@@ -119,7 +123,7 @@ async def test_calling_expect_after_publish_should_raise_attribute_error(
 
 
 async def test_a_matching_inbound_should_fulfil_the_handle(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("happy") as s:
         s.expect("test.topic", field_equals("status", "PASS"))
@@ -136,8 +140,8 @@ async def test_a_non_matching_inbound_on_matching_correlation_should_resolve_as_
     matcher, the handle resolves as FAIL (expectation issue), not TIMEOUT
     (routing issue). The outcome label is the DX signal — a reviewer should
     immediately know whether messages arrived or not."""
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("mismatch") as s:
         handle = s.expect("test.topic", field_equals("status", "PASS"))
@@ -154,7 +158,7 @@ async def test_a_handle_should_retain_a_structured_failure_for_every_near_miss(
     """The report renders from `handle.failures`, not a single `last_rejection_*`.
     Every near-miss on the scope's correlation is kept (bounded) as a typed
     `MatchFailure` so the UI can show the whole expected-vs-actual trail."""
-    from core.matchers import MatchFailure, field_equals
+    from choreo.matchers import MatchFailure, field_equals
 
     async with harness.scenario("many-mismatches") as s:
         handle = s.expect("test.topic", field_equals("status", "PASS"))
@@ -166,12 +170,8 @@ async def test_a_handle_should_retain_a_structured_failure_for_every_near_miss(
     assert handle.attempts == 3
     assert handle.failures == (
         MatchFailure(kind="mismatch", path="status", expected="PASS", actual="FAIL"),
-        MatchFailure(
-            kind="mismatch", path="status", expected="PASS", actual="BOOKED"
-        ),
-        MatchFailure(
-            kind="mismatch", path="status", expected="PASS", actual="REJECTED"
-        ),
+        MatchFailure(kind="mismatch", path="status", expected="PASS", actual="BOOKED"),
+        MatchFailure(kind="mismatch", path="status", expected="PASS", actual="REJECTED"),
     )
     assert handle.failures_dropped == 0
 
@@ -182,8 +182,8 @@ async def test_a_handle_should_cap_retained_failures_and_count_the_overflow(
     """A misbehaving SUT that floods the correlation must not pin unbounded
     memory on the handle. Retention is capped; overflow is counted so the
     report can show '5 shown, 23 more elided'."""
-    from core.matchers import field_equals
-    from core.scenario import _FAILURES_MAX
+    from choreo.matchers import field_equals
+    from choreo.scenario import _FAILURES_MAX
 
     async with harness.scenario("flood") as s:
         handle = s.expect("test.topic", field_equals("status", "PASS"))
@@ -199,13 +199,13 @@ async def test_deadline_with_zero_attempts_should_resolve_as_timeout(
     harness,
 ) -> None:
     """No messages arrived on the handle's topic → TIMEOUT (routing issue)."""
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("silent-routing") as s:
         handle = s.expect("never.arrives", field_equals("k", "v"))
         s = s.publish("somewhere.else", b"x")
-        result = await s.await_all(timeout_ms=20)
+        await s.await_all(timeout_ms=20)
 
     assert handle.outcome is Outcome.TIMEOUT
     assert handle.attempts == 0
@@ -216,8 +216,8 @@ async def test_deadline_with_near_misses_should_resolve_as_fail_not_timeout(
 ) -> None:
     """The semantic distinction TIMEOUT vs FAIL must match reality:
     TIMEOUT means 'nothing came', FAIL means 'things came but were wrong'."""
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("near-miss-fail") as s:
         handle = s.expect("orders.booked", field_equals("status", "BOOKED"))
@@ -241,8 +241,8 @@ async def test_deadline_with_near_misses_should_resolve_as_fail_not_timeout(
 async def test_await_all_should_return_after_the_deadline_even_if_nothing_arrives(
     harness,
 ) -> None:
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("silent") as s:
         handle = s.expect("test.topic", field_equals("k", "v"))
@@ -257,7 +257,7 @@ async def test_await_all_should_return_after_the_deadline_even_if_nothing_arrive
 
 
 async def test_a_timeout_should_not_leak_asyncio_timeout_error(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("caught") as s:
         s.expect("test.topic", field_equals("k", "v"))
@@ -272,7 +272,7 @@ async def test_a_timeout_should_not_leak_asyncio_timeout_error(harness) -> None:
 
 
 async def test_multiple_expectations_should_all_fulfil_on_matching_inbound(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("fan-out") as s:
         s.expect("topic.a", field_equals("value", "A"))
@@ -287,8 +287,8 @@ async def test_multiple_expectations_should_all_fulfil_on_matching_inbound(harne
 async def test_scenario_result_passed_should_be_false_when_any_handle_times_out(
     harness,
 ) -> None:
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("partial") as s:
         h_a = s.expect("topic.a", field_equals("value", "A"))
@@ -329,7 +329,7 @@ async def test_two_sequential_scenarios_should_have_different_correlation_ids(
 async def test_assert_passed_should_not_raise_when_every_handle_fulfilled(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("all-pass") as s:
         s.expect("test.topic", field_equals("status", "PASS"))
@@ -343,7 +343,7 @@ async def test_assert_passed_should_not_raise_when_every_handle_fulfilled(
 async def test_assert_passed_should_raise_assertion_error_when_any_handle_failed(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("has-timeout") as s:
         s.expect("never.arrives", field_equals("k", "v"))
@@ -355,7 +355,7 @@ async def test_assert_passed_should_raise_assertion_error_when_any_handle_failed
 
 
 async def test_assert_passed_failure_message_should_name_the_scenario(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("my-flaky-scenario") as s:
         s.expect("never.arrives", field_equals("k", "v"))
@@ -371,7 +371,7 @@ async def test_assert_passed_failure_message_should_name_the_scenario(harness) -
 async def test_assert_passed_failure_message_should_name_the_failing_topic_and_matcher(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("mixed") as s:
         s.expect("orders.booked", field_equals("status", "BOOKED"))
@@ -390,7 +390,7 @@ async def test_assert_passed_failure_message_should_name_the_failing_topic_and_m
 async def test_assert_passed_failure_message_should_include_timeout_reason(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("silent") as s:
         s.expect("orders.booked", field_equals("status", "BOOKED"))
@@ -410,7 +410,7 @@ async def test_assert_passed_failure_message_should_list_every_failing_expectati
     harness,
 ) -> None:
     """Multiple failures should all appear in the same AssertionError, not just the first."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("multi-fail") as s:
         s.expect("topic.alpha", field_equals("alpha", "A"))
@@ -429,7 +429,7 @@ async def test_assert_passed_failure_message_should_list_every_failing_expectati
 
 
 async def test_scenario_result_str_should_include_outcome_counts(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("mixed") as s:
         s.expect("topic.pass", field_equals("k", "v"))
@@ -450,7 +450,7 @@ async def test_scenario_result_str_should_include_outcome_counts(harness) -> Non
 
 
 async def test_failure_summary_should_include_the_scope_correlation_id(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("with-corr") as s:
         s.expect("never.arrives", field_equals("k", "v"))
@@ -466,7 +466,7 @@ async def test_timeout_with_zero_attempts_should_report_no_message_arrived(
 ) -> None:
     """When the topic received no messages matching the scope's correlation,
     the diagnosis says so clearly — distinguishable from a near-miss."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("silent") as s:
         handle = s.expect("never.arrives", field_equals("k", "v"))
@@ -482,7 +482,7 @@ async def test_timeout_after_near_misses_should_report_attempt_count(harness) ->
     """When messages arrived with the right correlation but failed the matcher,
     the diagnosis names the attempt count so the author knows to look at matcher
     logic, not routing."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("near-miss") as s:
         handle = s.expect("t", field_equals("status", "PASS"))
@@ -499,7 +499,7 @@ async def test_timeout_after_near_misses_should_report_attempt_count(harness) ->
 async def test_timeout_after_near_misses_should_report_latest_rejection_reason(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("latest-reject") as s:
         handle = s.expect("t", field_equals("status", "PASS"))
@@ -513,7 +513,7 @@ async def test_timeout_after_near_misses_should_report_latest_rejection_reason(
 
 
 async def test_handle_attempts_should_be_zero_by_default(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("fresh") as s:
         handle = s.expect("t", field_equals("k", "v"))
@@ -523,7 +523,7 @@ async def test_handle_attempts_should_be_zero_by_default(harness) -> None:
 
 async def test_handle_should_stop_accepting_attempts_after_pass(harness) -> None:
     """After a Handle fulfils, further inbound on its topic should not bump attempts."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("idempotent") as s:
         handle = s.expect("t", field_equals("status", "PASS"))
@@ -544,8 +544,8 @@ async def test_handle_should_stop_accepting_attempts_after_pass(harness) -> None
 async def test_a_handle_matched_within_its_budget_should_resolve_as_pass(
     harness,
 ) -> None:
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("fast-enough") as s:
         handle = s.expect("test.topic", field_equals("k", "v")).within_ms(200)
@@ -561,8 +561,8 @@ async def test_a_handle_matched_after_its_budget_should_resolve_as_slow(
 ) -> None:
     import asyncio
 
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("too-slow") as s:
         handle = s.expect("test.topic", field_equals("k", "v")).within_ms(5)
@@ -578,7 +578,7 @@ async def test_a_handle_matched_after_its_budget_should_resolve_as_slow(
 async def test_a_slow_handle_should_make_assert_passed_raise(harness) -> None:
     import asyncio
 
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("slow-fails-assert") as s:
         s.expect("test.topic", field_equals("k", "v")).within_ms(5)
@@ -593,8 +593,8 @@ async def test_a_slow_handle_should_make_assert_passed_raise(harness) -> None:
 
 
 async def test_within_ms_should_return_the_handle_for_chaining(harness) -> None:
-    from core.matchers import field_equals
-    from core.scenario import Handle
+    from choreo.matchers import field_equals
+    from choreo.scenario import Handle
 
     async with harness.scenario("chain") as s:
         chained = s.expect("test.topic", field_equals("k", "v")).within_ms(50)
@@ -602,7 +602,7 @@ async def test_within_ms_should_return_the_handle_for_chaining(harness) -> None:
 
 
 async def test_within_ms_with_zero_should_raise_value_error(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("zero-budget") as s:
         handle = s.expect("test.topic", field_equals("k", "v"))
@@ -613,7 +613,7 @@ async def test_within_ms_with_zero_should_raise_value_error(harness) -> None:
 async def test_within_ms_with_a_negative_budget_should_raise_value_error(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("neg-budget") as s:
         handle = s.expect("test.topic", field_equals("k", "v"))
@@ -622,7 +622,7 @@ async def test_within_ms_with_a_negative_budget_should_raise_value_error(
 
 
 async def test_calling_within_ms_twice_should_emit_a_user_warning(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("double-budget") as s:
         handle = s.expect("test.topic", field_equals("k", "v")).within_ms(50)
@@ -636,7 +636,7 @@ async def test_calling_within_ms_twice_should_emit_a_user_warning(harness) -> No
 
 
 async def test_a_passing_scenario_should_have_an_empty_timeline(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("pass-no-timeline") as s:
         s.expect("test.topic", field_equals("k", "v"))
@@ -654,8 +654,8 @@ async def test_a_failing_scenarios_timeline_should_include_publishes_rejections_
     giving up. The timeline captures publishes, near-miss rejections, and
     the final deadline marker, in arrival order.
     """
-    from core.matchers import field_equals
-    from core.scenario import TimelineAction
+    from choreo.matchers import field_equals
+    from choreo.scenario import TimelineAction
 
     async with harness.scenario("fail-with-timeline") as s:
         s.expect("test.topic", field_equals("status", "BOOKED"))
@@ -675,7 +675,7 @@ async def test_a_failing_scenarios_timeline_should_include_publishes_rejections_
 async def test_failure_summary_should_include_the_timeline_when_the_scenario_fails(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("fail-with-summary") as s:
         s.expect("test.topic", field_equals("status", "BOOKED"))
@@ -699,7 +699,7 @@ async def test_publishing_a_dict_should_route_back_to_the_scope_without_a_manual
 ) -> None:
     """Auto-injection is observable: if the receive-side filter routes the
     response, the matcher fires. The test never mentions correlation_id."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("dict-happy") as s:
         s.expect("test.topic", field_equals("status", "PASS"))
@@ -715,8 +715,8 @@ async def test_publishing_a_dict_with_an_explicit_correlation_id_should_not_be_o
     """Explicit correlation overrides auto-injection; this is the negative-test
     door — publishing under a foreign correlation must not be routed back to
     this scope, so the handle should TIMEOUT."""
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     async with harness.scenario("dict-explicit") as s:
         handle = s.expect("test.topic", field_equals("status", "PASS"))
@@ -730,19 +730,20 @@ async def test_publishing_a_dict_with_an_explicit_correlation_id_should_not_be_o
     assert handle.outcome is Outcome.TIMEOUT
 
 
-async def test_publishing_a_dict_with_a_non_test_prefixed_correlation_should_raise(
+async def test_publishing_a_dict_with_a_non_prefixed_correlation_should_raise(
     harness,
 ) -> None:
-    """ADR-0006 — every test-originated publish carries `TEST-` so downstream
-    systems filter it at the boundary. A caller who overrides with a
-    production-looking id (`PROD-...`) must be refused at publish time, not
-    allowed onto the wire."""
-    from core import CorrelationIdNotInTestNamespaceError
-    from core.matchers import field_equals
+    """Under the `test_namespace()` policy (harness fixture), every outbound
+    publish must carry a `TEST-` correlation so downstream systems filter it
+    at the boundary. A caller who overrides with a production-looking id
+    (`PROD-...`) is refused at publish time, not allowed onto the wire
+    (ADR-0006 + ADR-0019)."""
+    from choreo import CorrelationIdNotInNamespaceError
+    from choreo.matchers import field_equals
 
     async with harness.scenario("prefix-enforcement") as s:
         s.expect("test.topic", field_equals("k", "v"))
-        with pytest.raises(CorrelationIdNotInTestNamespaceError):
+        with pytest.raises(CorrelationIdNotInNamespaceError):
             s.publish(
                 "test.topic",
                 {"correlation_id": "PROD-live-account", "k": "v"},
@@ -755,7 +756,7 @@ async def test_publishing_bytes_should_pass_through_without_codec_intervention(
     """Bytes are an explicit opt-out from auto-injection — the caller owns
     every byte. Verifies the dispatch boundary: a bytes payload still
     requires a manual correlation_id to be routed."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("bytes-passthrough") as s:
         s.expect("test.topic", field_equals("status", "PASS"))
@@ -774,7 +775,7 @@ async def test_publishing_a_dict_should_not_mutate_the_caller_s_object(
 ) -> None:
     """Auto-injection must not surprise the caller by adding keys to the dict
     they handed in — common bug when fixtures share dict templates."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     payload = {"status": "PASS"}
     async with harness.scenario("no-mutation") as s:
@@ -807,9 +808,9 @@ async def test_a_codec_decode_exception_should_not_abort_sibling_subscribers(
     import asyncio
     import logging
 
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import MockTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import MockTransport
 
     class BoomCodec:
         def decode(self, raw: bytes):
@@ -817,15 +818,14 @@ async def test_a_codec_decode_exception_should_not_abort_sibling_subscribers(
 
         def encode(self, obj):
             import json
+
             return json.dumps(obj).encode()
 
-    transport = MockTransport(
-        allowlist_path=allowlist_yaml_path, lbm_resolver="lbmrd:15380"
-    )
+    transport = MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     local_harness = Harness(transport, codec=BoomCodec())
     await local_harness.connect()
     try:
-        with caplog.at_level(logging.WARNING, logger="core.scenario"):
+        with caplog.at_level(logging.WARNING, logger="choreo.scenario"):
             async with local_harness.scenario("decode-resilience") as s:
                 h = s.expect("decode.topic", field_equals("ok", True))
                 other_received: list[bytes] = []
@@ -860,8 +860,8 @@ async def test_scope_exited_without_await_all_should_emit_a_partial_result(
     """A scope body that forgot to call `await_all()` must not silently
     disappear from the report. The reporter needs to surface it as a
     never-awaited scope, not act as if the scope never ran."""
-    from core._reporting import register_observer, unregister_observer
-    from core.matchers import field_equals
+    from choreo._reporting import register_observer, unregister_observer
+    from choreo.matchers import field_equals
 
     emitted: list[tuple[str, bool]] = []
 
@@ -880,14 +880,12 @@ async def test_scope_exited_without_await_all_should_emit_a_partial_result(
     assert ("forgot-await-all", False) in emitted
 
 
-async def test_scope_exited_without_await_all_should_log_a_warning(
-    harness, caplog
-) -> None:
+async def test_scope_exited_without_await_all_should_log_a_warning(harness, caplog) -> None:
     import logging
 
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
-    with caplog.at_level(logging.WARNING, logger="core.scenario"):
+    with caplog.at_level(logging.WARNING, logger="choreo.scenario"):
         async with harness.scenario("forgot-await-all-log") as s:
             s.expect("t", field_equals("k", "v"))
             s.publish("t", {"k": "v"})
@@ -905,9 +903,9 @@ async def test_scope_body_raising_after_await_all_should_log_a_teardown_warning(
     must still be visible to the developer."""
     import logging
 
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
-    with caplog.at_level(logging.WARNING, logger="core.scenario"):
+    with caplog.at_level(logging.WARNING, logger="choreo.scenario"):
         with pytest.raises(RuntimeError, match="teardown boom"):
             async with harness.scenario("post-await-raise") as s:
                 s.expect("t", field_equals("k", "v"))
@@ -928,9 +926,9 @@ async def test_partial_emit_on_raise_should_not_leave_handles_in_pending_state(
     Handle's docstring which says PENDING is only valid before await_all.
     The partial-emit path must promote every PENDING handle to a terminal
     outcome so downstream consumers never see PENDING in a returned result."""
-    from core._reporting import register_observer, unregister_observer
-    from core.matchers import field_equals
-    from core.scenario import Outcome
+    from choreo._reporting import register_observer, unregister_observer
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
 
     captured: list = []
 
@@ -963,9 +961,9 @@ async def test_unsubscribe_failure_during_teardown_should_log_a_warning(
     sees the leak."""
     import logging
 
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import MockTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import MockTransport
 
     class FailingUnsubscribe(MockTransport):
         def unsubscribe(self, topic, callback):
@@ -973,13 +971,13 @@ async def test_unsubscribe_failure_during_teardown_should_log_a_warning(
 
     transport = FailingUnsubscribe(
         allowlist_path=allowlist_yaml_path,
-        lbm_resolver="lbmrd:15380",
+        endpoint="mock://localhost",
     )
     local_harness = Harness(transport)
     await local_harness.connect()
 
     try:
-        with caplog.at_level(logging.WARNING, logger="core.scenario"):
+        with caplog.at_level(logging.WARNING, logger="choreo.scenario"):
             async with local_harness.scenario("unsub-fails") as s:
                 s.expect("t", field_equals("k", "v"))
                 s = s.publish("t", {"k": "v"})
@@ -1000,7 +998,7 @@ async def test_scenario_result_should_refuse_pickling_with_a_clear_message(
     a message that names the right object (ADR-0017)."""
     import pickle
 
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("pickle-safe") as s:
         s.expect("t", field_equals("k", "v"))

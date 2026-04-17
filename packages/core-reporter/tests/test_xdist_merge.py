@@ -5,14 +5,14 @@ exercise the controller path. A sanity end-to-end with `-n 2` at the
 bottom runs a real xdist session to catch controller/worker wiring
 regressions the hand-written partials cannot.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 import pytest
-
-from core_reporter._xdist import (
+from choreo_reporter._xdist import (
     PARTIAL_SUBDIR,
     cleanup_partial_dir,
     merge_partials,
@@ -95,9 +95,7 @@ def test_a_real_xdist_run_should_produce_a_merged_results_json(
         """
     )
     report_dir = pytester.path / "report"
-    result = pytester.runpytest(
-        f"--harness-report={report_dir}", "-n", "2"
-    )
+    result = pytester.runpytest(f"--harness-report={report_dir}", "-n", "2")
     assert result.ret == 0
     doc = json.loads((report_dir / "results.json").read_text())
     assert doc["run"]["xdist"] is not None

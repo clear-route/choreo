@@ -9,7 +9,7 @@
 
 ## Context
 
-The harness is async (asyncio) but the underlying transports are not: the Ultra Messaging Python SDK fires callbacks on its own context thread, and many other C-extension or session-based SDKs do the same. These callback threads are **not** the asyncio event loop thread.
+The harness is async (asyncio) but the underlying transports are not: many native-code SDKs fire callbacks on their own background threads, and other session-based SDKs do the same. These callback threads are **not** the asyncio event loop thread.
 
 Resolving an `asyncio.Future` or calling any `loop.*` method from a non-loop thread is unsafe. The common failure mode is `RuntimeError: got Future attached to a different loop` or silent corruption of the loop's internal state. In async integration-test frameworks this is the single most common class of nondeterministic failure.
 
@@ -17,7 +17,7 @@ We need a mechanism that guarantees every piece of loop-touching work runs on th
 
 ### Background
 
-- [context.md](../context.md) states the rule: *"The LBM context thread is separate from the asyncio event loop. Callbacks from LBM must use `loop.call_soon_threadsafe()` to resolve futures safely."*
+- [context.md](../context.md) states the rule: *"A native-SDK callback thread is separate from the asyncio event loop. Callbacks from such transports must use `loop.call_soon_threadsafe()` to resolve futures safely."*
 - [framework-design.md](../framework-design.md) reiterates this for any non-async-native transport.
 - Python's `asyncio` docs call `loop.call_soon_threadsafe` out as *the* way to schedule work from a non-loop thread. All other loop APIs are thread-unsafe unless explicitly documented otherwise.
 
@@ -160,8 +160,8 @@ Not applicable — greenfield.
 
 ### Timeline
 
-- Phase 1 (mock-backed skeleton, no SDK): bridge works trivially because `MockLbmTransport` doesn't have threads.
-- Phase 2 (real UM SDK): first real exercise of the bridge. Stress-tested with a high-volume callback generator.
+- Phase 1 (mock-backed skeleton, no SDK): bridge works trivially because `MockTransport` doesn't have threads.
+- Phase 2 (first native-SDK-backed transport): first real exercise of the bridge. Stress-tested with a high-volume callback generator.
 
 ---
 

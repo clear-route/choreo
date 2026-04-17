@@ -27,7 +27,7 @@ venv/
 htmlcov/
 coverage.xml
 
-# core-reporter output (PRD-007)
+# choreo-reporter output (PRD-007)
 test-report/
 
 # Editor/OS

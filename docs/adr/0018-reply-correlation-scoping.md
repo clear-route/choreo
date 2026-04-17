@@ -28,8 +28,8 @@ This ADR records the decision to **reuse the existing expect-filter contract** (
 - [ADR-0002 — Scoped registry + correlation IDs](0002-scoped-registry-test-isolation.md) defines the scope and its correlation ID.
 - [ADR-0004 — Dispatcher correlation mediator](0004-dispatcher-correlation-mediator.md) defines the single routing implementation; inbound dispatch is `correlation_id → scope`.
 - ADR-0011 (planned — see [docs/adr/README.md §Open ADRs](README.md)) will address correlation cross-field sanity when the SUT misroutes IDs. Not yet written.
-- Current `Scenario.publish()` auto-injects `correlation_id` into dict payloads unless the author overrides it (see [packages/core/src/core/scenario.py:447](../../packages/core/src/core/scenario.py#L447)).
-- Current expectation filter extracts `correlation_id` from inbound dicts and ignores non-matching messages (see [packages/core/src/core/scenario.py:512-521](../../packages/core/src/core/scenario.py#L512-L521)).
+- Current `Scenario.publish()` auto-injects `correlation_id` into dict payloads unless the author overrides it (see [packages/core/src/choreo/scenario.py:447](../../packages/core/src/choreo/scenario.py#L447)).
+- Current expectation filter extracts `correlation_id` from inbound dicts and ignores non-matching messages (see [packages/core/src/choreo/scenario.py:512-521](../../packages/core/src/choreo/scenario.py#L512-L521)).
 
 ### Problem Statement
 
@@ -246,8 +246,8 @@ Not applicable — greenfield.
 
 - [framework-design.md §10 (Dispatcher)](../framework-design.md)
 - [context.md §6 (Parallel execution strategy)](../context.md)
-- Current correlation filter — [packages/core/src/core/scenario.py:512-521](../../packages/core/src/core/scenario.py#L512-L521)
-- Current correlation injection — [packages/core/src/core/scenario.py:447](../../packages/core/src/core/scenario.py#L447)
+- Current correlation filter — [packages/core/src/choreo/scenario.py:512-521](../../packages/core/src/choreo/scenario.py#L512-L521)
+- Current correlation injection — [packages/core/src/choreo/scenario.py:447](../../packages/core/src/choreo/scenario.py#L447)
 
 ---
 

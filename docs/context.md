@@ -19,7 +19,7 @@ dispatch, deadline enforcement, and structured failure reporting for you.
 
 The framework is **transport-agnostic**. You construct a transport — in-memory
 `MockTransport` for unit tests, `NatsTransport` for end-to-end, or your own
-implementation for LBM / Kafka / RabbitMQ / MQTT / Redis / anything else — and
+implementation for Kafka / RabbitMQ / MQTT / Redis / anything else — and
 the same scenario DSL works against all of them. There is no test-framework-level
 coupling to any particular messaging backend.
 
@@ -54,7 +54,7 @@ correlation IDs, not by topic isolation or locks.
 
 ### Harness
 
-`core.Harness` is the session-scoped coordinator. Construct it with a transport
+`choreo.Harness` is the session-scoped coordinator. Construct it with a transport
 (and optionally a codec), call `await harness.connect()`, and it is ready. The
 harness holds the transport, drives the codec for encoding and decoding payloads,
 and acts as the factory for `Scenario` scopes. It does not know which backend the
@@ -63,7 +63,7 @@ transport wraps.
 ### Transport
 
 A `Transport` is anything implementing the five-method `Transport` Protocol
-defined in `core.transports.base`:
+defined in `choreo.transports.base`:
 
 ```python
 async def connect(self) -> None: ...
@@ -80,9 +80,11 @@ five methods.
 ### Scenario
 
 A `Scenario` is a per-test scope, entered via `async with harness.scenario("name")
-as s`. Opening a scope generates a fresh correlation ID (`TEST-{uuid4}`). The
-scenario owns its expectations, reply handlers, and timeline. When the scope
-exits, all subscriptions it registered are torn down.
+as s`. The scope owns its expectations, reply handlers, and timeline, and tears
+down every subscription it registered on exit. A correlation id is generated
+only if the Harness has a `CorrelationPolicy` that produces one; under the
+default `NoCorrelationPolicy`, `s.correlation_id` is `None` and inbound routing
+falls back to broadcast (ADR-0019).
 
 Scenarios follow a strict linear state machine: **BUILDER → EXPECTING → TRIGGERED**.
 `expect()` and `on()` are available in BUILDER and EXPECTING states. `publish()`
@@ -119,7 +121,7 @@ responded but too slowly).
 
 A `Matcher` is any object implementing the `Matcher` Protocol: a `description`
 string and a `match(payload) -> MatchResult` method. Built-ins live in
-`core.matchers`:
+`choreo.matchers`:
 
 - Flat field: `field_equals`, `field_in`, `field_gt`, `field_lt`, `field_exists`
 - Shape: `contains_fields` — recursive subset match over dicts and lists
@@ -135,9 +137,9 @@ string and a `match(payload) -> MatchResult` method. Built-ins live in
 from pathlib import Path
 
 import pytest_asyncio
-from core import Harness
-from core.transports import MockTransport
-from core.matchers import contains_fields, field_equals, gt
+from choreo import Harness
+from choreo.transports import MockTransport
+from choreo.matchers import contains_fields, field_equals, gt
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -230,11 +232,11 @@ Optionally validates a configured endpoint against an allowlist at connect time.
 
 ```python
 from pathlib import Path
-from core.transports import MockTransport
+from choreo.transports import MockTransport
 
 transport = MockTransport(
     allowlist_path=Path("config/allowlist.yaml"),   # optional
-    lbm_resolver="lbmrd:15380",                     # optional; validated against allowlist
+    endpoint="mock://local",                        # optional; validated against allowlist
 )
 ```
 
@@ -245,12 +247,12 @@ diagnostic views for tests that inspect the transport itself.
 ### `NatsTransport`
 
 Talks to a real NATS broker. Lazy-imported; `nats-py` is only pulled in when you
-construct one (`pip install 'core[nats]'`). Good for exercising the Transport
+construct one (`pip install 'choreo[nats]'`). Good for exercising the Transport
 Protocol against a real network without standing up production infrastructure.
 
 ```python
 from pathlib import Path
-from core.transports import NatsTransport
+from choreo.transports import NatsTransport
 
 transport = NatsTransport(
     servers=["nats://localhost:4222"],
@@ -273,17 +275,18 @@ an optional `on_sent` callback that you must invoke on the asyncio loop thread
 at the post-wire moment — scenarios use this to timestamp PUBLISHED events
 accurately for the Jaeger-style waterfall.
 
-Thread-safety: if your backend delivers messages on its own thread (LBM, AMQP
-client libraries, …) you must hop them onto the asyncio loop before calling the
-subscriber callbacks. Use `loop.call_soon_threadsafe` for this. The pattern is
-captured in `core.transports.base` as `LoopPoster`. Without it, race conditions
+Thread-safety: if your backend delivers messages on its own thread (native-code
+SDKs, AMQP client libraries, and so on) you must hop them onto the asyncio loop
+before calling the subscriber callbacks. Use `loop.call_soon_threadsafe` for
+this. The pattern is
+captured in `choreo.transports.base` as `LoopPoster`. Without it, race conditions
 in callback delivery are likely, and they are the kind that vanish when you add
 a `print()`.
 
-See `packages/core/src/core/transports/mock.py` for the synchronous pattern and
-`packages/core/src/core/transports/nats.py` for the asyncio-native pattern.
-Planned and contributed transports for LBM / Ultra Messaging, Kafka, RabbitMQ,
-Redis, and MQTT follow the same shape — the Harness never sees the difference.
+See `packages/core/src/choreo/transports/mock.py` for the synchronous pattern and
+`packages/core/src/choreo/transports/nats.py` for the asyncio-native pattern.
+Planned and contributed transports for Kafka, RabbitMQ, Redis, and MQTT follow
+the same shape — the Harness never sees the difference.
 
 ---
 
@@ -296,9 +299,9 @@ makes that impossible at connect time rather than relying on developer disciplin
 
 ```yaml
 # config/allowlist.yaml
-lbm_resolvers: ["lbmrd:15380", "localhost:15380"]
-nats_servers:  ["nats://localhost:4222"]
-kafka_brokers: ["localhost:9092"]
+nats_servers:   ["nats://localhost:4222"]
+kafka_brokers:  ["localhost:9092"]
+mock_endpoints: ["mock://local"]
 ```
 
 Categories are transport-defined. A transport calls `allowlist.get("nats_servers")`
@@ -307,14 +310,17 @@ return an empty tuple; a transport that calls `get()` for an unrecognised catego
 simply gets nothing permitted. A file can cover multiple transports — they each
 validate only the categories they care about.
 
-`core.environment` provides `load_allowlist(path)` and the exception hierarchy
+`choreo.environment` provides `load_allowlist(path)` and the exception hierarchy
 `HostNotInAllowlist` / `AllowlistConfigError`. Every built-in transport calls
 `load_allowlist` in `connect()` when `allowlist_path` is supplied.
 
 **Production endpoints must not appear in any checked-in allowlist** (ADR-0006).
-The correlation ID prefix `TEST-` stamps every scenario-originated publish so
-downstream systems can recognise and filter test traffic at their own boundary,
-independently of which allowlist is in play.
+The `TEST-` correlation prefix that downstream ingress filters historically
+matched on is a property of the opt-in `test_namespace()` policy under
+ADR-0019; it is not a library default. Consumers whose downstream systems rely
+on the prefix for ingress filtering must configure `correlation=test_namespace()`
+(or equivalent) on their Harness — the supersession is documented in
+[ADR-0019](adr/0019-pluggable-correlation-policy.md) and amended into ADR-0006.
 
 ---
 
@@ -323,25 +329,26 @@ independently of which allowlist is in play.
 Choreo runs on a single `asyncio` event loop, pinned at session scope by
 `pytest-asyncio` (ADR-0005). All matcher callbacks, reply handlers, and timeline
 recordings execute on the loop thread. Scenarios run concurrently with
-`pytest-xdist` (`-n auto` by default in `addopts`); isolation is by correlation
-ID, not by topic.
+`pytest-xdist` (`-n auto` by default in `addopts`).
 
-When a message arrives on a topic shared by multiple live scenarios, the
-dispatcher routes it by matching the `correlation_id` field in the decoded
-payload against the correlation IDs held by active expectations. A message
-whose correlation ID matches no live scope goes to the surprise log (metadata
-only; payload redacted per ADR-0009).
+Cross-scope isolation is pluggable, not hardcoded. The Harness takes a
+`CorrelationPolicy` (ADR-0019); the policy decides how a correlation id is
+generated on scope entry, stamped onto outbound messages, and extracted from
+inbound ones. Under the default `NoCorrelationPolicy` there is no stamping, no
+extraction, and no filter — every live scope on a shared topic receives every
+message (broadcast fallback). This is safe on dedicated or per-run
+infrastructure; on a shared broker (multiple tenants, parallel CI runs) the
+consumer must configure a policy that distinguishes each scope's traffic, for
+example `DictFieldPolicy(field="trace_id", prefix="run-abc-")` or
+`test_namespace()` for the legacy `TEST-` posture.
 
-Scenarios inject their correlation ID automatically when `publish()` receives a
-`dict` without an explicit `correlation_id` key. The ID is always `TEST-`-prefixed
-(a `CorrelationIdNotInTestNamespaceError` is raised if the caller provides one
-that is not). This prefix enforcement exists so downstream systems can enforce a
-boundary: any message carrying a non-`TEST-` correlation ID is assumed to be
-production traffic; any message carrying a `TEST-` prefix can be filtered or
-rejected at the consumer's edge (ADR-0006).
+When a policy extracts a correlation id from inbound, the scope filter compares
+it to the scope's own id; mismatches are dropped. A message whose policy-read
+id matches no live scope would go to the surprise log (metadata only; payloads
+not retained — see SECURITY.md for the redaction scope).
 
-Network backends (LBM, AMQP libraries, and other non-asyncio-native clients)
-deliver messages on their own threads. These must not call asyncio objects
+Network backends (native-code SDKs, AMQP libraries, and other non-asyncio-native
+clients) deliver messages on their own threads. These must not call asyncio objects
 directly. The loop-poster pattern (`loop.call_soon_threadsafe`) hops inbound
 messages onto the loop thread before any callback sees them.
 

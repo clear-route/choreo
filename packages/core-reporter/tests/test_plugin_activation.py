@@ -3,6 +3,7 @@
 Uses pytester to spin up inner pytest sessions so the outer session's
 reporter state is isolated.
 """
+
 from __future__ import annotations
 
 import json
@@ -46,9 +47,7 @@ def test_the_report_should_not_be_written_when_disable_flag_is_set(
         """
     )
     report_dir = pytester.path / "report-should-not-exist"
-    result = pytester.runpytest(
-        f"--harness-report={report_dir}", "--harness-report-disable"
-    )
+    result = pytester.runpytest(f"--harness-report={report_dir}", "--harness-report-disable")
     assert result.ret == 0
     assert not report_dir.exists()
 

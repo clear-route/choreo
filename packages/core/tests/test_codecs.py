@@ -5,14 +5,13 @@ A codec is a pure two-way translator between wire bytes and Python values.
 `Harness.publish` can accept structured payloads without forcing the caller
 to hand-concatenate JSON bytes.
 """
+
 from __future__ import annotations
 
 import json
 
 import pytest
-
-from core.codecs import JSONCodec, RawCodec
-
+from choreo.codecs import JSONCodec, RawCodec
 
 # ---------------------------------------------------------------------------
 # JSONCodec

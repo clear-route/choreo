@@ -4,6 +4,7 @@ The Dispatcher is the single dispatch point for every inbound message. It owns a
 `correlation_id → scope` map, a per-topic extractor registry, and a redacted
 surprise log for unmatched inbound.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -22,8 +23,10 @@ def _make_scope(loop: asyncio.AbstractEventLoop, correlation_id: str) -> _FakeSc
     return _FakeScope(correlation_id=correlation_id, future=loop.create_future())
 
 
-async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_correlation() -> None:
-    from core._internal import Dispatcher, LoopPoster
+async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_correlation() -> (
+    None
+):
+    from choreo._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
@@ -33,15 +36,13 @@ async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_
 
     dispatcher.register_extractor(
         topic="orders.booked",
-        extractor=lambda p: p.removeprefix(b"corr=").decode()
-        if p.startswith(b"corr=")
-        else None,
+        extractor=lambda p: p.removeprefix(b"corr=").decode() if p.startswith(b"corr=") else None,
     )
 
     dispatcher.dispatch(
         topic="orders.booked",
         payload=b"corr=TEST-abc",
-        source="lbm",
+        source="mock",
         resolver=lambda sc, msg: sc.future.set_result(msg),
     )
 
@@ -50,22 +51,22 @@ async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_
     dispatcher.deregister_scope(scope)
 
 
-async def test_an_unrecognised_correlation_should_go_to_the_surprise_log_without_the_payload() -> None:
-    from core._internal import Dispatcher, LoopPoster
+async def test_an_unrecognised_correlation_should_go_to_the_surprise_log_without_the_payload() -> (
+    None
+):
+    from choreo._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
     dispatcher.register_extractor(
         topic="orders.booked",
-        extractor=lambda p: p.removeprefix(b"corr=").decode()
-        if p.startswith(b"corr=")
-        else None,
+        extractor=lambda p: p.removeprefix(b"corr=").decode() if p.startswith(b"corr=") else None,
     )
 
     dispatcher.dispatch(
         topic="orders.booked",
         payload=b"corr=TEST-UNKNOWN",
-        source="lbm",
+        source="mock",
         resolver=lambda sc, msg: None,
     )
 
@@ -80,8 +81,10 @@ async def test_an_unrecognised_correlation_should_go_to_the_surprise_log_without
     assert not hasattr(entry, "payload")
 
 
-async def test_a_message_arriving_after_its_scope_deregisters_should_be_classified_as_timeout_race() -> None:
-    from core._internal import Dispatcher, LoopPoster
+async def test_a_message_arriving_after_its_scope_deregisters_should_be_classified_as_timeout_race() -> (
+    None
+):
+    from choreo._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
@@ -97,7 +100,7 @@ async def test_a_message_arriving_after_its_scope_deregisters_should_be_classifi
     dispatcher.dispatch(
         topic="t",
         payload=b"TEST-lived-briefly",
-        source="lbm",
+        source="mock",
         resolver=lambda sc, msg: sc.future.set_result(msg),
     )
 
@@ -106,21 +109,25 @@ async def test_a_message_arriving_after_its_scope_deregisters_should_be_classifi
     assert log[0].classification == "timeout_race"
 
 
-async def test_registering_an_extractor_that_deserialises_untrusted_data_should_be_rejected() -> None:
+async def test_registering_an_extractor_that_deserialises_untrusted_data_should_be_rejected() -> (
+    None
+):
     """ADR-0004 §Security: extractors are pure parsing functions."""
     import pickle
 
-    from core._internal import Dispatcher, LoopPoster
+    from choreo._internal import Dispatcher, LoopPoster
 
     dispatcher = Dispatcher(poster=LoopPoster(asyncio.get_running_loop()))
     with pytest.raises(ValueError):
         dispatcher.register_extractor(topic="t", extractor=pickle.loads)  # type: ignore[arg-type]
 
 
-async def test_attempts_to_override_the_dispatchers_dispatch_method_should_fail_at_class_creation() -> None:
+async def test_attempts_to_override_the_dispatchers_dispatch_method_should_fail_at_class_creation() -> (
+    None
+):
     """Subclassing and overriding `dispatch` breaks the single-dispatch-point invariant.
     The framework must refuse at class creation, not at runtime."""
-    from core._internal import Dispatcher
+    from choreo._internal import Dispatcher
 
     with pytest.raises(TypeError):
 
@@ -130,17 +137,19 @@ async def test_attempts_to_override_the_dispatchers_dispatch_method_should_fail_
 
 
 async def test_generated_correlation_ids_should_be_unique() -> None:
-    from core._internal import generate_correlation_id
+    from choreo import test_namespace
 
-    ids = {generate_correlation_id() for _ in range(100)}
+    policy = test_namespace()
+    ids = {await policy.new_id() for _ in range(100)}
     assert len(ids) == 100
 
 
 async def test_generated_correlation_ids_should_be_unguessable() -> None:
-    from core._internal import generate_correlation_id
+    from choreo import test_namespace
 
+    policy = test_namespace()
     for _ in range(10):
-        cid = generate_correlation_id()
+        cid = await policy.new_id()
         assert cid.startswith("TEST-")
         suffix = cid.removeprefix("TEST-")
         # Long enough that a brute-force echo of a different scope's ID is infeasible.

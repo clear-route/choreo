@@ -6,16 +6,14 @@ close the inline `<script type="application/json">` block, inject
 plugin with such payloads and verifies the output treats every
 payload-derived string as text, not markup.
 """
+
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 import pytest
 from bs4 import BeautifulSoup
-
-from core_reporter._template import escape_for_inline_json, render_html
-
+from choreo_reporter._template import escape_for_inline_json, render_html
 
 # ---------------------------------------------------------------------------
 # Unit tests of the escape helper
@@ -68,9 +66,9 @@ def test_an_attacker_controlled_payload_should_not_escape_the_json_script_block(
     for el in soup.find_all(True):
         for attr in el.attrs:
             # Strict guard against event-handler attributes anywhere.
-            assert not attr.lower().startswith(
-                "on"
-            ), f"unexpected event handler attribute: {attr!r} on {el.name}"
+            assert not attr.lower().startswith("on"), (
+                f"unexpected event handler attribute: {attr!r} on {el.name}"
+            )
 
 
 def test_a_payload_containing_end_script_should_not_break_the_inline_json() -> None:
@@ -88,9 +86,7 @@ def test_a_payload_containing_end_script_should_not_break_the_inline_json() -> N
 def test_a_control_character_payload_should_be_valid_json_after_inlining() -> None:
     import json as _json
 
-    json_text = _json.dumps(
-        {"schema_version": "1", "unicode": "safe \u2028 zone"}
-    )
+    json_text = _json.dumps({"schema_version": "1", "unicode": "safe \u2028 zone"})
     html = render_html(json_text)
     soup = BeautifulSoup(html, "html.parser")
     script = soup.find("script", id="harness-results")
@@ -109,13 +105,13 @@ def test_a_test_name_containing_html_should_appear_as_text_only(
     pytester: pytest.Pytester,
 ) -> None:
     pytester.makepyfile(
-        test_xss='''
+        test_xss="""
         import pytest
 
         @pytest.mark.parametrize("payload", ["<script>alert(1)</script>"])
         def test_param(payload):
             assert True
-        '''
+        """
     )
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}")

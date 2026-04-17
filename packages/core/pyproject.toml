@@ -3,13 +3,13 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "core"
+name = "choreo"
 dynamic = ["version"]
 description = "Choreo — a declarative async test harness for message-driven systems"
-readme = "../../README.md"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["../../LICENSE"]
+license-files = ["LICENSE"]
 authors = [{ name = "The Choreo Authors" }]
 keywords = ["testing", "async", "pubsub", "messaging", "pytest", "nats", "kafka", "rabbitmq", "redis"]
 classifiers = [
@@ -44,16 +44,17 @@ fallback-version = "0.0.0"
 
 [project.optional-dependencies]
 test = [
-    "pytest>=8.0",
+    "pytest>=8.0,<9",
     "pytest-asyncio>=0.24,<2.0",
-    "pyyaml>=6.0",
+    "pyyaml>=6.0,<7",
 ]
 # Transport backends — install the ones your tests actually use.
-# `pip install core[nats]` pulls the NATS client only when it's needed.
-nats = ["nats-py>=2.7"]
-kafka = ["aiokafka>=0.11"]
-rabbitmq = ["aio-pika>=9.0"]
-redis = ["redis>=5.0"]
+# `pip install choreo[nats]` pulls the NATS client only when it's needed.
+# Upper bounds cap major-version bumps; Dependabot lifts them after review.
+nats = ["nats-py>=2.7,<3"]
+kafka = ["aiokafka>=0.11,<1"]
+rabbitmq = ["aio-pika>=9.0,<11"]
+redis = ["redis>=5.0,<7"]
 
 [dependency-groups]
 dev = [
@@ -63,7 +64,7 @@ dev = [
 ]
 
 [tool.vulture]
-paths = ["src/core", "tests"]
+paths = ["src/choreo", "tests"]
 min_confidence = 80
 sort_by_size = true
 exclude = ["**/__pycache__/**"]
@@ -73,16 +74,16 @@ exclude = ["**/__pycache__/**"]
 ignore_names = ["source", "tb"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/core"]
+packages = ["src/choreo"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/core/py.typed" = "core/py.typed"
+"src/choreo/py.typed" = "choreo/py.typed"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # No `pythonpath` — the package is editable-installed, and adding
-# `src` to pythonpath creates a duplicate `core` module in sys.modules
-# that breaks shared state in `core._reporting`. Install with
+# `src` to pythonpath creates a duplicate `choreo` module in sys.modules
+# that breaks shared state in `choreo._reporting`. Install with
 # `pip install -e .` before running the suite.
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"

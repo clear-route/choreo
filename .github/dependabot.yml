@@ -1,0 +1,42 @@
+# Dependabot watches:
+#   - pip (once per package directory, since it reads pyproject.toml)
+#   - github-actions (workflow action pins)
+#
+# PRs open weekly on Monday. Bump the limit if a quiet week backlogs multiple
+# security PRs. Grouping is off — one PR per dep, so each can be reviewed and
+# reverted independently.
+
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /packages/core
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "pip"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: pip
+    directory: /packages/core-reporter
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "pip"]
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "chore(ci)"
+      include: scope

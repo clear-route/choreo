@@ -22,6 +22,7 @@ Runs only under ``pytest -m e2e`` with the compose stack:
     docker compose -f docker/compose.e2e.yaml up -d
     pytest -m e2e
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -29,7 +30,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-
 
 pytestmark = pytest.mark.e2e
 
@@ -43,13 +43,13 @@ pytestmark = pytest.mark.e2e
 def _make_topics() -> dict[str, str]:
     suffix = uuid.uuid4().hex[:8]
     return {
-        "events":     f"e2e.cascade.events.created.{suffix}",
-        "check_req":  f"e2e.cascade.check.request.{suffix}",
+        "events": f"e2e.cascade.events.created.{suffix}",
+        "check_req": f"e2e.cascade.check.request.{suffix}",
         "check_resp": f"e2e.cascade.check.response.{suffix}",
-        "svc_req":    f"e2e.cascade.service.request.{suffix}",
-        "svc_reply":  f"e2e.cascade.service.reply.{suffix}",
-        "state":      f"e2e.cascade.state.changed.{suffix}",
-        "audit":      f"e2e.cascade.audit.record.{suffix}",
+        "svc_req": f"e2e.cascade.service.request.{suffix}",
+        "svc_reply": f"e2e.cascade.service.reply.{suffix}",
+        "state": f"e2e.cascade.state.changed.{suffix}",
+        "audit": f"e2e.cascade.audit.record.{suffix}",
     }
 
 
@@ -64,8 +64,8 @@ def _validation_asker(scenario, topics: dict[str, str]) -> None:
         topics["check_req"],
         lambda message_received: {
             "request_id": message_received["request_id"],
-            "region":     message_received["region"],
-            "count":      message_received["count"],
+            "region": message_received["region"],
+            "count": message_received["count"],
         },
     )
 
@@ -75,9 +75,9 @@ def _validation_approver(scenario, topics: dict[str, str]) -> None:
     scenario.on(topics["check_req"]).publish(
         topics["check_resp"],
         lambda message_received: {
-            "request_id":       message_received["request_id"],
-            "approved":         True,
-            "quota_remaining":  10_000,
+            "request_id": message_received["request_id"],
+            "approved": True,
+            "quota_remaining": 10_000,
         },
     )
 
@@ -88,8 +88,8 @@ def _request_router(scenario, topics: dict[str, str]) -> None:
         topics["svc_req"],
         lambda message_received: {
             "request_id": message_received["request_id"],
-            "backend":    "BACKEND-PRIMARY",
-            "kind":       "CREATE",
+            "backend": "BACKEND-PRIMARY",
+            "kind": "CREATE",
         },
     )
 
@@ -100,9 +100,9 @@ def _reply_generator(scenario, topics: dict[str, str]) -> None:
         topics["svc_reply"],
         lambda message_received: {
             "request_id": message_received["request_id"],
-            "reply_id":   f"REP-{message_received['request_id']}",
-            "status":     "COMPLETED",
-            "backend":    message_received["backend"],
+            "reply_id": f"REP-{message_received['request_id']}",
+            "status": "COMPLETED",
+            "backend": message_received["backend"],
         },
     )
 
@@ -112,8 +112,8 @@ def _state_updater(scenario, topics: dict[str, str]) -> None:
     scenario.on(topics["svc_reply"]).publish(
         topics["state"],
         lambda message_received: {
-            "request_id":   message_received["request_id"],
-            "status":       "APPLIED",
+            "request_id": message_received["request_id"],
+            "status": "APPLIED",
             "count_applied": 1000,
         },
     )
@@ -125,7 +125,7 @@ def _audit_recorder(scenario, topics: dict[str, str]) -> None:
         topics["audit"],
         lambda message_received: {
             "request_id": message_received["request_id"],
-            "event":      "APPLIED",
+            "event": "APPLIED",
         },
     )
 
@@ -142,18 +142,23 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
 ) -> None:
     """Six replys chain a request/reply cascade over real NATS; six expects
     assert every hop's observable effect. One initial publish triggers the
-    cascade."""
-    from core import Harness
-    from core.matchers import contains_fields, field_equals
-    from core.scenario import ReplyReportState
-    from core.transports import NatsTransport
+    cascade.
+
+    The cascade's correlation_id threading (asserted below via per-hop
+    `message_received` propagation) requires a routing-capable policy —
+    `test_namespace()` reproduces the pre-ADR-0019 stamping so each hop's
+    outbound dict carries the scope's id for the next hop's expect filter."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import contains_fields, field_equals
+    from choreo.scenario import ReplyReportState
+    from choreo.transports import NatsTransport
 
     topics = _make_topics()
     transport = NatsTransport(
         servers=[nats_url],
         allowlist_path=allowlist_yaml_path,
     )
-    harness = Harness(transport)
+    harness = Harness(transport, correlation=test_namespace())
     await harness.connect()
     try:
         async with harness.scenario("nats-reply-cascade") as s:
@@ -196,8 +201,8 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
                 topics["events"],
                 {
                     "request_id": "REQ-E2E-001",
-                    "region":     "eu-west",
-                    "count":      1000,
+                    "region": "eu-west",
+                    "count": 1000,
                 },
             )
             # 5s budget: six async hops over local NATS typically complete
@@ -269,26 +274,32 @@ async def test_parallel_reply_scopes_over_nats_should_stay_isolated_by_correlati
 
     Scaled to 5 concurrent scopes with a three-hop cascade each (15 replys
     total). Enough to prove cross-scope routing over a real wire without
-    dominating CI wall-clock."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import ReplyReportState
-    from core.transports import NatsTransport
+    dominating CI wall-clock.
+
+    Under ADR-0019 the library default is `NoCorrelationPolicy`, which
+    broadcasts — every scope on every shared subject sees every message.
+    This test's whole premise is correlation-based isolation, so it
+    configures `test_namespace()` explicitly. Without that opt-in the
+    parallel scopes would cross-fire."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import ReplyReportState
+    from choreo.transports import NatsTransport
 
     N_SCOPES = 5
     # Topics shared across every scope — this is what makes the isolation
     # interesting. Only correlation-ID routing keeps the scopes from
     # cross-firing.
     trigger_topic = f"e2e.parallel.trigger.{uuid.uuid4().hex[:8]}"
-    hop1_topic    = f"e2e.parallel.hop1.{uuid.uuid4().hex[:8]}"
-    hop2_topic    = f"e2e.parallel.hop2.{uuid.uuid4().hex[:8]}"
-    hop3_topic    = f"e2e.parallel.hop3.{uuid.uuid4().hex[:8]}"
+    hop1_topic = f"e2e.parallel.hop1.{uuid.uuid4().hex[:8]}"
+    hop2_topic = f"e2e.parallel.hop2.{uuid.uuid4().hex[:8]}"
+    hop3_topic = f"e2e.parallel.hop3.{uuid.uuid4().hex[:8]}"
 
     transport = NatsTransport(
         servers=[nats_url],
         allowlist_path=allowlist_yaml_path,
     )
-    harness = Harness(transport)
+    harness = Harness(transport, correlation=test_namespace())
     await harness.connect()
 
     async def run_scope(index: int) -> tuple[bool, list[ReplyReportState]]:
@@ -317,21 +328,17 @@ async def test_parallel_reply_scopes_over_nats_should_stay_isolated_by_correlati
             s = s.publish(trigger_topic, {"index": index})
             result = await s.await_all(timeout_ms=5000)
 
-        all_fulfilled = (
-            h1.was_fulfilled() and h2.was_fulfilled() and h3.was_fulfilled()
-        )
+        all_fulfilled = h1.was_fulfilled() and h2.was_fulfilled() and h3.was_fulfilled()
         return all_fulfilled, [r.state for r in result.replies]
 
     try:
-        outcomes = await asyncio.gather(
-            *(run_scope(i) for i in range(N_SCOPES))
-        )
+        outcomes = await asyncio.gather(*(run_scope(i) for i in range(N_SCOPES)))
 
         for i, (fulfilled, reply_states) in enumerate(outcomes):
             assert fulfilled, f"scope {i}: not every expect fulfilled"
-            assert all(
-                state is ReplyReportState.REPLIED for state in reply_states
-            ), f"scope {i}: reply states {reply_states}"
+            assert all(state is ReplyReportState.REPLIED for state in reply_states), (
+                f"scope {i}: reply states {reply_states}"
+            )
 
         # After every scope has exited, there should be no residual
         # subscriptions attributable to replys or expects.

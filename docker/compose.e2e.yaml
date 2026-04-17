@@ -21,13 +21,16 @@
 #   docker compose -f docker/compose.e2e.yaml --profile all down
 
 services:
+  # All ports are bound to 127.0.0.1 rather than 0.0.0.0 — these brokers
+  # are local test dependencies with default or no authentication, so we
+  # do not publish them onto the host's LAN.
   nats:
     image: nats:2.10-alpine
     container_name: choreo-e2e-nats
     profiles: ["all", "nats"]
     ports:
-      - "4222:4222"   # client protocol
-      - "8222:8222"   # monitoring / healthcheck
+      - "127.0.0.1:4222:4222"   # client protocol
+      - "127.0.0.1:8222:8222"   # monitoring / healthcheck
     command: ["-js", "-m", "8222"]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
@@ -44,7 +47,7 @@ services:
     container_name: choreo-e2e-kafka
     profiles: ["all", "kafka"]
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     environment:
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -58,21 +61,52 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-      # Generate a stable cluster id so restarts don't invalidate the log dir.
-      CLUSTER_ID: "choreo-e2e-cluster-id"
+      # Default is 3000 ms: a brand-new consumer group waits 3 s before
+      # its first rebalance, to let additional members join. The harness
+      # gives every subscribe() its own unique group_id for broadcast
+      # fan-out, so we pay that delay on *every* subscribe. For single-
+      # member test groups there's nothing to wait for; drop to 0.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      # Deterministic cluster id so a container recreate reuses the same
+      # KRaft metadata layout. KRaft rejects anything that is not a
+      # 22-character base64-url-encoded UUID; the previous value
+      # "choreo-e2e-cluster-id" was not, and the container crash-looped
+      # on every `docker compose restart` with
+      # "Cluster ID string ... does not appear to be a valid UUID".
+      # Value is `base64.urlsafe_b64encode(uuid.UUID(...).bytes).rstrip('=')`
+      # of the all-zero UUID with the trailing byte 0x42 — arbitrary but
+      # human-recognisable.
+      CLUSTER_ID: "AAAAAAAAAAAAAAAAAAAAQg"
+      # cp-kafka defaults to a 1 GiB JVM heap. Docker Desktop on a dev
+      # laptop commonly runs with ~2 GiB total, shared with NATS /
+      # Rabbit / Redis — Kafka OOM-kills mid-suite (exit 137) under
+      # that budget. 512 MiB heap is enough for the tens-of-topics
+      # volume this suite creates and leaves headroom for the other
+      # brokers. Bump both if you add heavier Kafka tests.
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+    # Bound the container's RSS too: the JVM heap is only part of the
+    # picture (direct buffers, metaspace, thread stacks add ~256 MiB).
+    # 896 MiB total leaves ~1 GiB for Rabbit + Redis + NATS + the test
+    # runner on a 2 GiB Docker VM.
+    mem_limit: 896m
+    # Auto-recover from transient crashes so a mid-suite stall (OOM,
+    # healthcheck timeout, flaky network) doesn't require manual `docker
+    # compose restart` between `pytest` invocations.
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 3s
       timeout: 5s
       retries: 30
+      start_period: 15s
 
   rabbitmq:
     image: rabbitmq:3.13-alpine
     container_name: choreo-e2e-rabbitmq
     profiles: ["all", "rabbitmq"]
     ports:
-      - "5672:5672"     # AMQP
-      - "15672:15672"   # management UI (diagnostic only)
+      - "127.0.0.1:5672:5672"     # AMQP
+      - "127.0.0.1:15672:15672"   # management UI (diagnostic only)
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 2s
@@ -84,7 +118,7 @@ services:
     container_name: choreo-e2e-redis
     profiles: ["all", "redis"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]

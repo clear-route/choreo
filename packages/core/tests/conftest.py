@@ -11,13 +11,12 @@ The `allowlist_yaml_path` fixture below remains for tests that need to
 reference the same path explicitly (e.g. to inject it into a custom
 Harness construction).
 """
+
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
-
 
 # Load pytest's in-process test-runner plugin so tests like the downstream
 # consumer check can spawn isolated pytest sessions via the `pytester` fixture.

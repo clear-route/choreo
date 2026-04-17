@@ -14,24 +14,20 @@ These lints lock the system.md contract. A refactor that reintroduces
 `color: #fff` in a component rule or writes `handles=1` to the header
 fails CI.
 """
+
 from __future__ import annotations
 
-import json
 import re
 
 import pytest
 from bs4 import BeautifulSoup
+from choreo_reporter._template import render_html
 
-from core_reporter._template import render_html
-
-
-_CSS_COLOUR_LITERAL = re.compile(
-    r"#[0-9a-fA-F]{3,8}\b|rgb\s*\(|rgba\s*\(|hsl\s*\(|hsla\s*\("
-)
+_CSS_COLOUR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgb\s*\(|rgba\s*\(|hsl\s*\(|hsla\s*\(")
 
 
 def _load_css_block() -> str:
-    from core_reporter._template import _CSS  # noqa: PLC0415 — intentional
+    from choreo_reporter._template import _CSS  # noqa: PLC0415 — intentional
 
     return _CSS
 
@@ -87,7 +83,7 @@ def _split_token_block_and_rules(css: str) -> tuple[str, str]:
 
 def test_colour_literals_should_only_appear_inside_the_token_declaration_block() -> None:
     css = _load_css_block()
-    tokens, rules = _split_token_block_and_rules(css)
+    _tokens, rules = _split_token_block_and_rules(css)
 
     # Carve out the known exceptions: JSON-highlighter token colours
     # and the traceback/capture panel deliberately use a literal OKLCH
@@ -95,11 +91,11 @@ def test_colour_literals_should_only_appear_inside_the_token_declaration_block()
     # outside the status ramp. Everything else must be token-only.
     permitted_literals = {
         "oklch(0.52 0.14 150)",  # JSON string token
-        "oklch(0.58 0.16 45)",   # JSON number token
-        "oklch(0.18 0 0)",       # traceback / captures bg
-        "oklch(0.90 0 0)",       # captures fg
-        "oklch(0.85 0.08 25)",   # traceback fg
-        "oklch(0.20 0.06 75)",   # slow-badge text
+        "oklch(0.58 0.16 45)",  # JSON number token
+        "oklch(0.18 0 0)",  # traceback / captures bg
+        "oklch(0.90 0 0)",  # captures fg
+        "oklch(0.85 0.08 25)",  # traceback fg
+        "oklch(0.20 0.06 75)",  # slow-badge text
     }
     # Strip permitted literal strings before scanning.
     scrubbed = rules
@@ -118,11 +114,21 @@ def test_the_token_block_should_declare_every_status_colour() -> None:
     css = _load_css_block()
     tokens, _ = _split_token_block_and_rules(css)
     required = [
-        "--hr-bg", "--hr-surface", "--hr-text", "--hr-text-muted",
-        "--hr-pass", "--hr-fail", "--hr-slow", "--hr-timeout",
-        "--hr-skip", "--hr-info",
-        "--hr-font-sans", "--hr-font-mono",
-        "--hr-text-base", "--hr-space-3", "--hr-radius",
+        "--hr-bg",
+        "--hr-surface",
+        "--hr-text",
+        "--hr-text-muted",
+        "--hr-pass",
+        "--hr-fail",
+        "--hr-slow",
+        "--hr-timeout",
+        "--hr-skip",
+        "--hr-info",
+        "--hr-font-sans",
+        "--hr-font-mono",
+        "--hr-text-base",
+        "--hr-space-3",
+        "--hr-radius",
     ]
     missing = [t for t in required if t not in tokens]
     assert missing == [], f"system.md tokens not declared: {missing}"
@@ -170,7 +176,8 @@ def test_user_visible_text_should_not_leak_framework_jargon(
 
 
 def test_the_timeline_should_be_labelled_with_message_vocabulary(
-    pytester: pytest.Pytester, tiny_test_module: str,
+    pytester: pytest.Pytester,
+    tiny_test_module: str,
 ) -> None:
     """The generated report for a real scenario must render
     the timeline headed with the message-oriented title and columns."""
@@ -187,7 +194,8 @@ def test_the_timeline_should_be_labelled_with_message_vocabulary(
 
 
 def test_the_domain_vocabulary_should_appear_in_the_rendered_report(
-    pytester: pytest.Pytester, tiny_test_module: str,
+    pytester: pytest.Pytester,
+    tiny_test_module: str,
 ) -> None:
     """The locked vocabulary (system.md §1) must remain visible in the
     rendered report for a real scenario. We check the *concepts* appear

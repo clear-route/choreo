@@ -9,7 +9,7 @@
 
 ## Context
 
-Every `scenario.expect(topic, matcher)` call registers a predicate over inbound messages: "when a message arrives on `topic` whose field `status` equals `PASS`, fire the handle." Payloads come in multiple shapes — JSON-like dicts, protobuf-decoded namespaces, tag-value maps. Matchers must work across these without forcing the test author to write protocol-specific code.
+Every `scenario.expect(topic, matcher)` call registers a predicate over inbound messages: "when a message arrives on `topic` whose field `status` equals `PASS`, fire the handle." Payloads come in multiple shapes — JSON-like dicts, protobuf-decoded namespaces, and binary tag/value formats (FIX, MessagePack ext, and similar). Matchers must work across these without forcing the test author to write protocol-specific code.
 
 The naive option is one callable per test: `expect(topic, lambda m: m["status"] == "PASS")`. That works but does not compose, does not print a useful message on mismatch, and pushes payload-shape knowledge into every test. This ADR records the decision to use the **Strategy pattern** — a small set of composable `Matcher` implementations behind a common interface.
 
@@ -28,7 +28,7 @@ What interface do matchers implement, what set of built-in matchers does the fra
 - **Single interface.** All matchers implement the same `Matcher` Protocol; they are interchangeable in `expect(...)` calls.
 - **Composable.** `all_of(a, b)`, `any_of(a, b)` allow Boolean composition without authors hand-rolling callbacks.
 - **Informative on failure.** When a matcher rejects a message, the failure message names the matcher, the expected value, and the actual value.
-- **Protocol-agnostic default set.** Built-in matchers work on dict-like payloads. Tag-value matchers live alongside (integer-keyed lookups) without changing the base Protocol.
+- **Protocol-agnostic default set.** Built-in matchers work on dict-like payloads. Tag-value matchers (for binary tag/value formats such as FIX, MessagePack ext, or similar) live alongside with integer-keyed lookups, without changing the base Protocol.
 - **Safe-by-default.** Matchers are pure functions of the message; no side effects, no external state.
 
 ### Non-Goals

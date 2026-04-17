@@ -146,9 +146,9 @@ How do scenarios expose the resolved state of individual expectations without le
 
 ### Security Considerations
 
-- **Handle stores the matched message payload** via `handle.message`. In fixed income, that payload contains sensitive data.
+- **Handle stores the matched message payload** via `handle.message`. For regulated payloads, that content may be sensitive.
 - **Redaction at rest.** Handle's `__repr__` does not include the payload; `handle.message` is accessed explicitly. Tests that log handles do not leak by default.
-- **Pickling.** Handles are not pickleable — same `__reduce__` pattern as Harness ([ADR-0010](0010-secret-management-in-harness.md)). Prevents debug artefacts from carrying payloads across process boundaries.
+- **Pickling.** Handles are not pickleable — same `__reduce__` pattern as Harness. Prevents debug artefacts from carrying payloads across process boundaries.
 - **Surprise-log interaction.** A handle never exposes content from another scope's messages. The scope boundary (ADR-0002) + correlation routing (ADR-0004) enforce this.
 
 ---
@@ -245,7 +245,6 @@ Not applicable — greenfield.
 
 - [ADR-0002](0002-scoped-registry-test-isolation.md) — Scoped registry (handles are scope-local until teardown).
 - [ADR-0004](0004-dispatcher-correlation-mediator.md) — Dispatcher (resolves handles via the resolver lambda).
-- [ADR-0010](0010-secret-management-in-harness.md) — Pickling refusal pattern reused here.
 - [ADR-0012](0012-type-state-scenario-builder.md) — DSL (`expect*()` returns a Handle).
 - [ADR-0013](0013-matcher-strategy-pattern.md) — Matcher (populates `reason` on failure).
 - [ADR-0015](0015-deadline-based-scenario-timeouts.md) — Deadline (TIMEOUT outcome comes from there).

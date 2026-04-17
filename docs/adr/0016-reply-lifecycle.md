@@ -90,7 +90,7 @@ When can a reply be registered, how many times may it fire, and at what boundary
 
 **Cons:**
 - Every authored reply carries the burden of "will I fire twice for the same flow?" for the author to reason about — the common case is once, so the default should be once.
-- Accidental double-fires lead to cascaded duplicate replies; the SUT sees two execution reports for one order.
+- Accidental double-fires lead to cascaded duplicate replies; the SUT sees two acknowledgements for one request.
 - `.off()` is a new state-management primitive; forgetting to call it leaves the reply armed until scope exit anyway, so the manual control provides negligible safety gain.
 
 ### Option 3: Harness-bound replies (persistent across scenarios)

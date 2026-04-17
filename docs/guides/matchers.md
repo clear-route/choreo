@@ -9,14 +9,14 @@ This guide is task-oriented: pick the shape of what you want to check,
 find the matching section, copy the pattern. For the rationale behind the
 design, see [ADR-0013](../adr/0013-matcher-strategy-pattern.md). For the
 exact signatures, the docstrings on
-[packages/core/src/core/matchers.py](../../packages/core/src/core/matchers.py) are canonical.
+[packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) are canonical.
 
 ---
 
 ## The 30-second version
 
 ```python
-from core.matchers import (
+from choreo.matchers import (
     field_equals, field_in, field_gt,
     contains_fields, eq, gt, in_, exists, matches,
     all_of, any_of, not_, every, any_element,
@@ -52,7 +52,7 @@ Every `field_*` matcher takes a path and a value. Paths traverse dicts
 with `.` and index into lists with integers:
 
 ```python
-from core.matchers import (
+from choreo.matchers import (
     field_equals, field_ne, field_in, field_gt, field_lt,
     field_exists, field_matches,
 )
@@ -107,7 +107,7 @@ your spec must appear in the payload at the same position; extra keys
 anywhere in the payload are fine.
 
 ```python
-from core.matchers import contains_fields
+from choreo.matchers import contains_fields
 
 contains_fields({
     "item": {
@@ -137,7 +137,7 @@ This is how you do comparisons, ranges, or set-membership without
 flattening everything back to top-level `all_of(field_*(...), ...)`.
 
 ```python
-from core.matchers import contains_fields, eq, gt, lt, in_, all_of, not_
+from choreo.matchers import contains_fields, eq, gt, lt, in_, all_of, not_
 
 contains_fields({
     "item": {
@@ -165,16 +165,28 @@ value: `{"trace_id": exists()}` accepts any non-missing value, including
 
 ## Composing matchers
 
-Three combinators work at any level — top-level or embedded inside
+Five combinators work at any level — top-level or embedded inside
 `contains_fields`:
 
 ```python
-from core.matchers import all_of, any_of, not_
+from choreo.matchers import all_of, any_of, not_, every, any_element
 
 all_of(m1, m2, m3)      # every child must match
 any_of(m1, m2)          # at least one child must match
 not_(m)                 # inverse
+every(m)                # every element of a list payload passes m
+any_element(m)          # at least one element of a list payload passes m
 ```
+
+The list quantifiers turn "there exists a fill with px > 100" into one
+line inside a shape match:
+
+```python
+contains_fields({"order": {"fills": any_element(field_gt("px", 100.0))}})
+```
+
+A quantifier on a non-list payload fails with a `type_mismatch` reason
+— it does not silently succeed on a dict.
 
 Real example — "the job completed fully or partially, and it was not
 one of the two blocked actors":
@@ -211,10 +223,16 @@ payload for some reason (wrong codec, binary handshake, garbled test
 fixture). It searches the raw bytes before any decode step.
 
 ```python
-from core.matchers import payload_contains
+from choreo.matchers import payload_contains
 
 payload_contains(b"MAGIC-HEADER")      # protocol-level probe
 ```
+
+`payload_contains` **requires a `bytes` payload** and raises `TypeError`
+when handed a decoded dict or string. If your payload has already been
+decoded, use `field_matches` or `contains_fields` instead — the error
+points you at the right tool rather than silently stringifying a
+megabyte dict.
 
 Avoid this for anything you could express as a field check; the failure
 message is less useful, and it defeats the point of the codec layer.
@@ -230,7 +248,7 @@ the canonical shape; any object matching the duck-type will work
 
 ```python
 from dataclasses import dataclass
-from core.matchers import MatchResult, contains_fields
+from choreo.matchers import MatchResult, contains_fields
 
 @dataclass(frozen=True)
 class IsEven:
@@ -255,8 +273,16 @@ Two rules for custom matchers, from ADR-0013 §Security Considerations:
 
 An `expected_shape()` method is optional but recommended — it lets the
 test-report writer render a machine-readable version of what you
-expected (PRD-007). If you omit it, the report falls back to
-`description`.
+expected (PRD-007). This is a separate `Reportable` Protocol, split from
+`Matcher` per the interface-segregation principle: a matcher that omits
+`expected_shape()` is a perfectly valid `Matcher`, and the report falls
+back to `description`.
+
+If your custom matcher composes its children into a `MatchFailure` with
+its own `children`, the walker in `contains_fields` will automatically
+reroot every `<root>` / `all_of` / `any_of` path inside the tree to the
+walked position — so a user matcher embedded at `order.qty` reports
+failures under `order.qty`, not at the matcher's private root.
 
 ---
 
@@ -299,19 +325,28 @@ a **near-miss** (expectation bug) rather than a **silent timeout**
 | Matcher | Checks |
 |---|---|
 | `field_equals(path, value)` | `payload[path] == value` |
+| `field_ne(path, value)` | `payload[path] != value` |
 | `field_in(path, values)` | `payload[path] in values` |
 | `field_gt(path, value)` | `payload[path] > value` |
 | `field_lt(path, value)` | `payload[path] < value` |
 | `field_exists(path)` | the key at `path` is present |
+| `field_matches(path, pattern)` | regex fullmatch on a string at `path` |
+
+Paths accept `str` (dotted-sugar), `int` (single-level lookup), or a
+sequence of `str`/`int` (canonical form; the only way to reach a key
+that contains `"."` or to disambiguate a string key from a list index).
 
 ### Pathless value matchers (for leaves inside `contains_fields`)
 
 | Matcher | Checks |
 |---|---|
 | `eq(value)` | `payload == value` |
+| `ne(value)` | `payload != value` |
 | `in_(values)` | `payload in values` |
 | `gt(value)` | `payload > value` |
 | `lt(value)` | `payload < value` |
+| `matches(pattern)` | regex fullmatch on a string payload |
+| `exists()` | the sub-payload is present (any value, including `None`) |
 
 ### Structural and composition matchers
 
@@ -321,7 +356,9 @@ a **near-miss** (expectation bug) rather than a **silent timeout**
 | `all_of(*matchers)` | every child matches |
 | `any_of(*matchers)` | at least one child matches |
 | `not_(matcher)` | inverse |
-| `payload_contains(bytes)` | raw-bytes substring (escape hatch) |
+| `every(matcher)` | every element of a list payload passes `matcher` |
+| `any_element(matcher)` | at least one element of a list payload passes `matcher` |
+| `payload_contains(bytes)` | raw-bytes substring (bytes-only; raises `TypeError` otherwise) |
 
 ---
 
@@ -333,7 +370,7 @@ a **near-miss** (expectation bug) rather than a **silent timeout**
   become PASS/FAIL/TIMEOUT outcomes on Handles.
 - [docs/prd/PRD-002-scenario-dsl.md](../prd/PRD-002-scenario-dsl.md) —
   how `expect → publish → await_all` threads matchers into the scenario.
-- [packages/core/src/core/matchers.py](../../packages/core/src/core/matchers.py) — the source.
+- [packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) — the source.
   Every matcher is a short frozen dataclass; reading one is the fastest
   way to see how to write another.
 - [packages/core/tests/test_matchers.py](../../packages/core/tests/test_matchers.py) — one

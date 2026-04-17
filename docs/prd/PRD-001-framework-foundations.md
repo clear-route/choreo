@@ -2,7 +2,7 @@
 
 **Status:** Draft
 **Created:** 2026-04-17
-**Last Updated:** 2026-04-17
+**Last Updated:** 2026-04-18
 **Owner:** Platform / Test Infrastructure
 **Stakeholders:** Platform Engineering, QA / Release Engineering
 
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-Establish the suite-scoped plumbing every test in the harness depends on: a single `Harness` facade that owns one LBM context, one Dispatcher for correlation-based inbound routing, and the thread-safety bridge between the LBM callback thread and the asyncio event loop. No test author should write socket or callback-threading code — the Harness abstracts all of it behind one interface.
+Establish the suite-scoped plumbing every test in the harness depends on: a single `Harness` facade that owns one transport connection, one Dispatcher for correlation-based inbound routing, and a thread-safety bridge between any off-loop callback thread and the asyncio event loop. No test author should write socket or callback-threading code — the Harness abstracts all of it behind one interface.
 
 ---
 
@@ -19,9 +19,9 @@ Establish the suite-scoped plumbing every test in the harness depends on: a sing
 ### Current State
 
 The test harness has no shared connection layer. Every test would have to:
-- create its own LBM context (~hundreds of ms setup)
+- create its own transport connection (hundreds of ms of setup for most backends)
 - set up its own receiver callbacks
-- handle the LBM-callback-thread → asyncio-loop hand-off by hand
+- handle the hand-off from the transport's callback thread to the asyncio loop by hand
 - clean up on teardown (often forgotten, leaking sockets)
 
 Over a 100-test suite, that is **minutes of setup overhead** and a consistent source of flaky teardown bugs.
@@ -29,7 +29,7 @@ Over a 100-test suite, that is **minutes of setup overhead** and a consistent so
 ### User Pain Points
 
 - **Slow feedback.** Per-test transport setup dominates a typical test's runtime.
-- **Thread-safety traps.** LBM fires callbacks on its context thread. A test that resolves an `asyncio.Future` from the wrong thread causes nondeterministic failures.
+- **Thread-safety traps.** Many native-code transport SDKs fire callbacks on their own thread. A test that resolves an `asyncio.Future` from the wrong thread causes nondeterministic failures.
 - **Leaking state.** Tests that don't clean up receivers pollute the next test's subscriptions, producing flakes that only surface in CI.
 - **Correlation routing done ad-hoc.** With no shared dispatcher, parallel tests on a shared connection see each other's messages. Authors either serialise (slow) or write per-test filters (error-prone).
 
@@ -45,16 +45,16 @@ Over a 100-test suite, that is **minutes of setup overhead** and a consistent so
 
 ### Primary Goals
 
-1. One LBM context per pytest session, shared by all tests in the session.
+1. One transport connection per pytest session, shared by all tests in the session.
 2. Correlation-based inbound dispatch so parallel tests on shared infrastructure do not see each other's messages.
-3. Thread-safe delivery from LBM callback thread to asyncio Futures, guaranteed, invisibly to test authors.
+3. Thread-safe delivery from any off-loop callback thread to asyncio Futures, guaranteed, invisibly to test authors.
 4. Guaranteed teardown on test exit, including when tests raise exceptions.
 
 ### Success Metrics
 
-- Per-test transport setup cost: **under 5ms** (vs hundreds of ms for fresh context creation).
+- Per-test transport setup cost: **under 5ms** (vs hundreds of ms for fresh connection creation).
 - Zero failing tests due to "got Future attached to a different loop" in the first 90 days of use.
-- Zero orphaned LBM receivers after any pytest session completes (including after SIGINT).
+- Zero orphaned subscriptions after any pytest session completes (including after SIGINT).
 - Suite of 100 tests runs in **under 60 seconds** with correlation parallelism enabled, without any per-test connection setup.
 
 ### Non-Goals
@@ -71,11 +71,11 @@ Over a 100-test suite, that is **minutes of setup overhead** and a consistent so
 
 **As a** test author,
 **I want to** write a test that subscribes to a topic and receives messages,
-**So that** I can assert on service behaviour without handling LBM threading or connection setup.
+**So that** I can assert on service behaviour without handling transport threading or connection setup.
 
 **Acceptance Criteria:**
-- [ ] A test that writes `async with harness.scenario("x") as s: s.expect("topic", matcher)` works without knowing what an LBM context is.
-- [ ] The test's Future is resolved on the asyncio loop thread, never on the LBM callback thread.
+- [ ] A test that writes `async with harness.scenario("x") as s: s.expect("topic", matcher)` works without knowing which transport is attached.
+- [ ] The test's Future is resolved on the asyncio loop thread, never on any transport callback thread.
 - [ ] Teardown of the scenario unregisters the subscription even if the test raises.
 
 ---
@@ -85,7 +85,7 @@ Over a 100-test suite, that is **minutes of setup overhead** and a consistent so
 **So that** correlation routing behaviour is consistent across the whole harness.
 
 **Acceptance Criteria:**
-- [ ] All inbound traffic from LbmTransport flows through Dispatcher before reaching a test's Future.
+- [ ] All inbound traffic from any Transport flows through Dispatcher before reaching a test's Future.
 - [ ] Correlation ID extraction is configurable per topic / per message schema.
 - [ ] Unmatched correlations are recorded and exposed as a query-able "surprise log" per session.
 
@@ -107,9 +107,9 @@ Over a 100-test suite, that is **minutes of setup overhead** and a consistent so
 
 One `Harness` object, created once per pytest session, owns:
 
-- **LbmTransport** — wraps the UM SDK context. Single context. Topic → callback registry. Threadsafe publish. One method per transport operation.
-- **Dispatcher** — the Mediator. Holds `correlation_id → ScenarioScope` map. Receives every inbound message from the transports and dispatches to the right scope.
-- **LoopPoster** — internal helper. Every inbound callback from LBM's context thread invokes `loop.call_soon_threadsafe(...)` to hand work to the asyncio loop.
+- **Transport** — any implementation of the five-method `Transport` Protocol. Subscribe, unsubscribe, publish, and its own allowlist enforcement. Shipped implementations: `MockTransport`, `NatsTransport`, `KafkaTransport`, `RabbitTransport`, `RedisTransport`.
+- **Dispatcher** — the Mediator. Holds `correlation_id → ScenarioScope` map. Receives every inbound message from the transport and dispatches to the right scope.
+- **LoopPoster** — internal helper. Transports that deliver messages off the asyncio loop use it to hand work to the loop via `loop.call_soon_threadsafe(...)`.
 
 Tests never touch these directly. They interact with the Harness via the ScenarioScope DSL (PRD-002). But the scope calls through to the Harness for every subscribe / publish / inbound dispatch.
 
@@ -127,18 +127,18 @@ async with harness.scenario("my test") as s:
 Underneath, the Harness:
 
 1. The `harness.scenario("my test")` call creates a fresh `ScenarioScope`, registers it with `Dispatcher` under a fresh correlation ID.
-2. `s.expect(topic, matcher)` calls `harness.subscribe(topic, callback)` which registers a scope-local callback in the active transport.
+2. `s.expect(topic, matcher)` calls `harness.subscribe(topic, callback)` which registers a scope-local callback on the active transport.
 3. `s.publish(topic, payload)` injects the correlation ID into the payload and calls `harness.publish(topic, payload)`.
-4. When the transport fires a message on the callback thread, `Transport._on_message` runs. It calls `Dispatcher.dispatch(msg)`. The broker extracts the correlation ID, looks up the scope, calls `loop.call_soon_threadsafe(resolve_future, msg)`.
+4. When the transport fires a message, the Dispatcher extracts the correlation ID, looks up the scope, and resolves its Future via `loop.call_soon_threadsafe` if the callback arrived off-loop.
 5. On `__aexit__` the scope calls `harness.unsubscribe_all(scope)` which removes every callback this scope registered.
 
 ### Key Components
 
-- **Harness (Facade)** — top-level object, all access goes through it.
-- **LbmTransport** — owns the UM context. Subscribe, unsubscribe, publish. Threadsafe.
+- **Harness (Facade)** — top-level object; all access goes through it.
+- **Transport** — Protocol with five methods plus allowlist enforcement; one concrete impl per backend.
 - **Dispatcher (Mediator)** — inbound router. Holds correlation map. Dispatches to Futures.
-- **LoopPoster** — internal asyncio/LBM-thread bridge.
-- **SurpriseLog** — collects unmatched inbound for debugging.
+- **LoopPoster** — asyncio thread-safety bridge for transports that deliver off-loop.
+- **SurpriseLog** — collects unmatched inbound for debugging (metadata only; payloads not retained).
 
 ---
 
@@ -147,25 +147,25 @@ Underneath, the Harness:
 ### In Scope
 
 - `Harness` Facade: construct, connect, disconnect, expose transport accessors.
-- `LbmTransport` wrapping the UM SDK with subscribe/unsubscribe/publish, backed by **MockLbmTransport** for unit-testing the framework itself (from context.md §7).
+- `Transport` Protocol plus at least `MockTransport` for framework-internal testing.
 - `Dispatcher` with correlation-ID-keyed dispatch, unmatched-log, scope registration / deregistration.
-- Thread-safety bridge (LBM callback thread → asyncio loop).
-- pytest session-scoped fixture that creates/tears down the Harness.
-- Correlation-ID injection into outbound LBM payloads (configurable field name per topic).
-- Correlation-ID extraction from inbound LBM payloads (same configuration).
+- Thread-safety bridge (off-loop callback thread → asyncio loop) for transports that need it.
+- pytest session-scoped fixture pattern that consumers use to create/tear down the Harness.
+- Correlation-ID injection into outbound payloads (configurable field name per topic).
+- Correlation-ID extraction from inbound payloads (same configuration).
 
 ### Out of Scope
 
 - Scenario DSL — PRD-002.
 - Stateful fake adapters — out of scope here.
-- Real transport SDK licensing, installation, Docker image — future CI PRD.
-- pytest-xdist (multi-process) support — future iteration.
+- Real transport SDK licensing, installation, and packaging — a downstream concern for the deployment that consumes the framework.
+- pytest-xdist (multi-process) support — covered by later scope.
 
 ### Future Considerations
 
-- Redis-backed correlation map for xdist support.
+- Shared-state correlation map for xdist support.
 - Metrics / OTel emission from Dispatcher for dispatch latency visibility.
-- Pluggable transport back-ends (Kafka, RabbitMQ) behind the same facade shape, for unrelated products.
+- Additional transport back-ends behind the same Transport Protocol shape.
 
 ---
 
@@ -178,11 +178,11 @@ Underneath, the Harness:
 - [ ] Multiple callbacks per topic: a dispatcher iterates all callbacks when a message arrives.
 - [ ] `Dispatcher.register_scope(scope, correlation_id)` / `deregister_scope(scope)`.
 - [ ] Inbound messages route to the right `ScenarioScope` by correlation ID.
-- [ ] `loop.call_soon_threadsafe` used on every cross-thread callback.
-- [ ] Unmatched correlations logged with topic, correlation value, and timestamp, queryable via `harness.surprise_log()`.
-- [ ] `MockLbmTransport` for in-memory unit tests of the framework itself.
-- [ ] Session-scoped pytest fixture creates Harness, yields it, tears it down.
-- [ ] Harness teardown disconnects the UM context, closes all sockets, and releases all callbacks. Runs on normal exit and on exception.
+- [ ] `loop.call_soon_threadsafe` used on every cross-thread callback path.
+- [ ] Unmatched correlations logged with topic, correlation value, and timestamp, queryable via `harness.surprise_log()` (metadata only; payloads not retained).
+- [ ] `MockTransport` for in-memory unit tests of the framework itself.
+- [ ] Session-scoped pytest fixture pattern that creates Harness, yields it, tears it down.
+- [ ] Harness teardown disconnects the transport, closes all sockets, and releases all callbacks. Runs on normal exit and on exception.
 - [ ] Correlation-ID extraction pluggable per topic: default field name `correlation_id`, overridable per subscription.
 
 **Should Have (P1):**
@@ -196,18 +196,18 @@ Underneath, the Harness:
 
 **Performance:**
 - Per-test transport setup cost: **<5ms** amortised (one Harness shared across tests).
-- Inbound dispatch latency (LBM callback → Future resolve): **<1ms p99** on commodity hardware.
-- Publish cost: bounded by the UM SDK's publish cost; no framework overhead beyond correlation-ID injection.
+- Inbound dispatch latency (transport callback → Future resolve): **<1ms p99** on commodity hardware.
+- Publish cost: bounded by the transport's publish cost; no framework overhead beyond correlation-ID injection.
 
 **Reliability:**
-- Zero "Future attached to different loop" errors. Enforced by always using `call_soon_threadsafe`.
+- Zero "Future attached to different loop" errors. Enforced by always using `call_soon_threadsafe` on off-loop paths.
 - Zero orphaned subscriptions after any session end (normal or exception).
 - Idempotent `unsubscribe`: calling twice is safe.
 
 **Observability:**
 - Structured log per inbound: `{topic, correlation_id, scope_id | None, latency_ms, outcome}`.
 - Session-end summary: total inbound, total routed, total surprised.
-- `surprise_log()` retains unmatched messages for post-hoc debugging.
+- `surprise_log()` retains unmatched messages (metadata only) for post-hoc debugging.
 
 **Compatibility:**
 - Python 3.11+ (for `asyncio.timeout_at`, needed downstream by PRD-002).
@@ -219,12 +219,12 @@ Underneath, the Harness:
 
 ### Internal Dependencies
 
-- **Transport SDK** — each transport pulls in its own dependency (e.g. `nats-py` for `NatsTransport`, the Ultra Messaging SDK for `LbmTransport`). Licensing is deployment-specific.
+- **Transport extras** — each transport pulls in its own dependency via a `pip install 'choreo[<name>]'` extra (e.g. `nats`, `kafka`, `rabbitmq`, `redis`).
 - **pytest-asyncio** — for session-scoped event loop.
 
 ### External Dependencies
 
-- Any transport runtime (e.g. Ultra Messaging `lbmrd`, NATS broker) required by the transport a consumer chooses. A future CI PRD covers Docker packaging.
+- Any broker runtime (NATS, Kafka, RabbitMQ, Redis, …) required by the transport a consumer chooses. The repo ships a Docker Compose stack for local / CI e2e testing.
 
 ---
 
@@ -232,9 +232,9 @@ Underneath, the Harness:
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| LBM SDK licence blocks CI use | High | Medium | Contracted escalation; [context.md §12](../context.md) lists this as an open question. Mock transport lets us build and unit-test without the SDK. |
-| Thread-bridging bug causes nondeterministic failures | High | Low | Enforce `call_soon_threadsafe` in one helper; no direct loop access from LBM thread anywhere. Code review gate. |
-| Correlation ID isn't echoed by some services | Medium | Medium | Serial-per-service sharding fallback (framework-design.md §7). Documented as a known gotcha. |
+| Native-code transport SDK is unavailable on CI | High | Medium | Mock transport lets us build and unit-test without any real SDK. Real transports are optional extras; consumers install only what they use. |
+| Thread-bridging bug causes nondeterministic failures | High | Low | Enforce `call_soon_threadsafe` in one helper; no direct loop access from off-loop threads anywhere. Code-review gate. |
+| Correlation ID isn't echoed by some services | Medium | Medium | Pluggable `CorrelationPolicy` with a no-op default (ADR-0019) — consumers who can't guarantee echo opt out and serialise those tests. |
 | Session teardown races with in-flight messages | Medium | Medium | Drain inbound queue with timeout before disconnecting. Log any drops. |
 | Surprise log grows unbounded in long sessions | Low | Medium | Cap size (ring buffer, default 10k); emit warning when capped. |
 
@@ -256,7 +256,7 @@ Underneath, the Harness:
 
 **Why not chosen:**
 - Adds complexity without clear benefit in single-process asyncio mode.
-- Real parallelism constraint is the UM context thread, not multiple sockets.
+- The real parallelism constraint is not multiple sockets; it is correlation-based routing on one.
 
 ### Alternative 3: No dispatcher, each test subscribes directly with its own filter
 
@@ -271,15 +271,11 @@ Underneath, the Harness:
 
 ## Open Questions
 
-1. **UM SDK Python binding access.** Same question as [context.md §12](../context.md) — do we have a licence that covers CI? If not, we're blocked on getting one or moving to an ABI-level wrapper.
-   - **Status:** Open
+1. **Correlation field naming conventions.** Should the default extractor look for `correlation_id`, or provide a pluggable policy from the outset? Addressed by ADR-0019.
+   - **Status:** Resolved — ADR-0019 landed the pluggable `CorrelationPolicy` with `NoCorrelationPolicy` default.
    - **Owner:** Platform
 
-2. **Correlation field naming conventions.** Do all internal services use `correlation_id`, or is it per-service? Drives the default extractor.
-   - **Status:** Open
-   - **Owner:** Platform
-
-3. **How do we handle inbound with no correlation at all?** (e.g. broadcast events.) Log-and-drop, or expose a "broadcast" subscription mechanism?
+2. **How do we handle inbound with no correlation at all?** (e.g. broadcast events.) Log-and-drop, or expose a "broadcast" subscription mechanism?
    - **Status:** Open
    - **Owner:** Framework
 
@@ -289,28 +285,27 @@ Underneath, the Harness:
 
 ### Phases
 
-**Phase 1: Mock-backed skeleton** (Target: +1 week after approval)
-- `Harness`, `MockLbmTransport`, `Dispatcher` with correlation routing
-- Session-scoped pytest fixture
+**Phase 1: Mock-backed skeleton**
+- `Harness`, `MockTransport`, `Dispatcher` with correlation routing
+- Session-scoped pytest fixture pattern
 - First round-trip scenario using the mock transport
 
-**Phase 2: Real UM SDK integration** (Target: +2 weeks after SDK access)
-- `LbmTransport` wrapping the SDK
-- Thread-bridge via `call_soon_threadsafe`
-- Docker Compose integration harness with `lbmrd`
+**Phase 2: Real-broker integration**
+- `NatsTransport`, `KafkaTransport`, `RabbitTransport`, `RedisTransport`
+- Thread-bridge via `call_soon_threadsafe` for any transport that delivers off-loop
+- Docker Compose stack for local / CI e2e
 
-**Phase 3: Hardening** (Target: +1 week after Phase 2)
+**Phase 3: Hardening**
 - `atexit` safety net
 - Surprise log and diagnostic dumps
 - Performance measurement vs success metrics
 
 ### Key Milestones
 
-- [ ] PRD Approved: TBD
-- [ ] ADR Created (connection reuse model): TBD (see framework-design.md §3 for the decision; formalise in ADR)
-- [ ] Implementation Started: TBD
-- [ ] Framework-internal unit tests pass: TBD
-- [ ] First end-to-end scenario against real UM: TBD
+- [x] ADRs Created (connection reuse, scoped registry, dispatcher, thread bridge, allowlist): ADR-0001..0007, ADR-0019
+- [x] Framework-internal unit tests pass
+- [x] E2E transport contract suite passes against NATS, Kafka, RabbitMQ, Redis
+- [ ] Pluggable correlation policy (ADR-0019) tracked in follow-up work
 
 ---
 
@@ -318,22 +313,25 @@ Underneath, the Harness:
 
 ### Related Documents
 
-- [framework-design.md](../framework-design.md) §3 (connection reuse), §10 (cross-cutting patterns), §11 (runtime architecture)
-- [context.md](../context.md) §7 (module layout), §14 (implementation notes on threading)
-- [ADR-0001 — Connection reuse model](../adr/0001-connection-reuse.md) — to be written
+- [framework-design.md](../framework-design.md) — architecture narrative
+- [context.md](../context.md) — contributor implementation notes
+- [ADR-0001 — Single session-scoped Harness](../adr/0001-single-session-scoped-harness.md)
+- [ADR-0002 — Scoped registry + correlation IDs](../adr/0002-scoped-registry-test-isolation.md)
+- [ADR-0003 — Thread-safety bridge](../adr/0003-threadsafe-call-soon-bridge.md)
+- [ADR-0004 — Dispatcher](../adr/0004-dispatcher-correlation-mediator.md)
+- [ADR-0006 — Allowlist enforcement](../adr/0006-environment-boundary-enforcement.md)
+- [ADR-0019 — Pluggable correlation policy](../adr/0019-pluggable-correlation-policy.md)
 
 ### References
 
 - pytest-asyncio `loop_scope` docs — https://pytest-asyncio.readthedocs.io/en/stable/concepts.html
-- Ultra Messaging Python binding — (internal licence required)
 
 ### Glossary
 
 - **Harness** — the top-level Facade object; one per pytest session.
 - **Dispatcher** — Mediator that routes inbound messages to Futures by correlation ID.
-- **Correlation ID** — UUID per `ScenarioScope`; injected into outbound payloads, extracted from inbound to route responses back.
+- **Correlation ID** — opaque value per `ScenarioScope`; injected into outbound payloads, extracted from inbound to route responses back. See ADR-0019 for the pluggable policy.
 - **ScenarioScope** — per-test context manager; defined in PRD-002; referenced here as the unit of dispatch.
-- **UM** — Ultra Messaging, the Informatica product family; LBM is the original name.
 
 ---
 

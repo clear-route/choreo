@@ -18,7 +18,7 @@ The Scenario DSL (PRD-002) already captures per-handle latency from expectation 
 
 ### Current State
 
-`Handle._latency_ms` is populated on every match ([packages/core/src/core/scenario.py:335](../../packages/core/src/core/scenario.py#L335)) and is surfaced in `ScenarioResult.failure_summary()` and `summary()`. It is purely informational. A test that matches content correctly cannot fail on timing: a handle whose matcher passes has `Outcome.PASS` regardless of how long the match took.
+`Handle._latency_ms` is populated on every match ([packages/core/src/choreo/scenario.py:335](../../packages/core/src/choreo/scenario.py#L335)) and is surfaced in `ScenarioResult.failure_summary()` and `summary()`. It is purely informational. A test that matches content correctly cannot fail on timing: a handle whose matcher passes has `Outcome.PASS` regardless of how long the match took.
 
 For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT` — no correlated message arrived) from near-miss timeouts (`Outcome.FAIL` — messages arrived but the matcher rejected them), tracking `_attempts` and `_last_rejection_reason`. It does not record *when* rejected messages arrived, so a flake that reports `3 messages rejected` gives no signal on whether those arrived 2ms after the publish or 450ms after.
 

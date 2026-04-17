@@ -7,15 +7,16 @@ declare *"when I publish X, I expect Y"* and the harness handles the routing,
 correlation, timing, and reporting for you — one, two, three, publish, expect,
 await.
 
-The library is **transport-agnostic**. You plug in a transport — mock for unit
-tests, NATS for end-to-end, your own for LBM / Kafka / RabbitMQ / anything else —
-and the same scenario DSL works against all of them. It ships with an
+The library is **transport-agnostic**. You plug in a transport — `MockTransport`
+for unit tests, `NatsTransport` / `KafkaTransport` / `RabbitTransport` /
+`RedisTransport` for end-to-end, or your own for any other backend — and the
+same scenario DSL works against all of them. It ships with an
 [interactive HTML + JSON test report](#test-report) that renders a Jaeger-style
 waterfall of every message, match, reply, and latency budget.
 
 - Python 3.11+, no runtime dependencies.
 - `pytest`, `pytest-asyncio`, and `pyyaml` are test extras only.
-- `nats-py` is an optional extra (`pip install 'core[nats]'`) for the e2e suite.
+- `nats-py` is an optional extra (`pip install 'choreo[nats]'`) for the e2e suite.
 - Packages ship `py.typed`; consumers get full mypy coverage.
 
 ---
@@ -29,8 +30,10 @@ read models.
 
 What it gives you:
 
-- **Scoped test isolation.** Each scenario gets a fresh correlation ID; a
-  hundred scenarios can share one broker connection without cross-contamination.
+- **Scoped test isolation (opt-in).** Each scenario is a clean subscription
+  context. Configure a `CorrelationPolicy` and scenarios route their own
+  traffic, so a hundred scenarios can share one broker connection without
+  cross-contamination — see [ADR-0019](docs/adr/0019-pluggable-correlation-policy.md).
 - **Structured matching.** First-class matchers (`field_equals`,
   `contains_fields`, `all_of`, `any_of`, …) against decoded payloads — not
   regex against log lines.
@@ -46,6 +49,22 @@ What it gives you:
 
 Not a good fit for: pure unit tests with no I/O, HTTP request/response testing
 (use `httpx` + `respx`), or synchronous Python-only fakes.
+
+---
+
+## Examples
+
+Three self-contained, runnable projects in [examples/](examples/):
+
+- **[examples/01-hello-world/](examples/01-hello-world/)** — the minimum
+  useful test. Publish, expect, assert.
+- **[examples/02-request-reply/](examples/02-request-reply/)** — stage a
+  fake upstream service inside the test with `on(trigger).publish(reply)`.
+- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** —
+  opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
+
+Each example ships its own `README.md` explaining what it shows. Run any
+of them with `pytest examples/<dir>/`.
 
 ---
 
@@ -94,19 +113,22 @@ Transport and call `connect()`. The transport runs its allowlist check,
 opens its socket, and reports ready. When the suite ends, `disconnect()`
 tears everything down.
 
-**Scenario** — the per-test scope. Opening one generates a correlation ID
-(`TEST-{env}-{uuid}`) that gets stamped onto every message the test
-publishes. The scenario owns its expectations, replies, and timeline, and
-cleans them up on exit (normal or exception).
+**Scenario** — the per-test scope. Opening one owns its expectations,
+replies, and timeline, and cleans them up on exit (normal or exception).
+Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the
+library default is transparent passthrough (`NoCorrelationPolicy`), so
+`s.publish(topic, payload)` sends `payload` unchanged. Consumers who want
+the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()`
+at Harness construction (ADR-0019).
 
 **Dispatcher** — the router. Every inbound message lands here. It pulls the
 correlation ID out of the payload and hands the message to the scenario
 that claimed it. Unmatched messages go to a **surprise log** (metadata
-only; payloads redacted per ADR-0009).
+only; payloads not retained).
 
-**Loop-poster** — the thread-safe bridge. Network backends (LBM, Kafka,
-anything non-asyncio-native) deliver messages on their own thread. The
-loop-poster uses `loop.call_soon_threadsafe` to hop those messages onto
+**Loop-poster** — the thread-safe bridge. Stateful client libraries or
+native-code backends that deliver messages on their own thread use the
+loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto
 the asyncio loop before the dispatcher sees them. Without it, you'd get
 race conditions that vanish when you add a `print()`.
 
@@ -122,8 +144,8 @@ appear in any checked-in allowlist.
 
 ```yaml
 # config/allowlist.yaml
-lbm_resolvers: ["lbmrd:15380", "localhost:15380"]
-nats_servers:  ["nats://localhost:4222"]
+mock_endpoints: ["mock://localhost"]
+nats_servers:   ["nats://localhost:4222"]
 ```
 
 ### 2. Write a scenario
@@ -131,15 +153,15 @@ nats_servers:  ["nats://localhost:4222"]
 ```python
 from pathlib import Path
 
-from core import Harness
-from core.transports import MockTransport
-from core.matchers import contains_fields, gt
+from choreo import Harness
+from choreo.transports import MockTransport
+from choreo.matchers import contains_fields, gt
 
 
 async def test_the_adapter_should_respond_with_pass_when_a_request_matches() -> None:
     transport = MockTransport(
         allowlist_path=Path("config/allowlist.yaml"),
-        lbm_resolver="lbmrd:15380",
+        endpoint="mock://localhost",
     )
     harness = Harness(transport)
     await harness.connect()
@@ -177,8 +199,10 @@ pytest -m e2e       # real broker via NatsTransport, needs docker compose
 
 `pytest-asyncio` runs in `auto` mode with a session-scoped loop, so
 `async def` tests need no decorator. The default `addopts` enables
-`pytest-xdist` (`-n auto`); scenarios are isolated by correlation ID so
-parallel runs don't collide.
+`pytest-xdist` (`-n auto`); each worker is a separate process so there is
+no in-process correlation-namespace clash. For scenarios **within a single
+worker** to avoid cross-matching on shared topics, configure a
+`CorrelationPolicy` (ADR-0019).
 
 ---
 
@@ -225,13 +249,11 @@ Reading `message` or `latency_ms` while `outcome == PENDING` raises
 
 Sends a message through the transport. `payload` can be either raw `bytes`
 (passed through untouched) or a `dict` (codec-encoded; defaults to JSON).
-When you pass a dict, the scenario automatically injects its
-`correlation_id` unless you've put one in already — handy for negative
-tests that want to send the wrong ID on purpose.
 
-```python
-s = s.publish("events.created", {"count": 1000, "item_id": "ITEM-42"})
-```
+With the default `NoCorrelationPolicy`, the payload goes to the wire
+unchanged — no library-injected fields. To opt into per-scope correlation
+isolation, configure a `CorrelationPolicy` at Harness construction — see
+[Correlation policy](#correlation-policy) below.
 
 ### `await_all(timeout_ms) → ScenarioResult`
 
@@ -315,16 +337,92 @@ Each registered reply produces a `ReplyReport` in `result.replies`:
 
 ---
 
+## Correlation policy
+
+A `CorrelationPolicy` decides how per-scope correlation ids are generated,
+stamped onto outbound messages, and read from inbound ones. The library
+ships three profiles:
+
+```python
+from choreo import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
+
+# Default — transparent passthrough. s.publish(topic, payload) sends
+# `payload` unchanged. Every live scope on a topic sees every message.
+# Safe for: single-scenario tests, dedicated or per-run infrastructure.
+Harness(transport)
+Harness(transport, correlation=NoCorrelationPolicy())   # same as above, explicit
+
+# Stamp / read a dict field. Scenes stop cross-matching when parallel.
+# Safe for: multiple scenarios on one broker within a process.
+Harness(transport, correlation=DictFieldPolicy(field="trace_id"))
+
+# The pre-ADR-0019 posture: DictFieldPolicy with prefix="TEST-".
+# Safe for: deployments whose downstream ingress filters test traffic by
+# looking for the TEST- prefix (see ADR-0006).
+Harness(transport, correlation=test_namespace())
+```
+
+### When do I need one?
+
+| Situation | Policy |
+|---|---|
+| `MockTransport`, one scenario at a time | `NoCorrelationPolicy` (default) |
+| Parallel scenarios sharing one broker connection | `DictFieldPolicy(field=...)` |
+| Shared broker across tenants / CI runs / dev machines | `DictFieldPolicy(field=..., prefix=<run-unique>)` |
+| Downstream systems filter test traffic on `TEST-` | `test_namespace()` |
+| Correlation lives in a header, not the payload | Custom `CorrelationPolicy` |
+
+### Contract
+
+A `CorrelationPolicy` is four methods:
+
+```python
+from choreo import CorrelationPolicy, Envelope
+
+class MyPolicy:
+    async def new_id(self) -> str | None:             # id per scope
+        ...
+    def write(self, env: Envelope, corr_id: str) -> Envelope:   # stamp outbound
+        ...
+    def read(self, env: Envelope) -> str | None:      # extract inbound
+        ...
+    @property
+    def routes_by_correlation(self) -> bool:
+        ...
+```
+
+The `Envelope` gives your policy `{topic, payload, headers}` so a
+header-stamping or FIX-tag policy doesn't have to touch the payload. See
+[ADR-0019](docs/adr/0019-pluggable-correlation-policy.md) for the full
+contract, the trust-boundary rules (policies run on the harness hot
+path), and a worked example of each shipped profile.
+
+A working demonstration of parallel isolation with and without a policy
+lives in [examples/03-parallel-isolation/](examples/03-parallel-isolation/).
+
+### Broadcast-fallback safety note
+
+`NoCorrelationPolicy` only routes by topic. If two scenarios subscribe to
+the same topic on a shared broker, they see each other's messages. This
+is the intended semantics — no policy means no isolation — but the
+failure mode is subtle (extra matches, not missing ones). For anything
+other than dedicated or per-run infrastructure, pick a routing policy.
+The harness emits a `correlator_noop_against_real_transport` WARNING at
+`connect()` when `NoCorrelationPolicy` is paired with a non-Mock
+transport, so the unsafe pairing surfaces in logs.
+
+---
+
 ## Matchers
 
-Matchers live in `core.matchers`. They compose into expressive predicates
+Matchers live in `choreo.matchers`. They compose into expressive predicates
 over decoded payloads. See [docs/guides/matchers.md](docs/guides/matchers.md)
 for the full cookbook.
 
 ### Flat field matchers
 
 ```python
-from core.matchers import (
+from choreo.matchers import (
     field_equals, field_ne, field_in, field_gt, field_lt,
     field_exists, field_matches,
 )
@@ -361,7 +459,7 @@ Paths come in three forms:
 Leaves can be literals or other matchers.
 
 ```python
-from core.matchers import contains_fields, eq, ne, in_, gt, lt, matches, exists, all_of, not_
+from choreo.matchers import contains_fields, eq, ne, in_, gt, lt, matches, exists, all_of, not_
 
 s.expect("events.processed", contains_fields({
     "event": {
@@ -379,7 +477,7 @@ s.expect("events.processed", contains_fields({
 ### Composition and list quantifiers
 
 ```python
-from core.matchers import all_of, any_of, not_, every, any_element
+from choreo.matchers import all_of, any_of, not_, every, any_element
 
 all_of(field_equals("kind", "CREATE"), field_gt("count", 0))
 any_of(field_equals("status", "COMPLETED"), field_equals("status", "PART_COMPLETED"))
@@ -409,7 +507,7 @@ you have a decoded dict or string, use `field_matches` / `contains_fields`
 instead.
 
 ```python
-from core.matchers import payload_contains
+from choreo.matchers import payload_contains
 
 s.expect("frames.echo", payload_contains(b"MAGIC"))
 ```
@@ -432,16 +530,17 @@ Protocol so you can drop in your own.
 ### `MockTransport`
 
 In-memory pub/sub. Synchronous dispatch (subscribers fire before
-`publish()` returns). Optionally validates `lbm_resolver` against an
-allowlist.
+`publish()` returns). Optionally validates `endpoint` against the
+`mock_endpoints` allowlist category — demonstrates the enforcement
+pattern real transports use.
 
 ```python
 from pathlib import Path
-from core.transports import MockTransport
+from choreo.transports import MockTransport
 
 transport = MockTransport(
     allowlist_path=Path("config/allowlist.yaml"),   # optional
-    lbm_resolver="lbmrd:15380",                     # optional
+    endpoint="mock://localhost",                    # optional
 )
 ```
 
@@ -457,7 +556,7 @@ against a real network without standing up production infrastructure.
 
 ```python
 from pathlib import Path
-from core.transports import NatsTransport
+from choreo.transports import NatsTransport
 
 transport = NatsTransport(
     servers=["nats://localhost:4222"],
@@ -472,7 +571,7 @@ Validates `nats_servers` in the allowlist.
 ### Writing your own transport
 
 Drop a module under
-[packages/core/src/core/transports/](packages/core/src/core/transports/)
+[packages/core/src/choreo/transports/](packages/core/src/choreo/transports/)
 implementing the five-method `Transport` Protocol. The `connect()`
 implementation is where your allowlist enforcement, credential handling,
 and socket setup all live — the Harness never sees those details.
@@ -497,8 +596,8 @@ class Transport(Protocol):
     ) -> None: ...
 ```
 
-Follow the pattern in [mock.py](packages/core/src/core/transports/mock.py)
-(synchronous) or [nats.py](packages/core/src/core/transports/nats.py)
+Follow the pattern in [mock.py](packages/core/src/choreo/transports/mock.py)
+(synchronous) or [nats.py](packages/core/src/choreo/transports/nats.py)
 (asyncio-native). The `on_sent` callback is how you report post-wire
 timing to the timeline — fire it after the message is on the wire, on
 the asyncio loop thread.
@@ -509,7 +608,7 @@ the asyncio loop thread.
 
 ![Choreo test report — Jaeger-style waterfall with per-scenario timeline, matcher diffs, and reply lifecycle](docs/test-report.png)
 
-The **core-reporter** package is a pytest plugin that writes an
+The **choreo-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every
 pytest run.
 
@@ -542,17 +641,23 @@ What the report includes:
   `matcher.expected_shape()`.
 - **Per-reply lifecycle** — was it armed? did it match? did it fire?
 - **Git metadata** per test (commit, branch, author).
-- **Credential redaction.** All payloads pass through a pluggable redactor
-  chain. Register custom rules:
+- **Credential redaction (best-effort).** The default redactor strips
+  values under a denylist of field names (`password`, `token`, `secret`,
+  `api_key`, `authorization`, close variants), scrubs bearer/API-key
+  tokens and `scheme://user:pass@host` URL credentials from string
+  output, and lets consumers layer on domain rules:
 
   ```python
-  from core_reporter import register_redactor
+  from choreo_reporter import register_redactor
 
   def mask_api_keys(text: str) -> str:
       return re.sub(r"sk-[A-Za-z0-9]{32}", "sk-REDACTED", text)
 
   register_redactor(mask_api_keys)
   ```
+
+  Redaction is best-effort — see [SECURITY.md](SECURITY.md) for the
+  scope and the recommended posture for PII-heavy test suites.
 
 - **pytest-xdist support.** Each worker writes partial JSON; the reporter
   merges them at session end.
@@ -561,7 +666,7 @@ What the report includes:
 
 ## Downstream consumer pattern
 
-The `core` package is designed to be installed as a library by separate
+The `choreo` package is designed to be installed as a library by separate
 repos that test their own services. It ships no pytest fixtures and reads
 no environment variables — those are consumer decisions.
 
@@ -572,15 +677,15 @@ from pathlib import Path
 
 import pytest_asyncio
 
-from core import Harness
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness():
     transport = MockTransport(
         allowlist_path=Path(os.environ.get("MY_APP_ALLOWLIST", "config/allowlist.yaml")),
-        lbm_resolver=os.environ["MY_APP_LBM_RESOLVER"],
+        endpoint=os.environ.get("MY_APP_MOCK_ENDPOINT", "mock://localhost"),
     )
     h = Harness(transport)
     await h.connect()
@@ -591,7 +696,7 @@ async def harness():
 
 
 # consumer-repo/tests/test_events.py
-from core.matchers import contains_fields
+from choreo.matchers import contains_fields
 
 
 async def test_a_created_event_should_produce_a_state_change(harness):
@@ -656,7 +761,3 @@ ruff format packages/         # format
 ruff format --check packages/ # verify formatting without rewriting
 ```
 
-The first time the lint CI job lands there is a pending cleanup pass —
-about a hundred auto-fixable findings and a whole-repo format diff.
-Land that as a single `chore(lint): initial ruff pass` commit on its own,
-with nothing else bundled, so future blame stays readable.

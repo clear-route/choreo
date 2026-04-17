@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Choreo packages (`core`, `core-reporter`) are
+All notable changes to the Choreo packages (`choreo`, `choreo-reporter`) are
 recorded here. Both packages release in lockstep under a single `vX.Y.Z`
 git tag; an entry under a version heading applies to both unless called
 out otherwise.
@@ -16,7 +16,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   message flows in the Scenario DSL.
 - Jaeger-style waterfall timeline in the HTML test report.
 - Reactor / reply lifecycle surfaced in per-test report output.
-- Initial `core-reporter` pytest plugin (PRD-007) producing HTML + JSON
+- Initial `choreo-reporter` pytest plugin (PRD-007) producing HTML + JSON
   test reports with payload redaction.
 - NATS transport with allowlist enforcement on `nats_servers` and a
   `connect_timeout_s` budget that now covers the full connect call rather

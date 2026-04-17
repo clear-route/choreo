@@ -22,6 +22,7 @@ or a single transport:
     docker compose -f docker/compose.e2e.yaml --profile kafka up -d
     pytest -m e2e -k "kafka"
 """
+
 from __future__ import annotations
 
 import pytest
@@ -51,11 +52,11 @@ async def _nats_available(nats_url: str) -> bool:
     when the dependency is simply absent."""
     try:
         import nats
-        from nats.errors import NoServersError, TimeoutError as NatsTimeoutError
+        from nats.errors import NoServersError
+        from nats.errors import TimeoutError as NatsTimeoutError
     except ImportError:
         pytest.skip(
-            "nats-py is not installed — run `pip install 'core[nats]'` to "
-            "enable the e2e suite",
+            "nats-py is not installed — run `pip install 'choreo[nats]'` to enable the e2e suite",
             allow_module_level=False,
         )
     try:

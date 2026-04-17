@@ -4,15 +4,12 @@ The schema is the hand-off contract to any future aggregator; these
 tests catch drift between the schema file, the appendix example, and
 the serialised output.
 """
+
 from __future__ import annotations
 
-import json
 from copy import deepcopy
-from pathlib import Path
 
-import pytest
 from jsonschema import Draft202012Validator
-
 
 APPENDIX_A_EXAMPLE: dict = {
     "schema_version": "1",
@@ -21,8 +18,12 @@ APPENDIX_A_EXAMPLE: dict = {
         "finished_at": "2026-04-17T09:12:07.942000+00:00",
         "duration_ms": 3824,
         "totals": {
-            "passed": 97, "failed": 2, "errored": 0,
-            "skipped": 0, "slow": 1, "total": 100,
+            "passed": 97,
+            "failed": 2,
+            "errored": 0,
+            "skipped": 0,
+            "slow": 1,
+            "total": 100,
         },
         "project_name": "choreo",
         "transport": "MockTransport",

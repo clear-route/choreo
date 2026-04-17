@@ -3,6 +3,7 @@
 Drives the plugin with a pytester inner session that actually uses the
 harness, so the output contains scenarios, handles, and timelines.
 """
+
 from __future__ import annotations
 
 import json
@@ -11,9 +12,7 @@ from pathlib import Path
 import pytest
 
 
-def _run_harness_session(
-    pytester: pytest.Pytester, tiny_test_module: str, args: list[str]
-) -> Path:
+def _run_harness_session(pytester: pytest.Pytester, tiny_test_module: str, args: list[str]) -> Path:
     pytester.makepyfile(test_fill=tiny_test_module)
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}", *args)
@@ -51,18 +50,18 @@ def test_a_passing_scenarios_handles_should_carry_matcher_metadata(
 def test_a_failing_scenario_should_be_reported_with_fail_outcome(
     pytester: pytest.Pytester,
 ) -> None:
-    module_src = '''
+    module_src = """
 import pytest_asyncio
-from core import Harness
-from core.matchers import field_equals
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.matchers import field_equals
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
-    alist.write_text("lbm_resolvers: [\\"lbmrd:15380\\"]\\n")
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    alist.write_text("mock_endpoints: [\\"mock://localhost\\"]\\n")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:
@@ -77,15 +76,12 @@ async def test_a_scenario_fails(harness):
         s = s.publish("t.bad", {"status": "REJECTED"})
         result = await s.await_all(timeout_ms=50)
     assert result.passed is False
-'''
+"""
     pytester.makepyfile(test_failing=module_src)
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}")
     doc = json.loads((report_dir / "results.json").read_text())
-    scenarios = [
-        s for t in doc["tests"] for s in t["scenarios"]
-        if s["name"] == "bad"
-    ]
+    scenarios = [s for t in doc["tests"] for s in t["scenarios"] if s["name"] == "bad"]
     assert len(scenarios) == 1
     scenario = scenarios[0]
     assert scenario["outcome"] == "fail"
@@ -115,18 +111,18 @@ def test_a_silent_timeout_should_carry_a_silent_timeout_diagnosis(
     """No message on the scope's correlation → `diagnosis.kind == silent_timeout`.
     Confirms the TIMEOUT-vs-FAIL distinction the README promises is expressed
     in the report data, not inferred from prose."""
-    module_src = '''
+    module_src = """
 import pytest_asyncio
-from core import Harness
-from core.matchers import field_equals
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.matchers import field_equals
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
-    alist.write_text("lbm_resolvers: [\\"lbmrd:15380\\"]\\n")
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    alist.write_text("mock_endpoints: [\\"mock://localhost\\"]\\n")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:
@@ -141,14 +137,12 @@ async def test_silent(harness):
         s = s.publish("somewhere.else", b"x")
         result = await s.await_all(timeout_ms=30)
     assert result.passed is False
-'''
+"""
     pytester.makepyfile(test_silent=module_src)
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}")
     doc = json.loads((report_dir / "results.json").read_text())
-    scenario = next(
-        s for t in doc["tests"] for s in t["scenarios"] if s["name"] == "silent"
-    )
+    scenario = next(s for t in doc["tests"] for s in t["scenarios"] if s["name"] == "silent")
     handle = scenario["handles"][0]
     assert handle["outcome"] == "timeout"
     assert handle["failure"] is None
@@ -190,18 +184,18 @@ def test_a_scenario_with_replies_should_carry_reply_reports_and_timeline_events(
     """PRD-008 / ADR-0017: reply reports must flow through the JSON
     alongside handles, and reply lifecycle events must appear on the
     scope's timeline so the HTML renders them inline."""
-    module_src = '''
+    module_src = """
 import pytest_asyncio
-from core import Harness
-from core.matchers import field_equals
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.matchers import field_equals
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
-    alist.write_text("lbm_resolvers: [\\"lbmrd:15380\\"]\\n")
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    alist.write_text("mock_endpoints: [\\"mock://localhost\\"]\\n")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:
@@ -220,14 +214,13 @@ async def test_reply_flow(harness):
         s = s.publish("trigger.t", {"v": 42})
         result = await s.await_all(timeout_ms=100)
     assert result.passed is True
-'''
+"""
     pytester.makepyfile(test_reply_flow=module_src)
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}")
     doc = json.loads((report_dir / "results.json").read_text())
     scenario = next(
-        s for t in doc["tests"] for s in t["scenarios"]
-        if s["name"] == "reply-scenario"
+        s for t in doc["tests"] for s in t["scenarios"] if s["name"] == "reply-scenario"
     )
 
     # Reply report appears in the JSON.
@@ -251,17 +244,17 @@ async def test_reply_flow(harness):
 def test_a_scenario_with_a_reply_builder_error_should_report_reply_failed(
     pytester: pytest.Pytester,
 ) -> None:
-    module_src = '''
+    module_src = """
 import pytest_asyncio
-from core import Harness
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
-    alist.write_text("lbm_resolvers: [\\"lbmrd:15380\\"]\\n")
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    alist.write_text("mock_endpoints: [\\"mock://localhost\\"]\\n")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:
@@ -279,14 +272,13 @@ async def test_reply_builder_error(harness):
         s.on("trigger.t").publish("reply.t", bad)
         s = s.publish("trigger.t", {})
         await s.await_all(timeout_ms=100)
-'''
+"""
     pytester.makepyfile(test_reply_err=module_src)
     report_dir = pytester.path / "report"
     pytester.runpytest(f"--harness-report={report_dir}")
     doc = json.loads((report_dir / "results.json").read_text())
     scenario = next(
-        s for t in doc["tests"] for s in t["scenarios"]
-        if s["name"] == "reply-err-scenario"
+        s for t in doc["tests"] for s in t["scenarios"] if s["name"] == "reply-err-scenario"
     )
 
     r = scenario["replies"][0]
@@ -332,7 +324,8 @@ def test_the_project_name_flag_should_override_the_default(
 
 
 def test_the_project_name_env_var_should_apply_when_no_flag_is_given(
-    pytester: pytest.Pytester, monkeypatch: pytest.MonkeyPatch,
+    pytester: pytest.Pytester,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setenv("HARNESS_PROJECT_NAME", "my-service")
     pytester.makepyfile(

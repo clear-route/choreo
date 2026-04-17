@@ -66,7 +66,7 @@ How do we guarantee that tests running on a shared Harness don't observe each ot
 - One mechanism to reason about.
 
 **Cons:**
-- Depends entirely on the service echoing the ID. Some request types echo a reliable header; others rely on adapter-specific fields; for LBM protobuf it depends on the message schema.
+- Depends entirely on the service echoing the ID. Some request types echo a reliable header; others rely on adapter-specific fields; for binary wire formats it depends on the message schema.
 - No cleanup mechanism when correlation fails — callbacks accumulate for the suite's life.
 - No exception safety: a test that raises leaves its subscriber registered forever.
 - Hard to reason about what a given callback is expecting.
@@ -163,8 +163,8 @@ How do we guarantee that tests running on a shared Harness don't observe each ot
 
 The scope boundary is a trust boundary in this harness: data from scenario A must not reach scenario B. Specific exposures to watch:
 
-- A test introspecting `harness._fix_mock.session` bypasses the scope boundary. See [ADR-0001](0001-single-session-scoped-harness.md) on credential redaction and write-only accessors.
-- The surprise log records unmatched inbound — payloads may contain trade data (ISINs, LEIs, P&L). Default-redact with a per-topic allowlist. Tracked separately as a future ADR on log-content classification; flagged in README.
+- A test introspecting `harness._transport` internals bypasses the scope boundary. See [ADR-0001](0001-single-session-scoped-harness.md) on credential redaction and write-only accessors.
+- The surprise log records unmatched inbound — payloads may contain sensitive data (PII, account numbers, tokens). Default-redact with a per-topic allowlist. Redaction scope is delegated to consumer repos (see SECURITY.md).
 - Timeout tracebacks from a failing scope include `repr(future)` which can leak payload content to CI logs. Expectation and message objects implement a redacting `__repr__`. Owner: Platform / Test Infrastructure.
 
 ---
@@ -235,7 +235,7 @@ The serial-per-service fallback isn't free — it still requires services to be 
 
 **Open follow-ups:**
 
-- **Verify correlation echo for each downstream service surface** before the ADR can move to Accepted. Confirm at least the chosen transport-level correlation header and any protobuf internal correlation field (field name TBC per PRD-001 Open Question #2). **Owner:** Platform.
+- **Verify correlation echo for each downstream service surface** before the ADR can move to Accepted. Confirm at least the chosen transport-level correlation header and any schema-internal correlation field (field name TBC per PRD-001 Open Question #2). **Owner:** Platform.
 - **Introduce the `@pytest.mark.service` mark** so the fallback is actually available. **Owner:** Platform / Test Infrastructure.
 - **Concurrent-teardown race semantics under `asyncio.gather`** — document the idempotency requirement in framework-internal tests. **Owner:** Framework maintainers.
 

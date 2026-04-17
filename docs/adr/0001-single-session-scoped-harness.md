@@ -5,25 +5,25 @@
 **Deciders:** Platform / Test Infrastructure
 **Technical Story:** [PRD-001 — Framework foundations](../prd/PRD-001-framework-foundations.md) §3 (Connection reuse)
 
-> **Promoted to Accepted 2026-04-17.** The three blockers that kept this ADR in Proposed status are resolved by: [ADR-0006](0006-environment-boundary-enforcement.md) (environment-boundary guard), [ADR-0007](0007-harness-failure-recovery.md) (recovery policy), and [ADR-0010](0010-secret-management-in-harness.md) (credential handling). [ADR-0008](0008-um-sdk-trust-boundary.md) covers SDK trust-boundary concerns.
+> **Promoted to Accepted 2026-04-17.** The two blockers that kept this ADR in Proposed status are resolved by: [ADR-0006](0006-environment-boundary-enforcement.md) (environment-boundary guard) and [ADR-0007](0007-harness-failure-recovery.md) (recovery policy). Credential handling, SDK trust-boundary, and log-redaction concerns are delegated to the consumer repo (see SECURITY.md).
 
 ---
 
 ## Context
 
-Choreo needs to interact with long-lived transports (LBM, Kafka, NATS, RabbitMQ, and similar). Creating a new transport context for every test would cost hundreds of milliseconds in setup alone, making a 100-test suite multi-minute on CI. For a pre-merge gate that needs to return under a minute, that cost model is a non-starter.
+Choreo needs to interact with long-lived transports (NATS, Kafka, RabbitMQ, and similar). Creating a new transport context for every test would cost hundreds of milliseconds in setup alone, making a 100-test suite multi-minute on CI. For a pre-merge gate that needs to return under a minute, that cost model is a non-starter.
 
 The opposite extreme — one shared connection for the whole suite — risks cross-test state leakage: a subscription from test A firing on test B, stale callbacks receiving messages from the wrong scope, sockets left open after unclean teardowns.
 
 ### Background
 
 - [framework-design.md §3](../framework-design.md) captures the trade-offs between the three connection-reuse options: single session-scoped, pooled, and per-test.
-- [context.md §7](../context.md) sketches an `LbmTransport` abstraction with `connect` / `disconnect` lifecycle methods, implying a single long-lived instance.
+- [context.md §7](../context.md) sketches a `Transport` abstraction with `connect` / `disconnect` lifecycle methods, implying a single long-lived instance.
 - Established integration-test frameworks (Testcontainers with `reuse=True`, WireMock with `resetAll()` between tests) converge on the "single shared resource, scoped cleanup between tests" pattern.
 
 ### Problem Statement
 
-How should the harness manage expensive-to-create transports (LBM context, broker connections, stateful mocks) across a test suite?
+How should the harness manage expensive-to-create transports (broker connections, stateful mocks) across a test suite?
 
 ### Goals
 
@@ -57,13 +57,13 @@ How should the harness manage expensive-to-create transports (LBM context, broke
 
 ### Option 1: Single session-scoped Harness
 
-**Description:** One `Harness` object, constructed by a `pytest` session-scoped fixture, tears down at session end. Holds one `LbmTransport`, one `FixMock` (lazy), one `Dispatcher`. Shared by every test in the session.
+**Description:** One `Harness` object, constructed by a `pytest` session-scoped fixture, tears down at session end. Holds one transport, one `Dispatcher`, and any scope-level state. Shared by every test in the session.
 
 **Pros:**
 - Fastest amortised per-test cost.
 - One object owns all lifecycle; teardown is one call.
 - Natural home for cross-cutting concerns (metrics, tracing, correlation map).
-- Mirrors the production reality (one LBM context per process) more faithfully than the alternatives.
+- Mirrors the production reality (one broker connection per process) more faithfully than the alternatives.
 
 **Cons:**
 - Shared state surface: a bug in one test can pollute another without careful scoping (addressed by [ADR-0002](0002-scoped-registry-test-isolation.md)).
@@ -129,7 +129,7 @@ How should the harness manage expensive-to-create transports (LBM context, broke
 ### Neutral
 
 - Requires a session-scoped asyncio event loop to avoid "Future attached to different loop" errors (see [ADR-0005](0005-pytest-asyncio-session-loop.md)).
-- Test authors do not see `LbmTransport` or `FixMock` directly; they only interact via the `Harness` Facade. More indirection, less flexibility, but a smaller surface area to learn.
+- Test authors do not see the concrete transport directly; they only interact via the `Harness` Facade. More indirection, less flexibility, but a smaller surface area to learn.
 
 ### Security Considerations
 
@@ -192,8 +192,6 @@ How will we know this decision was correct?
 - [ADR-0005](0005-pytest-asyncio-session-loop.md) — Session-scoped pytest-asyncio event loop (the loop-scope alignment this decision requires).
 - [ADR-0006](0006-environment-boundary-enforcement.md) — Environment-boundary guard (prod-connection refusal; closes the first blocker to Accepted status).
 - [ADR-0007](0007-harness-failure-recovery.md) — Failure recovery policy (closes the second blocker: what happens when the Harness corrupts mid-suite).
-- [ADR-0008](0008-um-sdk-trust-boundary.md) — Transport SDK trust boundary (supply-chain pinning + hash verification for any SDK this Harness owns).
-- [ADR-0010](0010-secret-management-in-harness.md) — Secret management (closes the third blocker: credential lifecycle and redaction policy).
 
 ---
 
@@ -201,7 +199,7 @@ How will we know this decision was correct?
 
 - [PRD-001 — Framework foundations](../prd/PRD-001-framework-foundations.md)
 - [framework-design.md §3](../framework-design.md) — Connection reuse options and trade-offs
-- [context.md §7](../context.md) — Original LbmTransport sketch
+- [context.md §7](../context.md) — Original Transport sketch
 - [pytest fixtures — session scope](https://docs.pytest.org/en/stable/how-to/fixtures.html#fixture-scopes)
 - [Testcontainers-python `reuse=True`](https://deepwiki.com/testcontainers/testcontainers-python/3.8-ryuk-and-resource-cleanup) — precedent for shared-resource-across-suite
 - [WireMock JUnit rule](https://wiremock.org/docs/junit-jupiter/) — per-test reset on shared server
@@ -214,11 +212,11 @@ The single-Harness decision is load-bearing for every subsequent framework decis
 
 **Open follow-ups blocking Accepted status:**
 
-- **Environment-boundary enforcement** — design the allowlist mechanism, the `HARNESS_ENV` token handling, the per-environment host/CompID allowlists, and the test-mode tagging on every outbound correlation ID. **Owner:** Platform / Test Infrastructure. Tracked as a future ADR in the docs/adr/ README.
+- **Environment-boundary enforcement** — design the allowlist mechanism, the `HARNESS_ENV` token handling, the per-environment host / client-identity allowlists, and the test-mode tagging on every outbound correlation ID. **Owner:** Platform / Test Infrastructure. Tracked as a future ADR in the docs/adr/ README.
 - **Harness-corruption recovery policy** — decide between fail-fast, quarantine-and-retry, and reboot-Harness. Affects CI runtime when any transport SDK enters a bad state mid-suite. **Owner:** Platform / Test Infrastructure.
 - **Transport SDK supply-chain controls** — SBOM, version pinning + hash, fetch source, licence-file provenance, startup log line. **Owner:** Platform / Security.
 - **Credential-handling specifics** — concrete redacting `__repr__` / `__getstate__` behaviour for Harness and FixMock; write-only credential accessor API. **Owner:** Platform / Test Infrastructure.
-- **xdist implications** — when xdist is introduced, the worker-count cap against per-CompID session limits must be enforced. Worker-local correlation ID namespacing must prevent cross-worker surprise-log cross-contamination. **Owner:** Framework maintainers when xdist lands.
+- **xdist implications** — when xdist is introduced, the worker-count cap against per-identity session limits must be enforced. Worker-local correlation ID namespacing must prevent cross-worker surprise-log cross-contamination. **Owner:** Framework maintainers when xdist lands.
 
 **First-test latency note:** the advertised "<5 ms per-test setup" from PRD-001 is marginal cost *after* warm-up. The first test in any session pays the full Harness-creation cost (transport context, logon). In dev-local short runs (e.g. 3 tests), per-test cost is dominated by this setup. This is the expected behaviour of a session-scoped Harness and not a bug.
 

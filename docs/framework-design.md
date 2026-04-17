@@ -40,7 +40,7 @@ Locked in before any design work:
 - **Transports:** one long-lived transport instance per process, shared across all tests (ADR-0001). The transport owns its own config; the Harness does not.
 - **DSL shape:** fluent builder — `scenario → expect/on → publish → await_all`. Expect-before-publish is a structural guarantee, not a convention (ADR-0012).
 - **Test isolation:** per-scenario scope cleanup, correlation-ID routing for parallelism (ADR-0002).
-- **No runtime dependencies.** The library does not pull in any queue SDK at import time. `nats-py` is an optional extra; LBM and Kafka bindings are consumer-supplied.
+- **No runtime dependencies.** The library does not pull in any queue SDK at import time. `nats-py` is an optional extra; Kafka / NATS / anything else beyond that is consumer-supplied.
 
 ---
 
@@ -50,8 +50,8 @@ The `Harness` is the session-scoped facade (ADR-0001). One instance per pytest r
 
 ```python
 from pathlib import Path
-from core import Harness
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.transports import MockTransport
 
 transport = MockTransport(allowlist_path=Path("config/allowlist.yaml"))
 harness = Harness(transport)
@@ -62,7 +62,7 @@ await harness.disconnect()
 
 ### Why session-scoped
 
-Creating a transport connection on every test is expensive. NATS takes tens of milliseconds; LBM takes hundreds. Session scope amortises that cost. The risk — shared state between tests — is mitigated by per-scenario subscriber teardown (§5) and correlation-ID routing (§4).
+Creating a transport connection on every test is expensive. NATS takes tens of milliseconds; Kafka and other native-SDK-backed transports can take hundreds. Session scope amortises that cost. The risk — shared state between tests — is mitigated by per-scenario subscriber teardown (§5) and correlation-ID routing (§4).
 
 ### Lifecycle invariants
 
@@ -91,8 +91,8 @@ Without this, the Harness and the tests run on different loops, producing `Runti
 import os
 from pathlib import Path
 import pytest_asyncio
-from core import Harness
-from core.transports import MockTransport   # or NatsTransport, or your own
+from choreo import Harness
+from choreo.transports import MockTransport   # or NatsTransport, or your own
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness():
@@ -155,13 +155,13 @@ Contract tests read these flags to decide whether a given behaviour should be ex
 
 ### Built-in transports
 
-**MockTransport** — in-memory pub/sub. Subscribers fire synchronously before `publish()` returns. Optional allowlist enforcement on `lbm_resolver`. Provides diagnostic methods — `sent()`, `active_subscription_count()`, `clear_subscriptions()` — for tests that want to verify what was published.
+**MockTransport** — in-memory pub/sub. Subscribers fire synchronously before `publish()` returns. Optional allowlist enforcement on `endpoint`. Provides diagnostic methods — `sent()`, `active_subscription_count()`, `clear_subscriptions()` — for tests that want to verify what was published.
 
 **NatsTransport** — talks to a real NATS broker. Lazy-imported: `nats-py` is only loaded when a `NatsTransport` is constructed. Validates `nats_servers` against the allowlist at `connect()` time. Good for exercising the Transport contract end-to-end without production infrastructure.
 
 ### Thread-safety contract
 
-Transports are responsible for ensuring callbacks fire on the asyncio loop thread. For transports whose SDK delivers callbacks on a background thread (LBM's C SDK is the canonical example, but any non-asyncio-native transport faces the same problem), the transport uses `LoopPoster` to cross the boundary:
+Transports are responsible for ensuring callbacks fire on the asyncio loop thread. For transports whose SDK delivers callbacks on a background thread (any native-code SDK that invokes callbacks off the asyncio loop is a canonical example, and any non-asyncio-native transport faces the same problem), the transport uses `LoopPoster` to cross the boundary:
 
 ```python
 # Inside a non-async-native transport's message handler:
@@ -180,7 +180,7 @@ This is the thread-safety bridge (ADR-0003). Without it, race conditions arise t
 
 ### Adding a new backend
 
-Write a module under `packages/core/src/core/transports/` implementing the five methods above. The `connect()` implementation owns allowlist enforcement, credential handling, and socket setup. The Harness never sees those details.
+Write a module under `packages/core/src/choreo/transports/` implementing the five methods above. The `connect()` implementation owns allowlist enforcement, credential handling, and socket setup. The Harness never sees those details.
 
 ---
 
@@ -190,11 +190,17 @@ The `Dispatcher` (ADR-0004) is the single routing point for all inbound messages
 
 ### How routing works
 
-Every scenario generates a correlation ID at scope entry: `TEST-{32 hex chars}` (ADR-0002). Scenarios inject this ID into every payload they publish. When the system under test responds, the response carries the same ID.
+Correlation-based routing is opt-in via the Harness's `CorrelationPolicy`
+(ADR-0019). When a consumer configures a non-no-op policy (e.g.
+`DictFieldPolicy` or `test_namespace()`), the scope generates an id at entry
+via `policy.new_id()`, stamps outbound payloads via `policy.write()`, and
+filters inbound messages via `policy.read()`. Under the library default
+(`NoCorrelationPolicy`) nothing is stamped, nothing is read, and inbound fans
+out to every live scope on the topic.
 
-The Dispatcher:
+Under a routing-capable policy, the Dispatcher:
 
-1. Extracts the correlation ID from the raw bytes using a per-topic `Extractor` function.
+1. Extracts the correlation ID from the raw bytes using a per-topic `Extractor` function (or the policy's `read()`).
 2. Looks up the owning scenario by correlation ID — O(1) dict lookup.
 3. Calls the scenario's registered resolver.
 
@@ -216,7 +222,7 @@ on_message callback (expect) / on_trigger callback (reply)
 
 ### Surprise log
 
-Messages the Dispatcher cannot route are recorded in a surprise log (ADR-0009). Each entry carries only metadata — topic, correlation ID, payload size, and a classification string — never the raw payload. This prevents test-generated payloads (which may include sensitive data such as API keys or personal identifiers in an IoT or e-commerce context) from appearing in logs.
+Messages the Dispatcher cannot route are recorded in a surprise log. Each entry carries only metadata — topic, correlation ID, payload size, and a classification string — never the raw payload. This prevents test-generated payloads (which may include sensitive data such as API keys or personal identifiers in an IoT or e-commerce context) from appearing in logs. Redaction scope beyond these defaults is a consumer-repo concern (see SECURITY.md).
 
 Classifications:
 
@@ -261,31 +267,46 @@ Every scenario runs inside an `async with harness.scenario(name) as s:` block. O
 
 A transport whose `unsubscribe()` raises is logged at WARNING (exception class name only — ADR-0017) and teardown continues. One failing unsubscribe must not abort cleanup of the remaining subscriptions.
 
-### Mechanism 2 — Correlation-ID routing
+### Mechanism 2 — Correlation-based filtering (opt-in, ADR-0019)
 
-Even if a subscriber somehow survived teardown, the correlation filter inside every `on_message` callback would reject messages not carrying the current scenario's correlation ID:
+When the Harness is constructed with a routing-capable `CorrelationPolicy`,
+the filter inside every `on_message` callback rejects messages that carry a
+correlation id belonging to another scope:
 
 ```python
 def on_message(msg_topic: str, raw_payload: bytes) -> None:
     payload = codec.decode(raw_payload)
-    if isinstance(payload, dict):
-        msg_corr = payload.get("correlation_id")
+    if scope_corr is not None:
+        msg_corr = policy.read(Envelope(topic=msg_topic, payload=payload))
         if msg_corr is not None and msg_corr != scope_corr:
-            return  # not ours
+            return  # another scope's traffic
     # ... proceed to matcher ...
 ```
 
-This makes parallel scenarios safe. A hundred scenarios can share one transport connection without cross-contamination, provided the system under test echoes the correlation ID.
+When `scope_corr is None` (the `NoCorrelationPolicy` case) or when `read()`
+returns `None` (no id present in the message), the filter is skipped and the
+matcher sees every routed message — broadcast fallback. Parallel scenarios
+are safe under routing only if the system under test echoes the id the
+policy produced; consumers who need parallel isolation on shared
+infrastructure **must** configure a routing-capable policy.
 
-The combination of the two mechanisms is: scope teardown as the primary isolation primitive; correlation filtering as the parallelism layer on top.
+The combination: scope teardown is the primary isolation primitive; a
+correlation policy is the parallelism layer on top, opt-in.
 
 ### Correlation ID format
 
-```
-TEST-<32 hex chars>
-```
+The format is determined by the active `CorrelationPolicy`. Shipped profiles:
 
-The `TEST-` prefix is the production-boundary filter (ADR-0006). Downstream systems can ACL test traffic at their edge by matching this prefix. The 32-hex suffix is 128 bits of entropy from `secrets.token_hex(16)` — sufficient to defeat scope-impersonation attacks.
+- `NoCorrelationPolicy` — no id is generated; scope.correlation_id is `None`.
+- `DictFieldPolicy(field, prefix, id_generator)` — id is `prefix +
+  id_generator()`; default generator is `secrets.token_hex(16)` (128 bits).
+- `test_namespace(field="correlation_id")` — `DictFieldPolicy` with
+  `prefix="TEST-"`. Reproduces the pre-ADR-0019 captive posture so
+  downstream systems filtering on the `TEST-` prefix continue to work.
+
+Consumers can implement their own policy (header-stamping, tag-value-protocol
+tag 11, protobuf field, etc.) by providing `new_id`, `write(envelope, id)`,
+and `read(envelope)`. See ADR-0019 for the protocol contract.
 
 ### xdist interaction
 
@@ -337,15 +358,27 @@ register expectations before publish() (ADR-0012)
 
 ADR-0012 originally specified four distinct classes (ScenarioBuilder, ExpectingScenario, TriggeredScenario, ScenarioResult). The implementation reduced this to one `Scenario` class with a runtime `_state` flag. The reason: the `handle = s.expect(...)` pattern requires the caller to hold a reference across the state transition. With separate classes, `s` would be replaced by a new object on each state transition, breaking the `handle` reference. A single mutable object that advances its own state is the simpler shape. The external guarantee — wrong-state calls raise immediately — is identical either way.
 
-### Correlation injection
+### Correlation injection (policy-driven, ADR-0019)
 
-When `publish()` receives a `dict`, it automatically injects the scenario's `correlation_id` via `setdefault`:
+`Scenario.publish()` routes the outbound payload through the active
+`CorrelationPolicy`:
 
 ```python
-payload.setdefault("correlation_id", self._context.correlation_id)
+envelope = Envelope(topic=topic, payload=payload)
+envelope = policy.write(envelope, scope_correlation_id)
+payload = envelope.payload
 ```
 
-The caller can supply an explicit `correlation_id` to override — useful for negative tests that want to send under a different scope's identity. Overrides must still be `TEST-` prefixed; a non-prefixed override raises `CorrelationIdNotInTestNamespaceError` (ADR-0006).
+Under the library default (`NoCorrelationPolicy`) `write` is an identity
+function — the payload reaches the wire untouched. Under `DictFieldPolicy`
+(or `test_namespace()`) the policy stamps the configured field onto dict
+payloads; non-dict payloads pass through unchanged.
+
+Explicit overrides are honoured: if the payload already carries the
+configured field, `write` leaves it alone. If the policy has a `prefix`
+configured and the explicit value does not match, `write` raises
+`CorrelationIdNotInNamespaceError` — so a trigger-echo cannot smuggle an
+upstream id back onto the wire.
 
 ### Multiple publishes
 
@@ -422,7 +455,7 @@ A matcher is a frozen dataclass with a `description` string and a `match(payload
 
 ```python
 from dataclasses import dataclass
-from core.matchers import MatchResult
+from choreo.matchers import MatchResult
 
 @dataclass(frozen=True)
 class HasSagaStatus:
@@ -646,12 +679,12 @@ Events:
 
 The timeline is bounded at 256 entries per scope. Overflow drops the oldest entries and increments `timeline_dropped`. A flooded scope pays O(1) per append due to the deque's `maxlen`.
 
-### Credential redaction (ADR-0009, ADR-0017)
+### Credential redaction (ADR-0017; consumer-owned scope)
 
 No payload content appears in logs. The surprise log carries metadata only (topic, correlation ID, size, classification). Builder errors in replies record the exception class name only. The HTML reporter passes all payload text through a pluggable redactor chain before rendering:
 
 ```python
-from core_reporter import register_redactor
+from choreo_reporter import register_redactor
 import re
 
 def mask_tokens(text: str) -> str:
@@ -694,9 +727,6 @@ The ADRs are the authoritative source of truth for each decision. This section i
 | [0005](adr/0005-pytest-asyncio-session-loop.md) | Session-scoped event loop | `loop_scope="session"` in `pyproject.toml`; requires pytest-asyncio >= 0.24 |
 | [0006](adr/0006-environment-boundary-enforcement.md) | Environment-boundary enforcement | Allowlist YAML at `connect()`; `TEST-` prefix on all outbound; default-deny |
 | [0007](adr/0007-harness-failure-recovery.md) | Harness failure recovery | Quarantine-and-rebuild on detected corruption; no automatic retries |
-| [0008](adr/0008-um-sdk-trust-boundary.md) | UM SDK trust boundary | Pinned version + hash; internal artefact repo; startup provenance log |
-| [0009](adr/0009-log-data-classification.md) | Log / surprise-log data classification | Default-redact everywhere; class-name-only on builder errors; no payloads in logs |
-| [0010](adr/0010-secret-management-in-harness.md) | Secret management | Env-var / vault fetch at connect; zeroed after logon; no read-back accessor |
 | [0012](adr/0012-type-state-scenario-builder.md) | Type-state scenario builder | Runtime state flag with `AttributeError` on illegal calls; `publish` absent until `expect` |
 | [0013](adr/0013-matcher-strategy-pattern.md) | Matcher Strategy pattern | `Matcher` Protocol; built-ins; `all_of`/`any_of`/`not_` composition |
 | [0014](adr/0014-handle-result-model.md) | Handle-based result model | `expect()` returns a Handle; resolved state survives scope teardown; not pickleable |
@@ -707,7 +737,7 @@ The ADRs are the authoritative source of truth for each decision. This section i
 
 ADR-0011 (adversarial SUT handling) is planned but not yet written.
 
-Recommended reading order for a new contributor: 0005 → 0001 → 0003 → 0002 → 0004 → 0006 → 0010 → 0009 → 0007 → 0008 → 0012 → 0013 → 0014 → 0015 → 0016 → 0017 → 0018.
+Recommended reading order for a new contributor: 0005 → 0001 → 0003 → 0002 → 0004 → 0006 → 0007 → 0012 → 0013 → 0014 → 0015 → 0016 → 0017 → 0018.
 
 ---
 
@@ -789,7 +819,7 @@ graph LR
     subgraph Transports["Transport implementations"]
         MT["MockTransport\nin-memory"]
         NT["NatsTransport\nnats-py"]
-        CT["Custom transport\nyour LBM / Kafka / etc."]
+        CT["Custom transport\nyour Kafka / RabbitMQ / etc."]
     end
 
     subgraph Infra["Infrastructure"]

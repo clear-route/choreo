@@ -3,13 +3,13 @@
 These tests exercise `_safepath` directly (unit-level) and through the
 plugin (integration-level via pytester).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
-
-from core_reporter._safepath import (
+from choreo_reporter._safepath import (
     SENTINEL_FILENAME,
     UnsafeReportPath,
     contains_only_known_entries,
@@ -17,7 +17,6 @@ from core_reporter._safepath import (
     prepare_output_dir,
     validate_report_path,
 )
-
 
 # ---------------------------------------------------------------------------
 # validate_report_path

@@ -10,6 +10,7 @@ Runs only under ``pytest -m e2e``. Requires:
 
     docker compose -f docker/compose.e2e.yaml --profile redis up -d
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 
 pytestmark = pytest.mark.e2e
 
@@ -35,15 +35,19 @@ async def test_two_concurrent_scenarios_on_the_same_redis_channel_should_only_fu
     _redis_available: bool,
 ) -> None:
     """Redis PUBLISH fans out to every subscriber on the channel. The
-    scope's correlation filter is the only isolation boundary."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RedisTransport
+    scope's correlation filter is the only isolation boundary.
+
+    Opts into `test_namespace()` — ADR-0019 makes correlation routing
+    opt-in; the library default is broadcast."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RedisTransport
 
     channel = _channel("concurrent")
     harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
+        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -56,15 +60,11 @@ async def test_two_concurrent_scenarios_on_the_same_redis_channel_should_only_fu
                 else:
                     s = s.publish(
                         channel,
-                        json.dumps(
-                            {"correlation_id": "foreign", "k": "b"}
-                        ).encode(),
+                        json.dumps({"correlation_id": "foreign", "k": "b"}).encode(),
                     )
                 return handle, await s.await_all(timeout_ms=1500)
 
-        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(
-            run("a"), run("b")
-        )
+        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(run("a"), run("b"))
 
         result_a.assert_passed()
         assert handle_a.outcome is Outcome.PASS
@@ -83,8 +83,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
     """Redis guarantees per-connection FIFO. The reader task dispatches
     messages in arrival order, so a burst of 50 publishes on one channel
     must land on the subscriber in the order they went out."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel = _channel("burst")
     count = 50
@@ -96,9 +96,7 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
         if len(received) == count:
             done.set()
 
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(channel, on_msg)
@@ -116,14 +114,17 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RedisTransport
+    """Opts into `test_namespace()` — this test exercises the correlation
+    filter itself, which ADR-0019 makes opt-in."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RedisTransport
 
     channel = _channel("foreign_corr")
     harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
+        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -155,8 +156,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     """Unsubscribe must send the UNSUBSCRIBE command so the server stops
     delivering to this connection. A regression that just drops the
     callback dict entry would leak subscriptions server-side."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel = _channel("unsub")
     first_arrived = asyncio.Event()
@@ -166,9 +167,7 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
         received.append(p)
         first_arrived.set()
 
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(channel, cb)
@@ -201,8 +200,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
 ) -> None:
     """One broken callback must not kill the pubsub reader loop — a silent
     wedge would mean every subsequent message is lost."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel = _channel("bad_cb")
     good_got: list[bytes] = []
@@ -216,9 +215,7 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
         if len(good_got) >= 2:
             good_event.set()
 
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(channel, bad)
@@ -243,18 +240,14 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel_x = _channel("iso_x")
     channel_y = _channel("iso_y")
 
-    h_x = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
-    h_y = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    h_x = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
+    h_y = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await h_x.connect()
     await h_y.connect()
     try:
@@ -269,9 +262,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
         h_x.publish(channel_x, b"x-message")
         h_y.publish(channel_y, b"y-message")
 
-        await asyncio.wait_for(
-            asyncio.gather(x_event.wait(), y_event.wait()), timeout=3.0
-        )
+        await asyncio.wait_for(asyncio.gather(x_event.wait(), y_event.wait()), timeout=3.0)
         await asyncio.sleep(0.2)
         assert x_got == [b"x-message"]
         assert y_got == [b"y-message"]
@@ -283,7 +274,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
 async def test_connecting_to_an_unreachable_redis_port_should_raise_a_transport_error(
     _redis_available: bool,
 ) -> None:
-    from core.transports import RedisTransport, TransportError
+    from choreo.transports import RedisTransport, TransportError
 
     transport = RedisTransport(
         url="redis://127.0.0.1:1/0",
@@ -291,10 +282,7 @@ async def test_connecting_to_an_unreachable_redis_port_should_raise_a_transport_
     )
     with pytest.raises(TransportError) as exc:
         await transport.connect()
-    assert (
-        "127.0.0.1" in str(exc.value)
-        or "could not connect" in str(exc.value).lower()
-    )
+    assert "127.0.0.1" in str(exc.value) or "could not connect" in str(exc.value).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -310,15 +298,13 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     """Redis has no hard ceiling on message size (proto-max-bulk-len is
     512 MiB by default); 64 KiB forces multiple TCP segments and catches
     any framing bug in the bridge."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import RedisTransport
 
     channel = _channel("large")
     big = "x" * 65_536
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         async with harness.scenario("large") as s:
@@ -346,13 +332,11 @@ async def test_publishing_to_a_channel_with_no_subscribers_should_not_raise(
     message (zero here). The transport must not treat zero-recipients as
     an error — this is an intentional property of fire-and-forget
     pub/sub."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel = _channel("no_subscriber")
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         # Must not raise.
@@ -378,32 +362,31 @@ async def test_multiple_channels_on_one_connection_should_each_receive_only_thei
     Three channels on the same pubsub must stay isolated — a cross-wire
     would mean the reader dispatches by order or by last-subscribed
     rather than by message.channel."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channels = [_channel(f"multi_{k}") for k in ("a", "b", "c")]
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         buckets: list[list[bytes]] = [[], [], []]
         events: list[asyncio.Event] = [asyncio.Event() for _ in range(3)]
         for idx, channel in enumerate(channels):
+
             def make_cb(i: int):
                 def cb(_t: str, p: bytes) -> None:
                     buckets[i].append(p)
                     events[i].set()
+
                 return cb
+
             harness.subscribe(channel, make_cb(idx))
 
         await asyncio.sleep(0.2)
         for idx, channel in enumerate(channels):
             harness.publish(channel, f"payload-{idx}".encode())
 
-        await asyncio.wait_for(
-            asyncio.gather(*(e.wait() for e in events)), timeout=3.0
-        )
+        await asyncio.wait_for(asyncio.gather(*(e.wait() for e in events)), timeout=3.0)
         assert buckets[0] == [b"payload-0"]
         assert buckets[1] == [b"payload-1"]
         assert buckets[2] == [b"payload-2"]
@@ -424,36 +407,34 @@ async def test_three_harnesses_subscribed_to_a_shared_channel_should_all_receive
     """Redis PUBLISH broadcasts to every client subscribed to the
     channel. Three harnesses on the same broker, same channel, must each
     see the single publish."""
-    from core import Harness
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.transports import RedisTransport
 
     channel = _channel("shared")
     subs = [
-        Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
-        for _ in range(3)
+        Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)) for _ in range(3)
     ]
-    pub = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    pub = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     for h in (*subs, pub):
         await h.connect()
     try:
         buckets: list[list[bytes]] = [[], [], []]
         events: list[asyncio.Event] = [asyncio.Event() for _ in range(3)]
         for idx, h in enumerate(subs):
+
             def make_cb(i: int):
                 def cb(_t: str, p: bytes) -> None:
                     buckets[i].append(p)
                     events[i].set()
+
                 return cb
+
             h.subscribe(channel, make_cb(idx))
 
         await asyncio.sleep(0.3)
         pub.publish(channel, b"broadcast")
 
-        await asyncio.wait_for(
-            asyncio.gather(*(e.wait() for e in events)), timeout=3.0
-        )
+        await asyncio.wait_for(asyncio.gather(*(e.wait() for e in events)), timeout=3.0)
         assert all(bucket == [b"broadcast"] for bucket in buckets), buckets
     finally:
         for h in (*subs, pub):
@@ -470,14 +451,17 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RedisTransport
+    """Opts into `test_namespace()` because the late publish echoes
+    `s.correlation_id` (ADR-0019)."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RedisTransport
 
     channel = _channel("late")
     harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
+        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -513,14 +497,12 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import RedisTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import RedisTransport
 
     channel = _channel("churn")
-    harness = Harness(
-        RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         assert harness.active_subscription_count() == 0

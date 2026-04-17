@@ -10,6 +10,7 @@ Runs only under `pytest -m e2e`. Requires the compose stack:
     docker compose -f docker/compose.e2e.yaml up -d
     pytest -m e2e
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -17,7 +18,6 @@ import uuid
 from pathlib import Path
 
 import pytest
-
 
 pytestmark = pytest.mark.e2e
 
@@ -32,8 +32,8 @@ async def test_a_harness_over_nats_should_report_itself_connected_after_connect(
     nats_url: str,
     _nats_available: bool,
 ) -> None:
-    from core import Harness
-    from core.transports import NatsTransport
+    from choreo import Harness
+    from choreo.transports import NatsTransport
 
     transport = NatsTransport(
         servers=[nats_url],
@@ -51,8 +51,8 @@ async def test_a_nats_transport_should_refuse_to_connect_to_a_server_outside_the
     allowlist_yaml_path: Path,
     _nats_available: bool,
 ) -> None:
-    from core.environment import HostNotInAllowlist
-    from core.transports import NatsTransport
+    from choreo.environment import HostNotInAllowlist
+    from choreo.transports import NatsTransport
 
     transport = NatsTransport(
         servers=["nats://prod.internal:4222"],
@@ -73,9 +73,9 @@ async def test_a_matching_message_published_over_nats_should_fulfil_the_scenario
     nats_url: str,
     _nats_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import NatsTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import NatsTransport
 
     topic = _unique_topic("orders.approved")
     transport = NatsTransport(
@@ -103,10 +103,10 @@ async def test_a_timeout_on_nats_should_surface_as_timeout_outcome(
     """If nothing is ever published on the topic, the handle resolves as
     TIMEOUT (not FAIL) — the same routing-vs-expectation distinction that
     MockTransport guarantees must hold over a real wire."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import NatsTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import NatsTransport
 
     topic = _unique_topic("silent")
     other_topic = _unique_topic("other")
@@ -134,8 +134,8 @@ async def test_a_nats_transport_should_fan_out_to_multiple_subscribers_on_the_sa
     nats_url: str,
     _nats_available: bool,
 ) -> None:
-    from core import Harness
-    from core.transports import NatsTransport
+    from choreo import Harness
+    from choreo.transports import NatsTransport
 
     topic = _unique_topic("fanout")
     transport = NatsTransport(

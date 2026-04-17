@@ -4,6 +4,7 @@ Every cross-thread delivery from a transport thread to the asyncio loop goes
 through `LoopPoster.post`. It wraps `loop.call_soon_threadsafe` and (in debug
 builds) constrains the callable to a whitelist.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +13,7 @@ import time
 
 
 async def test_posting_from_the_loop_thread_should_still_resolve_on_the_loop() -> None:
-    from core._internal import LoopPoster
+    from choreo._internal import LoopPoster
 
     loop = asyncio.get_running_loop()
     poster = LoopPoster(loop)
@@ -25,7 +26,7 @@ async def test_posting_from_the_loop_thread_should_still_resolve_on_the_loop() -
 
 async def test_posting_from_a_non_loop_thread_should_resolve_on_the_loop_thread() -> None:
     """The crux of the poster: cross-thread delivery is safe for Futures."""
-    from core._internal import LoopPoster
+    from choreo._internal import LoopPoster
 
     loop = asyncio.get_running_loop()
     poster = LoopPoster(loop)
@@ -52,8 +53,8 @@ async def test_posting_from_a_non_loop_thread_should_resolve_on_the_loop_thread(
 
 
 async def test_the_poster_should_reject_callables_outside_its_whitelist_in_debug_mode() -> None:
-    from core._internal import LoopPoster
     import pytest
+    from choreo._internal import LoopPoster
 
     loop = asyncio.get_running_loop()
     poster = LoopPoster(loop, debug=True)
@@ -66,7 +67,7 @@ async def test_the_poster_should_reject_callables_outside_its_whitelist_in_debug
 
 
 async def test_drain_should_return_zero_when_the_callback_queue_is_empty() -> None:
-    from core._internal import LoopPoster
+    from choreo._internal import LoopPoster
 
     loop = asyncio.get_running_loop()
     poster = LoopPoster(loop)
@@ -80,7 +81,7 @@ async def test_drain_should_return_zero_when_the_callback_queue_is_empty() -> No
 
 
 async def test_drain_should_not_block_forever_when_callbacks_are_still_in_flight() -> None:
-    from core._internal import LoopPoster
+    from choreo._internal import LoopPoster
 
     loop = asyncio.get_running_loop()
     poster = LoopPoster(loop)

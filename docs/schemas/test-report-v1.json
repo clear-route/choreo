@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://clear-route/choreo/docs/schemas/test-report-v1.json",
+  "$id": "https://github.com/clear-route/choreo/blob/main/docs/schemas/test-report-v1.json",
   "title": "Harness test report",
-  "description": "Structured capture of a single pytest run emitted by core-reporter (PRD-007 v1).",
+  "description": "Structured capture of a single pytest run emitted by choreo-reporter (PRD-007 v1).",
   "type": "object",
   "required": ["schema_version", "run", "tests"],
   "additionalProperties": false,

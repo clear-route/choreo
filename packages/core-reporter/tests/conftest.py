@@ -1,15 +1,15 @@
-"""Shared fixtures for core-reporter tests.
+"""Shared fixtures for choreo-reporter tests.
 
 Every test uses `pytester` to spin up an isolated inner pytest session
 so the outer session's plugin state is not polluted.
 """
+
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
 import pytest
-
 
 pytest_plugins = ["pytester"]
 
@@ -43,7 +43,7 @@ def _enable_asyncio_in_pytester(pytester: pytest.Pytester) -> None:
     )
 
 
-_ALLOWLIST_YAML = 'lbm_resolvers: ["lbmrd:15380"]\n'
+_ALLOWLIST_YAML = 'mock_endpoints: ["mock://localhost"]\n'
 
 
 @pytest.fixture
@@ -55,9 +55,9 @@ def tiny_test_module() -> str:
     return f'''
 import pytest_asyncio
 
-from core import Harness
-from core.matchers import field_equals
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.matchers import field_equals
+from choreo.transports import MockTransport
 
 
 _ALLOWLIST_YAML = """{_ALLOWLIST_YAML}"""
@@ -67,7 +67,7 @@ _ALLOWLIST_YAML = """{_ALLOWLIST_YAML}"""
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
     alist.write_text(_ALLOWLIST_YAML)
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:

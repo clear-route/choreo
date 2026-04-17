@@ -9,7 +9,7 @@
 
 ## Context
 
-Choreo connects to long-lived transports (LBM, NATS, Kafka, RabbitMQ) in-process. Without a hard boundary between test and production environments, a developer with a stale config, a typo in a client identity, or an environment variable copied from another machine can attach this harness to a staging or production bus. In regulated contexts, a message emitted from a test harness onto a production session can be a reportable event.
+Choreo connects to long-lived transports (NATS, Kafka, RabbitMQ) in-process. Without a hard boundary between test and production environments, a developer with a stale config, a typo in a client identity, or an environment variable copied from another machine can attach this harness to a staging or production broker. In regulated-data contexts, a message emitted from a test harness onto a production session can be a reportable event.
 
 The harness must refuse to start when the target bus, resolver, or client identity falls outside an allowlist for the declared environment. The guard must be explicit, fail loudly, and fire before any socket is opened.
 
@@ -18,20 +18,20 @@ This ADR is required to move [ADR-0001](0001-single-session-scoped-harness.md) f
 ### Background
 
 - [ADR-0001 §Security Considerations](0001-single-session-scoped-harness.md) item 1 calls for an explicit environment token and per-environment host allowlists.
-- [context.md §8](../context.md) describes the Docker Compose CI topology: `lbmrd:15380`, Docker bridge network `lbm-test`. These are the allowlisted test targets.
+- [context.md §8](../context.md) describes the Docker Compose CI topology: the e2e NATS broker on `nats://localhost:4222`. These are the allowlisted test targets.
 - Production transport endpoints are not referenced anywhere in the harness's documentation by design — making them unknown to the codebase keeps them unusable even by accident.
 - Many organisations run "UAT isolated" environments that mimic production but are physically separated; tests targeting UAT-isolated are legitimate and must be supported.
 
 ### Problem Statement
 
-How does `Harness.connect()` verify that every configured transport endpoint (LBM resolver, NATS server, Kafka broker, message-broker identity) belongs to a safe test environment before opening any socket — and how does it respond when the target is unsafe or ambiguous?
+How does `Harness.connect()` verify that every configured transport endpoint (NATS server, Kafka broker, message-broker identity) belongs to a safe test environment before opening any socket — and how does it respond when the target is unsafe or ambiguous?
 
 ### Goals
 
 - `Harness.connect()` refuses to open any socket unless an explicit `environment` token is provided and it matches a small allowlist (`dev`, `ci`, `uat-isolated`).
 - For the declared environment, every configured transport endpoint and client identity must appear in a per-environment allowlist (loaded from a YAML config).
 - Failure mode: `Harness.connect()` raises a specific exception naming the offending field and the allowlist it violated. No socket is opened. No retry with a different config.
-- Every outbound correlation ID is prefixed `TEST-<environment>-` so downstream systems can filter-and-reject test messages at their boundary if they choose.
+- ~~Every outbound correlation ID is prefixed `TEST-<environment>-` so downstream systems can filter-and-reject test messages at their boundary if they choose.~~ **Superseded by [ADR-0019](0019-pluggable-correlation-policy.md):** correlation injection is now pluggable via `CorrelationPolicy`. Consumers who want downstream ingress filters to match on a `TEST-` prefix configure `correlation=test_namespace()` at Harness construction. The library default (`NoCorrelationPolicy`) does not stamp a prefix.
 
 ### Non-Goals
 
@@ -44,7 +44,7 @@ How does `Harness.connect()` verify that every configured transport endpoint (LB
 
 ## Decision Drivers
 
-- **Regulatory risk.** A single accidental production message on a live session is materially worse than any amount of test slowness.
+- **Regulated-data risk.** A single accidental production message on a live session is materially worse than any amount of test slowness.
 - **Developer safety.** A tired engineer should not be able to accidentally connect to prod regardless of what is in their environment.
 - **Reversibility.** The guard is easy to add later but hard to retrofit — every call site of `Harness.connect()` would need updating. Make it mandatory from day one.
 - **Auditability.** The guard's behaviour must be visible in logs and reproducible in CI. When it fires, the incident must be explainable.
@@ -78,7 +78,7 @@ How does `Harness.connect()` verify that every configured transport endpoint (LB
 - Centralised configuration.
 
 **Cons:**
-- Environment variables leak across projects and shells. A developer with `HARNESS_ENV=ci` set from a previous task and a local `.lbm.cfg` pointing at prod would pass the env check and still connect to prod.
+- Environment variables leak across projects and shells. A developer with `HARNESS_ENV=ci` set from a previous task and a local broker config pointing at prod would pass the env check and still connect to prod.
 - Call-site code gives no signal about which environment is in use. Code review cannot spot the intent.
 - No explicit parameter means the guard can be forgotten in new Harness instantiation code paths.
 - Weaker than Option 1 on every axis except line count.
@@ -118,7 +118,7 @@ How does `Harness.connect()` verify that every configured transport endpoint (LB
 
 ### Rationale
 
-- Default-deny posture is the only acceptable default for a messaging-platform harness. Option 3's default-allow is ruled out on regulatory grounds; Option 4 is defence by optimism.
+- Default-deny posture is the only acceptable default for a messaging-platform harness. Option 3's default-allow is ruled out on regulated-data grounds; Option 4 is defence by optimism.
 - Explicit `environment` parameter at the call site makes the intent visible in code review and prevents forgotten-guard regressions.
 - Schema-validated YAML config is version-controlled, diff-reviewable, and catches typos at load time.
 - The YAML can be extended (new environment, new allowlist entry) without changing the Harness code.
@@ -154,18 +154,18 @@ Primary ADR for this subject. The guard's security properties:
 1. **Default-deny.** Any host, identity, or resolver not explicitly allowlisted is refused. No `--unsafe-allow-any` flag exists.
 2. **Schema-validated config.** The YAML is validated at load time against a strict Pydantic / schema model; malformed or truncated files raise before `Harness.connect()` proceeds.
 3. **No production endpoint in the codebase or repo.** Production transport hosts do not appear anywhere in the harness repo, including in `environments.yaml`. Keeping them unknown to the codebase is a defence layer.
-4. **Correlation ID prefixing.** Every outbound correlation carries `TEST-<environment>-<uuid>` so downstream systems can reject test traffic at their ingress.
+4. **Correlation ID prefixing.** ~~Every outbound correlation carries `TEST-<environment>-<uuid>` so downstream systems can reject test traffic at their ingress.~~ **Superseded by [ADR-0019](0019-pluggable-correlation-policy.md):** correlation injection is no longer mandatory in library core. Consumers who rely on a downstream ingress filter must opt in by passing `correlation=test_namespace()` (or equivalent) to the Harness — the prefix guarantee holds only for opt-in configurations. This is a **defence-in-depth regression for careless consumers**: a fixture that forgets to configure the policy publishes unprefixed traffic. ADR-0019 §Security Considerations names the residual risk, adds a `correlator_noop_against_real_transport` startup WARNING when `NoCorrelationPolicy` is paired with a non-Mock transport, and documents the consumer-side mitigations.
 5. **Auditability.** Every refusal logs a structured event at WARNING with the rejected field and the allowlist consulted. CI retains these logs per its standard retention.
 6. **No config override via env vars.** The YAML is the only source. `HARNESS_ENV` selects which section of the YAML applies; it does not add or remove entries.
-7. **CompID hygiene.** The allowlist distinguishes `SenderCompID` and `TargetCompID` separately — a prod CompID will not be accepted as a target even if a test CompID with the same name exists.
+7. **Client-identity hygiene.** Where a transport has separate sender / target client identities, the allowlist distinguishes them — a prod identity will not be accepted as a target even if a test identity with the same name exists.
 
 ---
 
 ## Implementation
 
-1. New module `core.environment` with:
+1. New module `choreo.environment` with:
    - `class Environment(StrEnum)` — values `DEV = "dev"`, `CI = "ci"`, `UAT_ISOLATED = "uat-isolated"`.
-   - `class EnvironmentError(Exception)` with subclasses `EnvironmentNotAllowed`, `HostNotInAllowlist`, `CompIdNotInAllowlist`, `AllowlistConfigError`.
+   - `class AllowlistError(Exception)` with subclasses `EnvironmentNotAllowed`, `HostNotInAllowlist`, `IdentityNotInAllowlist`, `AllowlistConfigError`.
    - `load_allowlist(path: Path) -> EnvironmentAllowlist` — schema-validated loader.
 2. `Harness.__init__(config: HarnessConfig)` stores config; does nothing network-touching.
 3. `Harness.connect()`:
@@ -178,21 +178,18 @@ Primary ADR for this subject. The guard's security properties:
 
    ```yaml
    dev:
-     lbm_resolvers: ["localhost:15380", "127.0.0.1:15380"]
-     fix_acceptor_hosts: ["localhost", "127.0.0.1"]
-     sender_comp_ids: ["HARNESS", "VENUE_MOCK", "CLIENT_MOCK"]
-     target_comp_ids: ["ADAPTER", "FIX_ORDER_ROUTING"]
+     nats_servers: ["nats://localhost:4222", "nats://127.0.0.1:4222"]
+     kafka_brokers: ["localhost:9092"]
+     mock_endpoints: ["localhost", "127.0.0.1"]
    ci:
-     lbm_resolvers: ["lbmrd:15380"]
-     fix_acceptor_hosts: ["service-under-test", "test-harness", "lbmrd"]
-     sender_comp_ids: ["HARNESS", "VENUE_MOCK", "CLIENT_MOCK"]
-     target_comp_ids: ["ADAPTER", "FIX_ORDER_ROUTING"]
+     nats_servers: ["nats://nats:4222"]
+     kafka_brokers: ["kafka:9092"]
+     mock_endpoints: ["service-under-test", "test-harness"]
    uat-isolated:
      # populated per-deployment; reviewed by Platform + Security
-     lbm_resolvers: []
-     fix_acceptor_hosts: []
-     sender_comp_ids: []
-     target_comp_ids: []
+     nats_servers: []
+     kafka_brokers: []
+     mock_endpoints: []
    ```
 
 5. A `conftest.py` session fixture `bus_environment()` reads `HARNESS_ENV` and returns the enum. Missing or unknown value fails the fixture with a specific error pointing at `environments.yaml`.
@@ -204,7 +201,7 @@ Not applicable — greenfield.
 
 ### Timeline
 
-- Phase 1 (with PRD-001 skeleton): implement `Environment`, `EnvironmentError`, `load_allowlist`, and the `Harness.connect()` guard. Populate `environments.yaml` for `dev` and `ci`.
+- Phase 1 (with PRD-001 skeleton): implement `Environment`, `AllowlistError`, `load_allowlist`, and the `Harness.connect()` guard. Populate `environments.yaml` for `dev` and `ci`.
 - Phase 2 (before any real-transport tests): populate `uat-isolated` with real values via PR with Platform + Security review.
 - Phase 3 (with future CI PRD): wire the `scripts/check_environments_yaml.py` check into the PR pipeline.
 
@@ -217,7 +214,7 @@ Not applicable — greenfield.
 - **Accidental-connection incidents:** zero reported in the lifetime of the harness.
 - **Guard coverage:** 100% of `Harness.connect()` paths pass through the allowlist check, verified by framework-internal tests that attempt to connect with an unsafe config and assert the specific exception.
 - **Config drift:** zero CI failures where `docker-compose.ci.yml` adds a host that isn't in `environments.yaml` (the CI check enforces this before merge).
-- **Refusal clarity:** every `EnvironmentError` names the field and the allowlist, verified by test fixtures that assert the exception message shape.
+- **Refusal clarity:** every `AllowlistError` names the field and the allowlist, verified by test fixtures that assert the exception message shape.
 
 ### Monitoring
 
@@ -230,8 +227,6 @@ Not applicable — greenfield.
 ## Related Decisions
 
 - [ADR-0001](0001-single-session-scoped-harness.md) — Single session-scoped Harness (consumer of this guard; this ADR unblocks 0001's move to Accepted).
-- Future **ADR-0008** — Transport SDK trust boundary (also gates real-bus integration).
-- Future **ADR-0010** — Secret management in the Harness (complementary: guard prevents wrong connection; secrets ADR prevents credential leakage once connected).
 
 ---
 
@@ -240,7 +235,6 @@ Not applicable — greenfield.
 - [PRD-001 §Goals](../prd/PRD-001-framework-foundations.md) — framework foundations
 - [ADR-0001 §Security Considerations](0001-single-session-scoped-harness.md)
 - [context.md §8](../context.md) — CI Docker Compose topology
-- FCA / FCA MAR guidance on inadvertent market actions — general background for why this matters
 - WireMock "fault-tolerant default-deny" pattern — analogous approach for HTTP integration testing
 
 ---
@@ -255,7 +249,7 @@ enum leaked into every construction call site:
 
 ```python
 # The old shape, now removed
-config = HarnessConfig(environment=Environment.CI, lbm_resolver=..., ...)
+config = HarnessConfig(environment=Environment.CI, endpoint=..., ...)
 ```
 
 "Which environment is this" is a deployment concern. The consumer — a separate
@@ -266,25 +260,26 @@ embedding them in its construction API.
 **What changed on 2026-04-17:**
 
 - `Environment` enum removed from the library.
-- `HarnessConfig.environment` field removed. Config is `lbm_resolver` +
-  `allowlist_path` + optional `fix_*` only.
-- Allowlist YAML is now flat (no per-environment sections):
+- `HarnessConfig.environment` field removed. Each transport owns its own
+  construction fields (e.g. `endpoint` + `allowlist_path` for `MockTransport`,
+  `servers` + `allowlist_path` for `NatsTransport`).
+- Allowlist YAML is now flat (no per-environment sections); categories are
+  transport-defined:
 
   ```yaml
-  lbm_resolvers:       [...]
-  fix_acceptor_hosts:  [...]
-  sender_comp_ids:     [...]
-  target_comp_ids:     [...]
+  nats_servers:   [...]
+  kafka_brokers:  [...]
+  mock_endpoints: [...]
   ```
 
 - One YAML file per deployment. Consumers pick which to load.
-- Correlation prefix is now `TEST-` (no environment suffix). The library's
-  `correlation_prefix()` returns that literal string.
+- Correlation prefix is now `TEST-` (no environment suffix). [Further
+  superseded by ADR-0019 on 2026-04-18, below.]
 
 **What the safety story looks like now:**
 
-- The allowlist guard is unchanged in spirit: `Harness.connect()` validates
-  every configured host and CompID against the loaded allowlist, refusing
+- The allowlist guard is unchanged in spirit: the transport's `connect()` validates
+  every configured host and client identity against the loaded allowlist, refusing
   with a specific exception if any value is absent. Default-deny.
 - Production endpoints still never appear in any allowlist the library ships
   or tests with. Keeping them unknown to the codebase keeps them unusable by
@@ -294,21 +289,54 @@ embedding them in its construction API.
   grepping CI logs; if a consumer wants that, they can extend the prefix in
   their own fixture.
 
+### Correction — 2026-04-18 (supersession by ADR-0019)
+
+[ADR-0019](0019-pluggable-correlation-policy.md) supersedes the single
+bullet in §Goals and §Security Considerations item 4 that mandated a
+library-enforced `TEST-` correlation prefix. Correlation injection is now
+pluggable via `CorrelationPolicy`, and the library default is
+`NoCorrelationPolicy` (transparent passthrough).
+
+**What changed:**
+
+- Library core no longer stamps or enforces a `TEST-` prefix. The previous
+  `correlation_prefix()` accessor on the Harness is removed.
+- Consumers who relied on the prefix for a downstream ingress filter must
+  configure `correlation=test_namespace()` (ships in `choreo.correlation`)
+  at Harness construction. `test_namespace()` produces a `DictFieldPolicy`
+  with `prefix="TEST-"` and enforces the prefix on explicit overrides —
+  same behaviour as before, now opt-in.
+- Captive test suites update their fixtures to pass `test_namespace()`.
+- A startup WARNING (`correlator_noop_against_real_transport`) fires when
+  `NoCorrelationPolicy` is paired with any transport other than
+  `MockTransport`, so an operator sees the unsafe pairing at `connect()`.
+
+**What stays the same:**
+
+- The allowlist guard, default-deny posture, schema-validated config, and
+  no-production-endpoint rules in this ADR are unchanged.
+- No production mode. No `--allow-production` flag.
+- Platform + Security review still gates allowlist changes.
+
+**What weakens:**
+
+- A careless consumer fixture that forgets `test_namespace()` publishes
+  unprefixed traffic; the downstream ingress filter no longer catches it.
+  ADR-0019 names the mitigations (startup WARNING, fixture-level
+  `routes_by_correlation` assertion, README migration notice).
+
 **What didn't change:**
 
 - No production mode exists.
 - The guard still fires before any socket is opened.
 - Allowlist YAML changes still require Platform + Security review.
-- MAR / MiFID II / GDPR posture is unchanged — the safety story is the same,
+- Regulated-data posture is unchanged — the safety story is the same,
   the library is just less opinionated about deployment labels.
 
 ### Open follow-ups
 
 - **CODEOWNERS for `config/allowlist.yaml` and any derivative files** in
   consumer repos. Needs to be wired up at each deployment. Owner: Platform.
-- **Integration with ADR-0008 (SDK trust boundary).** When real-bus
-  integration lands, the allowlist may need to also validate UM licence-file
-  paths. Owner: Platform / Security.
 - **Production readiness.** This ADR does not make the harness safe for
   production deployment under any circumstances. "No production mode" is a
   deliberate design invariant. If a future business need requires it, a

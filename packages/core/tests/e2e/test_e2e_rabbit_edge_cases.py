@@ -10,6 +10,7 @@ Runs only under ``pytest -m e2e``. Requires:
 
     docker compose -f docker/compose.e2e.yaml --profile rabbitmq up -d
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -19,7 +20,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 
 pytestmark = pytest.mark.e2e
 
@@ -36,15 +36,19 @@ async def test_two_concurrent_scenarios_on_the_same_rabbit_topic_should_only_ful
 ) -> None:
     """Two scopes each bind their own exclusive queue to the shared routing
     key; every publish fans out to both. The scope's correlation filter is
-    the isolation boundary."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RabbitTransport
+    the isolation boundary.
+
+    ADR-0019 default is `NoCorrelationPolicy` (broadcast); this test
+    specifically verifies the filter, so it opts into `test_namespace()`."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RabbitTransport
 
     topic = _topic("concurrent")
     harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
+        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -57,15 +61,11 @@ async def test_two_concurrent_scenarios_on_the_same_rabbit_topic_should_only_ful
                 else:
                     s = s.publish(
                         topic,
-                        json.dumps(
-                            {"correlation_id": "foreign", "k": "b"}
-                        ).encode(),
+                        json.dumps({"correlation_id": "foreign", "k": "b"}).encode(),
                     )
                 return handle, await s.await_all(timeout_ms=2000)
 
-        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(
-            run("a"), run("b")
-        )
+        (handle_a, result_a), (handle_b, result_b) = await asyncio.gather(run("a"), run("b"))
 
         result_a.assert_passed()
         assert handle_a.outcome is Outcome.PASS
@@ -83,8 +83,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
 ) -> None:
     """A single topic-exchange binding with a single queue must preserve
     publish order — aio-pika / RabbitMQ guarantee FIFO within a queue."""
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic = _topic("burst")
     count = 50
@@ -96,9 +96,7 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
         if len(received) == count:
             done.set()
 
-    harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(topic, on_msg)
@@ -116,14 +114,17 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
     amqp_url: str,
     _rabbit_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RabbitTransport
+    """ADR-0019: the correlation filter is opt-in via a routing policy.
+    This test verifies the filter itself, so it configures `test_namespace()`."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RabbitTransport
 
     topic = _topic("foreign_corr")
     harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
+        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -155,8 +156,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     """Unsubscribe must cancel the consumer AND delete the exclusive
     queue. A regression that just pops the callback from the dict would
     keep the queue bound and the handler firing."""
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic = _topic("unsub")
     first_arrived = asyncio.Event()
@@ -166,9 +167,7 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
         received.append(p)
         first_arrived.set()
 
-    harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(topic, cb)
@@ -202,8 +201,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
     another subscriber's delivery. aio-pika's message.process() context
     manager would normally nack-and-requeue an unhandled exception; the
     transport catches inside to preserve the reader."""
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic = _topic("bad_cb")
     good_got: list[bytes] = []
@@ -217,9 +216,7 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
         if len(good_got) >= 2:
             good_event.set()
 
-    harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         harness.subscribe(topic, bad)
@@ -244,18 +241,14 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     amqp_url: str,
     _rabbit_available: bool,
 ) -> None:
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic_x = _topic("iso_x")
     topic_y = _topic("iso_y")
 
-    h_x = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
-    h_y = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    h_x = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
+    h_y = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await h_x.connect()
     await h_y.connect()
     try:
@@ -270,9 +263,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
         h_x.publish(topic_x, b"x-message")
         h_y.publish(topic_y, b"y-message")
 
-        await asyncio.wait_for(
-            asyncio.gather(x_event.wait(), y_event.wait()), timeout=3.0
-        )
+        await asyncio.wait_for(asyncio.gather(x_event.wait(), y_event.wait()), timeout=3.0)
         await asyncio.sleep(0.2)
         assert x_got == [b"x-message"]
         assert y_got == [b"y-message"]
@@ -284,7 +275,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
 async def test_connecting_to_an_unreachable_amqp_port_should_raise_a_transport_error(
     _rabbit_available: bool,
 ) -> None:
-    from core.transports import RabbitTransport, TransportError
+    from choreo.transports import RabbitTransport, TransportError
 
     transport = RabbitTransport(
         url="amqp://guest:guest@127.0.0.1:1/",
@@ -292,10 +283,7 @@ async def test_connecting_to_an_unreachable_amqp_port_should_raise_a_transport_e
     )
     with pytest.raises(TransportError) as exc:
         await transport.connect()
-    assert (
-        "127.0.0.1" in str(exc.value)
-        or "could not connect" in str(exc.value).lower()
-    )
+    assert "127.0.0.1" in str(exc.value) or "could not connect" in str(exc.value).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -311,15 +299,13 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     """RabbitMQ has no default message size cap but frame_max (default 128
     KiB) forces chunking above ~128 KiB. 64 KiB is comfortably in the
     single-frame regime and large enough to catch truncation bugs."""
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import RabbitTransport
 
     topic = _topic("large")
     big = "x" * 65_536
-    harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         async with harness.scenario("large") as s:
@@ -351,14 +337,12 @@ async def test_closing_the_harness_should_delete_its_exclusive_queues(
     We verify indirectly: bring a second harness up, publish to the topic
     the first harness subscribed to, and assert it goes nowhere (no bound
     queue exists anymore)."""
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic = _topic("autodelete")
 
-    first = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    first = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await first.connect()
     first.subscribe(topic, lambda _t, _p: None)
     await asyncio.sleep(0.2)
@@ -368,12 +352,8 @@ async def test_closing_the_harness_should_delete_its_exclusive_queues(
     # the same routing key creates a brand-new queue and should observe the
     # post-disconnect traffic only on its own queue. We publish once via a
     # third harness and assert only the second's callback fires.
-    second = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
-    publisher = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    second = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
+    publisher = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await second.connect()
     await publisher.connect()
     try:
@@ -404,27 +384,26 @@ async def test_three_harnesses_subscribed_to_a_shared_topic_should_all_receive_a
     """Three separate harnesses each bind their own queue to the same
     routing key on the shared topic exchange. A single publish must
     deliver to all three queues — the point of a topic exchange."""
-    from core import Harness
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.transports import RabbitTransport
 
     topic = _topic("shared")
     subs = [
-        Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
-        for _ in range(3)
+        Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)) for _ in range(3)
     ]
-    pub = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    pub = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     for h in (*subs, pub):
         await h.connect()
     try:
         buckets: list[list[bytes]] = [[], [], []]
         events: list[asyncio.Event] = [asyncio.Event() for _ in range(3)]
         for idx, h in enumerate(subs):
+
             def make_cb(i: int):
                 def cb(_t: str, p: bytes) -> None:
                     buckets[i].append(p)
                     events[i].set()
+
                 return cb
 
             h.subscribe(topic, make_cb(idx))
@@ -432,9 +411,7 @@ async def test_three_harnesses_subscribed_to_a_shared_topic_should_all_receive_a
         await asyncio.sleep(0.3)
         pub.publish(topic, b"broadcast")
 
-        await asyncio.wait_for(
-            asyncio.gather(*(e.wait() for e in events)), timeout=3.0
-        )
+        await asyncio.wait_for(asyncio.gather(*(e.wait() for e in events)), timeout=3.0)
         assert all(bucket == [b"broadcast"] for bucket in buckets), buckets
     finally:
         for h in (*subs, pub):
@@ -451,14 +428,17 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     amqp_url: str,
     _rabbit_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.scenario import Outcome
-    from core.transports import RabbitTransport
+    """Opts into `test_namespace()` because the late publish echoes
+    `s.correlation_id` (ADR-0019)."""
+    from choreo import Harness, test_namespace
+    from choreo.matchers import field_equals
+    from choreo.scenario import Outcome
+    from choreo.transports import RabbitTransport
 
     topic = _topic("late")
     harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
+        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path),
+        correlation=test_namespace(),
     )
     await harness.connect()
     try:
@@ -494,14 +474,12 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     amqp_url: str,
     _rabbit_available: bool,
 ) -> None:
-    from core import Harness
-    from core.matchers import field_equals
-    from core.transports import RabbitTransport
+    from choreo import Harness
+    from choreo.matchers import field_equals
+    from choreo.transports import RabbitTransport
 
     topic = _topic("churn")
-    harness = Harness(
-        RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path)
-    )
+    harness = Harness(RabbitTransport(url=amqp_url, allowlist_path=allowlist_yaml_path))
     await harness.connect()
     try:
         assert harness.active_subscription_count() == 0

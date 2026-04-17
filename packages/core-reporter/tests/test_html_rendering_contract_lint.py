@@ -11,14 +11,13 @@ refactor that introduces `.innerHTML = data.foo` would silently
 reintroduce the XSS class that §9 exists to prevent. This lint catches
 it in CI.
 """
+
 from __future__ import annotations
 
 import re
 
 from bs4 import BeautifulSoup
-
-from core_reporter._template import FORBIDDEN_JS_SINKS, render_html
-
+from choreo_reporter._template import FORBIDDEN_JS_SINKS, render_html
 
 _LINE_COMMENT = re.compile(r"//[^\n]*")
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)

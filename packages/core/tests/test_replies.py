@@ -16,6 +16,7 @@ Usage pattern inside a scenario scope:
         s = s.publish("requests.submitted", fixture)
         result = await s.await_all(timeout_ms=500)
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -28,14 +29,20 @@ import pytest
 
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
-    from core import Harness
-    from core.transports import MockTransport
+    # Reply tests rely on per-scope correlation isolation (ADR-0018). Pass
+    # `test_namespace()` explicitly — the library default under ADR-0019
+    # is `NoCorrelationPolicy` (broadcast), which these tests do not want.
+    from choreo import Harness, test_namespace
+    from choreo.transports import MockTransport
 
     transport = MockTransport(
         allowlist_path=allowlist_yaml_path,
-        lbm_resolver="lbmrd:15380",
+        endpoint="mock://localhost",
     )
-    h = Harness(transport)
+    h = Harness(transport, correlation=test_namespace())
+    assert h.correlation.routes_by_correlation, (
+        "reply suite requires a policy that routes by correlation"
+    )
     await h.connect()
     try:
         yield h
@@ -49,7 +56,7 @@ async def harness(allowlist_yaml_path: Path):
 
 
 async def test_on_should_return_a_reply_chain_from_builder_state(harness) -> None:
-    from core.scenario import ReplyChain
+    from choreo.scenario import ReplyChain
 
     async with harness.scenario("chain-from-builder") as s:
         chain = s.on("svc.request")
@@ -57,8 +64,8 @@ async def test_on_should_return_a_reply_chain_from_builder_state(harness) -> Non
 
 
 async def test_on_should_return_a_reply_chain_from_expecting_state(harness) -> None:
-    from core.matchers import field_equals
-    from core.scenario import ReplyChain
+    from choreo.matchers import field_equals
+    from choreo.scenario import ReplyChain
 
     async with harness.scenario("chain-from-expecting") as s:
         s.expect("t", field_equals("k", "v"))
@@ -67,7 +74,7 @@ async def test_on_should_return_a_reply_chain_from_expecting_state(harness) -> N
 
 
 async def test_on_should_raise_attribute_error_from_triggered_state(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("on-after-publish") as s:
         s.expect("t", field_equals("k", "v"))
@@ -77,7 +84,7 @@ async def test_on_should_raise_attribute_error_from_triggered_state(harness) -> 
 
 
 async def test_chain_publish_should_return_the_scenario(harness) -> None:
-    from core.scenario import Scenario
+    from choreo.scenario import Scenario
 
     async with harness.scenario("publish-returns-scenario") as s:
         returned = s.on("svc.request").publish("svc.reply", {"ok": True})
@@ -86,7 +93,7 @@ async def test_chain_publish_should_return_the_scenario(harness) -> None:
 
 
 async def test_chain_publish_called_twice_should_raise(harness) -> None:
-    from core.scenario import ReplyAlreadyBoundError
+    from choreo.scenario import ReplyAlreadyBoundError
 
     async with harness.scenario("double-publish-on-chain") as s:
         chain = s.on("svc.request")
@@ -113,7 +120,7 @@ async def test_on_from_builder_state_should_leave_scenario_able_to_publish(harne
 
 
 async def test_a_matching_trigger_should_publish_the_reply(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("instant-reply") as s:
         h_reply = s.expect("svc.reply", field_equals("status", "COMPLETED"))
@@ -125,9 +132,7 @@ async def test_a_matching_trigger_should_publish_the_reply(harness) -> None:
                 "qty": message_received["qty"],
             },
         )
-        s = s.publish(
-            "svc.request", {"request_id": "CL-1", "qty": 100}
-        )
+        s = s.publish("svc.request", {"request_id": "CL-1", "qty": 100})
         result = await s.await_all(timeout_ms=200)
 
     result.assert_passed()
@@ -137,7 +142,7 @@ async def test_a_matching_trigger_should_publish_the_reply(harness) -> None:
 
 
 async def test_a_static_dict_reply_should_publish_the_dict(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("static-reply") as s:
         h_reply = s.expect("heartbeat.response", field_equals("ok", True))
@@ -153,7 +158,7 @@ async def test_a_bytes_reply_should_publish_bytes_verbatim(harness) -> None:
     """Bytes bypass the codec — the caller owns every byte. The expect-side
     correlation filter only applies to dicts, so a raw-bytes reply routes
     to every subscriber."""
-    from core.matchers import payload_contains
+    from choreo.matchers import payload_contains
 
     async with harness.scenario("bytes-reply") as s:
         h = s.expect("raw.reply", payload_contains(b"RAW-BYTES"))
@@ -176,7 +181,7 @@ async def test_a_reply_with_no_matcher_should_match_every_inbound_on_topic(harne
 
 
 async def test_a_reply_with_a_matcher_should_only_fire_on_matching_trigger(harness) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("filtered") as s:
         h = s.expect("svc.reply", field_equals("kind", "ITEM-A"))
@@ -200,7 +205,7 @@ async def test_a_reply_with_a_matcher_should_only_fire_on_matching_trigger(harne
 
 
 async def test_a_reply_should_fire_at_most_once_per_scope(harness) -> None:
-    from core.scenario import ReplyReportState
+    from choreo.scenario import ReplyReportState
 
     call_count = 0
 
@@ -249,7 +254,7 @@ async def test_a_reply_should_count_candidates_arriving_after_it_fires(harness) 
 async def test_a_reply_that_never_saw_a_candidate_should_report_armed_no_match(
     harness,
 ) -> None:
-    from core.scenario import ReplyReportState
+    from choreo.scenario import ReplyReportState
 
     async with harness.scenario("no-candidates") as s:
         s.on("never.arrives").publish("never.reply", {"ok": True})
@@ -266,13 +271,11 @@ async def test_a_reply_that_never_saw_a_candidate_should_report_armed_no_match(
 async def test_a_reply_whose_matcher_rejected_every_candidate_should_report_armed_matcher_rejected(
     harness,
 ) -> None:
-    from core.matchers import field_equals
-    from core.scenario import ReplyReportState
+    from choreo.matchers import field_equals
+    from choreo.scenario import ReplyReportState
 
     async with harness.scenario("matcher-rejected") as s:
-        s.on("t", field_equals("kind", "ITEM-A")).publish(
-            "t.reply", {"ok": True}
-        )
+        s.on("t", field_equals("kind", "ITEM-A")).publish("t.reply", {"ok": True})
         s = s.publish("t", {"kind": "ITEM-B"})
         s = s.publish("t", {"kind": "ITEM-C"})
         result = await s.await_all(timeout_ms=30)
@@ -287,7 +290,7 @@ async def test_a_reply_whose_matcher_rejected_every_candidate_should_report_arme
 async def test_a_reply_whose_builder_raises_should_report_reply_failed(
     harness,
 ) -> None:
-    from core.scenario import ReplyReportState
+    from choreo.scenario import ReplyReportState
 
     def bad_builder(message_received):
         raise ValueError("oops")
@@ -308,7 +311,7 @@ async def test_a_reply_whose_builder_raises_should_report_reply_failed(
 async def test_builder_error_should_not_stop_the_scenario(harness) -> None:
     """Scenario continues after a builder exception; other expectations/replies
     still resolve normally."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     def bad(message_received):
         raise RuntimeError("boom")
@@ -318,7 +321,7 @@ async def test_builder_error_should_not_stop_the_scenario(harness) -> None:
         s.on("trigger.topic").publish("t.reply", bad)
         s = s.publish("trigger.topic", {})
         s = s.publish("other.topic", {"ok": True})
-        result = await s.await_all(timeout_ms=100)
+        await s.await_all(timeout_ms=100)
 
     # The unrelated expect still passes — builder error is isolated to its reply.
     assert h.was_fulfilled()
@@ -332,7 +335,7 @@ async def test_builder_error_should_not_stop_the_scenario(harness) -> None:
 async def test_a_reply_should_auto_inject_scope_correlation_id(harness) -> None:
     """ADR-0018: reply stamping mirrors `Scenario.publish`. The scope's
     correlation appears on the reply so a downstream in-scope expect routes."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("auto-inject") as s:
         h = s.expect("reply.topic", field_equals("k", "v"))
@@ -351,7 +354,7 @@ async def test_a_reply_should_ignore_messages_from_other_scopes(harness) -> None
     out before they become candidates."""
     import json
 
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("cross-scope-filter") as s:
         s.expect("svc.reply", field_equals("ok", True))
@@ -396,7 +399,7 @@ async def test_override_warning_should_not_log_the_outgoing_correlation_value(
     caller-controlled and may carry upstream identifiers."""
     import logging
 
-    caplog.set_level(logging.WARNING, logger="core.scenario")
+    caplog.set_level(logging.WARNING, logger="choreo.scenario")
 
     async with harness.scenario("override-log-redaction") as s:
         s.on("t").publish(
@@ -431,8 +434,8 @@ async def test_replies_across_parallel_scopes_should_fire_only_for_their_own_sco
     """ADR-0018 / PRD-008 §Success Metrics — scaled to 20 concurrent scopes
     for CI speed; proves the parallel-isolation invariant.
     """
-    from core.matchers import field_equals
-    from core.scenario import ReplyReportState
+    from choreo.matchers import field_equals
+    from choreo.scenario import ReplyReportState
 
     N = 20
 
@@ -448,8 +451,7 @@ async def test_replies_across_parallel_scopes_should_fire_only_for_their_own_sco
 
         rep = result.reply_at("iso.request")
         return (
-            h.was_fulfilled()
-            and rep.state is ReplyReportState.REPLIED,
+            h.was_fulfilled() and rep.state is ReplyReportState.REPLIED,
             rep.candidate_count,
             rep.match_count,
         )
@@ -516,7 +518,7 @@ async def test_summary_should_include_a_replies_section(harness) -> None:
 async def test_summary_without_replies_should_not_include_a_replies_section(
     harness,
 ) -> None:
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("plain-expect-only") as s:
         s.expect("t", field_equals("k", "v"))
@@ -560,7 +562,7 @@ async def test_reply_subscriptions_should_be_cleaned_up_on_exception(
 
 
 def test_reply_report_should_refuse_pickling() -> None:
-    from core.scenario import ReplyReport, ReplyReportState
+    from choreo.scenario import ReplyReport, ReplyReportState
 
     rep = ReplyReport(
         trigger_topic="t",
@@ -594,9 +596,7 @@ async def test_builder_error_report_should_contain_only_the_exception_class_name
     payload-derived values and must not interpolate into the report."""
 
     def bad_builder(message_received):
-        raise ValueError(
-            f"bad request_id {message_received['request_id']}"
-        )
+        raise ValueError(f"bad request_id {message_received['request_id']}")
 
     async with harness.scenario("redaction") as s:
         s.on("t").publish("t.reply", bad_builder)
@@ -615,9 +615,9 @@ async def test_never_fired_reply_warning_should_redact_matcher_literal_values(
 ) -> None:
     """ADR-0017 §Security — WARNING-line matcher description is redacted;
     the unredacted text stays on the in-memory report for assertions."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
-    caplog.set_level(logging.WARNING, logger="core.scenario")
+    caplog.set_level(logging.WARNING, logger="choreo.scenario")
 
     async with harness.scenario("redacted-warn") as s:
         s.on("trigger.topic", field_equals("account", "ACME-SECRET-123")).publish(
@@ -637,10 +637,8 @@ async def test_never_fired_reply_warning_should_redact_matcher_literal_values(
 # ---------------------------------------------------------------------------
 
 
-async def test_never_fired_reply_should_log_at_warning_on_scope_exit(
-    harness, caplog
-) -> None:
-    caplog.set_level(logging.WARNING, logger="core.scenario")
+async def test_never_fired_reply_should_log_at_warning_on_scope_exit(harness, caplog) -> None:
+    caplog.set_level(logging.WARNING, logger="choreo.scenario")
 
     async with harness.scenario("never-fired-log") as s:
         s.on("never.arrives").publish("reply", {"k": "v"})
@@ -652,7 +650,7 @@ async def test_never_fired_reply_should_log_at_warning_on_scope_exit(
 
 
 async def test_builder_error_should_log_at_error_level(harness, caplog) -> None:
-    caplog.set_level(logging.ERROR, logger="core.scenario")
+    caplog.set_level(logging.ERROR, logger="choreo.scenario")
 
     def bad(message_received):
         raise ValueError("bad")
@@ -669,7 +667,7 @@ async def test_builder_error_should_log_at_error_level(harness, caplog) -> None:
 async def test_fired_reply_should_not_log_at_warning(harness, caplog) -> None:
     """ADR-0017 §Warning-log behaviour: FIRED does not WARN, even when
     candidate_count > 1 (the over-count is visible on the report)."""
-    caplog.set_level(logging.WARNING, logger="core.scenario")
+    caplog.set_level(logging.WARNING, logger="choreo.scenario")
 
     async with harness.scenario("fired-quiet") as s:
         s.on("t").publish("t.reply", lambda message_received: {"k": "v"})
@@ -689,7 +687,7 @@ async def test_fired_reply_should_not_log_at_warning(harness, caplog) -> None:
 def test_bundle_fn_type_alias_should_be_importable_from_core() -> None:
     """Consumers opt into bundle-compatibility type-checking by annotating
     against `BundleFn`."""
-    from core import BundleFn  # noqa: F401
+    from choreo import BundleFn  # noqa: F401
 
     assert BundleFn is not None
 
@@ -698,7 +696,7 @@ async def test_bundle_style_helpers_should_compose_on_a_shared_scope(
     harness,
 ) -> None:
     """Bundles are plain functions taking a Scenario."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     def instant_reply(scenario):
         scenario.on("svc.request").publish(
@@ -735,7 +733,7 @@ async def test_bundle_style_helpers_should_compose_on_a_shared_scope(
 async def test_reply_fire_should_record_a_timeline_entry(harness) -> None:
     """Reply activity must be visible on the scope timeline so the HTML
     report can render reply events inline with publishes / matches."""
-    from core.scenario import TimelineAction
+    from choreo.scenario import TimelineAction
 
     async with harness.scenario("reply-fires-timeline") as s:
         s.on("trigger.t").publish(
@@ -767,7 +765,7 @@ async def test_reply_fire_timeline_entry_should_record_the_trigger_topic(
 
 
 async def test_reply_builder_error_should_record_a_timeline_entry(harness) -> None:
-    from core.scenario import TimelineAction
+    from choreo.scenario import TimelineAction
 
     def bad(message_received):
         raise ValueError("boom")
@@ -779,9 +777,7 @@ async def test_reply_builder_error_should_record_a_timeline_entry(harness) -> No
 
     actions = [e.action for e in result.timeline]
     assert TimelineAction.REPLY_FAILED in actions
-    builder_err_entry = next(
-        e for e in result.timeline if e.action.value == "reply_failed"
-    )
+    builder_err_entry = next(e for e in result.timeline if e.action.value == "reply_failed")
     # Detail names the exception class (not str(e) — ADR-0017 §Security).
     assert "ValueError" in builder_err_entry.detail
 
@@ -803,7 +799,7 @@ async def test_passing_scenario_without_replies_should_still_have_empty_timeline
 ) -> None:
     """Guard: the reply-exception to the 'pass = empty timeline' rule must
     not bleed into reply-less passing scenarios. PRD-006 still applies."""
-    from core.matchers import field_equals
+    from choreo.matchers import field_equals
 
     async with harness.scenario("pass-no-reply") as s:
         s.expect("t", field_equals("k", "v"))
@@ -826,7 +822,7 @@ async def test_a_reply_with_a_non_test_prefixed_correlation_override_should_fail
     production systems can filter test traffic at their boundary. A reply
     builder that returns a foreign-namespace correlation_id must not make it
     to the wire; the reply is marked FAILED and the scenario continues."""
-    from core.scenario import ReplyReportState
+    from choreo.scenario import ReplyReportState
 
     async with harness.scenario("prod-id-refused") as s:
         s.on("t").publish(
@@ -842,7 +838,7 @@ async def test_a_reply_with_a_non_test_prefixed_correlation_override_should_fail
     rep = result.reply_at("t")
     assert rep.state is ReplyReportState.REPLY_FAILED
     assert rep.reply_published is False
-    assert rep.builder_error == "CorrelationIdNotInTestNamespaceError"
+    assert rep.builder_error == "CorrelationIdNotInNamespaceError"
 
 
 async def test_a_builder_that_re_publishes_synchronously_should_not_double_fire(
@@ -885,20 +881,16 @@ async def test_a_builder_that_re_publishes_synchronously_should_not_double_fire(
     assert rep.reply_published is True
 
 
-async def test_builder_exception_log_should_not_carry_the_exception_string(
-    harness, caplog
-) -> None:
+async def test_builder_exception_log_should_not_carry_the_exception_string(harness, caplog) -> None:
     """ADR-0017 §Security — the ERROR log when a builder raises must not
     include str(e) because the exception message often echoes payload
     content. Only the class name is permitted across the log boundary."""
     import logging
 
-    caplog.set_level(logging.ERROR, logger="core.scenario")
+    caplog.set_level(logging.ERROR, logger="choreo.scenario")
 
     def leaky_builder(message_received):
-        raise ValueError(
-            f"bad account {message_received['account']}"
-        )
+        raise ValueError(f"bad account {message_received['account']}")
 
     async with harness.scenario("leaky-log") as s:
         s.on("t").publish("t.reply", leaky_builder)
@@ -936,20 +928,20 @@ async def test_a_callable_builder_should_not_mutate_its_returned_dict(
 def test_core_source_should_contain_no_domain_identifiers() -> None:
     """Choreo is a domain-agnostic event-driven testing library. Protocol-
     specific and domain-specific names belong in consumer repos, not in
-    `packages/core/src/core/`."""
-    core_src = Path(__file__).resolve().parents[1] / "src" / "core"
+    `packages/core/src/choreo/`.
+
+    Consumers who want to enforce their own forbidden-symbol list can add a
+    parallel guardrail in their own repo. This list only enforces what the
+    open-source framework itself should not carry."""
+    core_src = Path(__file__).resolve().parents[1] / "src" / "choreo"
+    # FIX-protocol / trading-specific identifiers. The framework has no
+    # business knowing about these — if one shows up in choreo, something
+    # domain-specific has leaked through the abstraction.
     forbidden = (
         "clOrdId",
         "execId",
         "execution_report",
         "ExecutionReport",
-        "FakeFxAdapter",
-        "fake_fx_adapter",
-        "JUNO",
-        "BOOKIE",
-        "BOUNCER",
-        "LEDGER",
-        "Trading Technologies",
     )
     offenders: list[str] = []
     for py_file in core_src.rglob("*.py"):
@@ -958,6 +950,5 @@ def test_core_source_should_contain_no_domain_identifiers() -> None:
             if term in text:
                 offenders.append(f"{py_file}: {term}")
     assert offenders == [], (
-        "Domain-specific identifiers must stay in consumer repos:\n"
-        + "\n".join(offenders)
+        "Domain-specific identifiers must stay in consumer repos:\n" + "\n".join(offenders)
     )

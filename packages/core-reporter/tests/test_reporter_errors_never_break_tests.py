@@ -1,4 +1,5 @@
 """The reporter must never be a test-failure source — PRD-007 §8."""
+
 from __future__ import annotations
 
 import pytest
@@ -16,25 +17,25 @@ def test_a_broken_observer_should_not_break_the_outer_pytest_run(
 
         @pytest.fixture(autouse=True)
         def _register_broken_observer():
-            from core._reporting import register_observer, unregister_observer
+            from choreo._reporting import register_observer, unregister_observer
             def bad_cb(result, nodeid, completed_normally):
                 raise RuntimeError('observer blew up')
             register_observer(bad_cb)
             yield
             unregister_observer(bad_cb)
         """,
-        test_broken_observer_scenario='''
+        test_broken_observer_scenario="""
 import pytest_asyncio
-from core import Harness
-from core.matchers import field_equals
-from core.transports import MockTransport
+from choreo import Harness
+from choreo.matchers import field_equals
+from choreo.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(tmp_path_factory):
     alist = tmp_path_factory.mktemp("allow") / "allowlist.yaml"
-    alist.write_text("lbm_resolvers: [\\"lbmrd:15380\\"]\\n")
-    transport = MockTransport(allowlist_path=alist, lbm_resolver="lbmrd:15380")
+    alist.write_text("mock_endpoints: [\\"mock://localhost\\"]\\n")
+    transport = MockTransport(allowlist_path=alist, endpoint="mock://localhost")
     h = Harness(transport)
     await h.connect()
     try:
@@ -49,12 +50,10 @@ async def test_still_passes(harness):
         s = s.publish("t.broken", {"k": "v"})
         result = await s.await_all(timeout_ms=200)
     result.assert_passed()
-''',
+""",
     )
     report_dir = pytester.path / "report"
-    result = pytester.runpytest(
-        f"--harness-report={report_dir}", "-W", "ignore::RuntimeWarning"
-    )
+    result = pytester.runpytest(f"--harness-report={report_dir}", "-W", "ignore::RuntimeWarning")
     assert result.ret == 0
 
 
@@ -68,7 +67,7 @@ def test_when_serialisation_fails_the_session_exit_code_should_be_unaffected(
     pytester.makepyfile(
         conftest="""
         def pytest_sessionstart(session):
-            from core_reporter import _safepath
+            from choreo_reporter import _safepath
 
             original = _safepath.atomic_write_text
 
@@ -87,9 +86,7 @@ def test_when_serialisation_fails_the_session_exit_code_should_be_unaffected(
         """,
     )
     report_dir = pytester.path / "report"
-    result = pytester.runpytest(
-        f"--harness-report={report_dir}", "-W", "ignore::RuntimeWarning"
-    )
+    result = pytester.runpytest(f"--harness-report={report_dir}", "-W", "ignore::RuntimeWarning")
     # Test collection ran clean, and the reporter's failure must not
     # convert a green run into a red one.
     assert result.ret == 0

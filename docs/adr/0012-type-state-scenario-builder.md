@@ -188,7 +188,7 @@ N/A — this decision is about correctness of test authoring, not about trust bo
 
 ## Implementation
 
-1. **Four small classes** in `core.scenario` module:
+1. **Four small classes** in `choreo.scenario` module:
    - `ScenarioBuilder` — constructor called by `harness.scenario(name)`.
    - `ExpectingScenario` — returned by `ScenarioBuilder.expect*()`.
    - `TriggeredScenario` — returned by `ExpectingScenario.publish()`.

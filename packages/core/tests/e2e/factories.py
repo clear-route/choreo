@@ -16,18 +16,17 @@ instance. A skip surfaces as a pytest.skip() inside the fixture so the
 contract tests never masquerade as real failures when the dependency is
 simply absent.
 """
+
 from __future__ import annotations
 
 import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import pytest
-
-from core.transports.base import TransportCapabilities
-
+from choreo.transports.base import TransportCapabilities
 
 # -- URL / endpoint resolution from env --------------------------------------
 
@@ -49,7 +48,7 @@ class TransportFactory:
     capabilities: TransportCapabilities
     # Populated lazily the first time probe() runs.
     _probed: bool = field(default=False, init=False)
-    _skip_reason: Optional[str] = field(default=None, init=False)
+    _skip_reason: str | None = field(default=None, init=False)
 
     async def probe_or_skip(self) -> None:
         """Skip this parameter if the SDK or broker is unavailable. One-shot."""
@@ -63,7 +62,7 @@ class TransportFactory:
             self._skip_reason = reason
             pytest.skip(reason)
 
-    async def _probe(self) -> Optional[str]:  # pragma: no cover - override
+    async def _probe(self) -> str | None:  # pragma: no cover - override
         raise NotImplementedError
 
     def build(self, allowlist_path: Path) -> Any:  # pragma: no cover - override
@@ -88,13 +87,14 @@ class NatsFactory(TransportFactory):
             ),
         )
 
-    async def _probe(self) -> Optional[str]:
+    async def _probe(self) -> str | None:
         try:
             import nats
-            from nats.errors import NoServersError, TimeoutError as NatsTimeoutError
+            from nats.errors import NoServersError
+            from nats.errors import TimeoutError as NatsTimeoutError
         except ImportError:
             return (
-                "nats-py is not installed — run `pip install 'core[nats]'` to "
+                "nats-py is not installed — run `pip install 'choreo[nats]'` to "
                 "enable the NATS contract tests"
             )
         try:
@@ -113,7 +113,7 @@ class NatsFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from core.transports import NatsTransport
+        from choreo.transports import NatsTransport
 
         return NatsTransport(servers=[NATS_URL], allowlist_path=allowlist_path)
 
@@ -132,13 +132,13 @@ class KafkaFactory(TransportFactory):
             ),
         )
 
-    async def _probe(self) -> Optional[str]:
+    async def _probe(self) -> str | None:
         try:
             from aiokafka import AIOKafkaProducer
             from aiokafka.errors import KafkaConnectionError, KafkaError
         except ImportError:
             return (
-                "aiokafka is not installed — run `pip install 'core[kafka]'` "
+                "aiokafka is not installed — run `pip install 'choreo[kafka]'` "
                 "to enable the Kafka contract tests"
             )
         producer = AIOKafkaProducer(
@@ -161,7 +161,7 @@ class KafkaFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from core.transports import KafkaTransport
+        from choreo.transports import KafkaTransport
 
         return KafkaTransport(
             bootstrap_servers=[KAFKA_BOOTSTRAP],
@@ -187,19 +187,17 @@ class RabbitFactory(TransportFactory):
             ),
         )
 
-    async def _probe(self) -> Optional[str]:
+    async def _probe(self) -> str | None:
         try:
             import aio_pika
             from aio_pika.exceptions import AMQPConnectionError
         except ImportError:
             return (
-                "aio-pika is not installed — run `pip install 'core[rabbitmq]'` "
+                "aio-pika is not installed — run `pip install 'choreo[rabbitmq]'` "
                 "to enable the RabbitMQ contract tests"
             )
         try:
-            connection = await aio_pika.connect_robust(
-                AMQP_URL, timeout=2.0
-            )
+            connection = await aio_pika.connect_robust(AMQP_URL, timeout=2.0)
         except (AMQPConnectionError, OSError, Exception) as e:
             return (
                 f"no RabbitMQ broker at {AMQP_URL}: {e} — "
@@ -210,7 +208,7 @@ class RabbitFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from core.transports import RabbitTransport
+        from choreo.transports import RabbitTransport
 
         return RabbitTransport(url=AMQP_URL, allowlist_path=allowlist_path)
 
@@ -229,13 +227,13 @@ class RedisFactory(TransportFactory):
             ),
         )
 
-    async def _probe(self) -> Optional[str]:
+    async def _probe(self) -> str | None:
         try:
             from redis.asyncio import Redis
             from redis.exceptions import RedisError
         except ImportError:
             return (
-                "redis is not installed — run `pip install 'core[redis]'` to "
+                "redis is not installed — run `pip install 'choreo[redis]'` to "
                 "enable the Redis contract tests"
             )
         client = Redis.from_url(REDIS_URL, socket_connect_timeout=2.0)
@@ -255,7 +253,7 @@ class RedisFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from core.transports import RedisTransport
+        from choreo.transports import RedisTransport
 
         return RedisTransport(url=REDIS_URL, allowlist_path=allowlist_path)
 

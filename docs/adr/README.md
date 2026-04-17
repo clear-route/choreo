@@ -24,9 +24,6 @@ Decisions that shape the Choreo architecture. Each ADR records **what was decide
 | [0005](0005-pytest-asyncio-session-loop.md) | Session-scoped event loop via pytest-asyncio `loop_scope` | Accepted | `loop_scope="session"` in `pyproject.toml`; requires pytest-asyncio ≥ 0.24 |
 | [0006](0006-environment-boundary-enforcement.md) | Environment-boundary enforcement at `Harness.connect()` | Accepted | Explicit `environment` parameter + per-environment allowlist YAML; default-deny |
 | [0007](0007-harness-failure-recovery.md) | Harness failure recovery policy | Accepted | Quarantine-and-rebuild on detected corruption; no automatic retries; rebuild ceiling |
-| [0008](0008-um-sdk-trust-boundary.md) | UM SDK trust boundary (supply chain) | Accepted | Pinned version + hash; internal artefact repo; startup log line records provenance |
-| [0009](0009-log-data-classification.md) | Log / surprise-log data classification | Accepted | Default-redact everywhere; per-topic classifier for opt-in; full capture refused in CI / UAT |
-| [0010](0010-secret-management-in-harness.md) | Secret management in the Harness | Accepted | Env-var / vault fetch at connect; zero after logon; no read-back accessor |
 | [0012](0012-type-state-scenario-builder.md) | Type-state scenario builder | Accepted | Four states: Builder → Expecting → Triggered → Result; publish / await_all only on the right one |
 | [0013](0013-matcher-strategy-pattern.md) | Matcher Strategy pattern | Accepted | Protocol + built-ins + `all_of`/`any_of`/`not_` composition; matchers own their description |
 | [0014](0014-handle-result-model.md) | Handle-based result model | Accepted | Each `expect*()` returns a Handle; resolved state survives scope teardown; non-pickleable |
@@ -34,7 +31,8 @@ Decisions that shape the Choreo architecture. Each ADR records **what was decide
 | [0016](0016-reply-lifecycle.md) | Reply lifecycle — scope-bound, fire-once, pre-publish | **Proposed** | `on()` is a subscription; fire-once; deregister on scope exit; no post-publish registration |
 | [0017](0017-reply-fire-and-forget-results.md) | Fire-and-forget reply results with ReplyReport | **Proposed** | Replies are not assertions; observability via `ScenarioResult.replies` (four states); no Handle |
 | [0018](0018-reply-correlation-scoping.md) | Reply correlation scoping — reuse of expect-filter | **Proposed** | Same filter as `expect`; scope-correlation stamped on reply; SUT-originated correlation deferred |
-| [0019](0019-pluggable-correlation-policy.md) | Pluggable correlation policy with no-op default | **Proposed** | `Correlator` protocol; `NoCorrelator` default for OSS; `TestNamespaceCorrelator` ships the current `TEST-` posture as opt-in |
+| [0019](0019-pluggable-correlation-policy.md) | Pluggable correlation policy with no-op default | **Proposed** | `CorrelationPolicy` protocol over an `Envelope`; `NoCorrelationPolicy` default for public release; `test_namespace()` factory ships the current `TEST-` posture as opt-in |
+| [0020](0020-transport-auth.md) | Transport authentication — typed per-transport auth with optional resolver | **Proposed** | `auth: <Concrete>Auth \| AuthResolver \| None` per transport; bounded lifetime, structural redaction, no pickle; allowlist unchanged |
 
 ## Dependency graph
 
@@ -43,9 +41,8 @@ ADR-0001 (Single Harness)
   ├── depends on ADR-0002 for safety — scoped cleanup bounds shared-state risk
   ├── depends on ADR-0003 — transports run on non-loop threads; need the poster
   ├── depends on ADR-0005 — session-scoped fixture requires session-scoped loop
-  ├── depends on ADR-0006 — environment guard is the accidental-prod-connection check
+  ├── depends on ADR-0006 — allowlist guard is the accidental-prod-connection check
   ├── depends on ADR-0007 — recovery policy when the Harness corrupts mid-suite
-  ├── depends on ADR-0010 — credential lifecycle inside the Harness
   └── contains ADR-0004 — Dispatcher lives inside the Harness
 
 ADR-0002 (Scoped registry + correlation IDs)
@@ -56,27 +53,16 @@ ADR-0003 (Thread bridge)
 
 ADR-0004 (Dispatcher)
   ├── depends on ADR-0003 — poster
-  ├── depends on ADR-0002 — scope registration
-  └── defers to ADR-0009 — what the surprise log may contain
+  └── depends on ADR-0002 — scope registration
 
 ADR-0005 (Session loop)
   └── prerequisite for ADR-0001 and ADR-0003
 
-ADR-0006 (Environment boundary)
+ADR-0006 (Allowlist enforcement)
   └── prerequisite for ADR-0001's Accepted status
 
 ADR-0007 (Recovery)
-  ├── depends on ADR-0009 — diagnostic snapshots must respect log classification
-  └── depends on ADR-0010 — rebuild pulls fresh credentials
-
-ADR-0008 (UM SDK trust boundary)
-  └── supply-chain prerequisite for any real-bus integration
-
-ADR-0009 (Log classification)
-  └── depends on ADR-0006 — env-gated opt-in reuses the same environment model
-
-ADR-0010 (Secret management)
-  └── depends on ADR-0009 — log-key stripping is enforced there
+  └── rebuild-on-corruption policy
 
 ADR-0016 (Reply lifecycle)
   ├── depends on ADR-0002 — scope-bound cleanup path
@@ -85,7 +71,6 @@ ADR-0016 (Reply lifecycle)
 
 ADR-0017 (Reply fire-and-forget results)
   ├── depends on ADR-0014 — deliberately not extended; Handle stays for `expect` only
-  ├── depends on ADR-0009 — builder-error redaction
   └── paired with ADR-0016 and ADR-0018
 
 ADR-0018 (Reply correlation scoping)
@@ -99,9 +84,14 @@ ADR-0019 (Pluggable correlation policy)
   ├── rewires ADR-0002's parallel-isolation story as consumer opt-in
   ├── rewires ADR-0004's extractor registration through the Correlator
   └── prerequisite for ADR-0018's move to Accepted
+
+ADR-0020 (Transport authentication)
+  ├── additive to ADR-0006 — auth sits alongside the endpoint allowlist
+  ├── inherits ADR-0001's __reduce__ / repr-redaction posture
+  └── rehomes the deleted ADR-0010 (Secret Management) at the transport layer
 ```
 
-Reading order for a new contributor: 0005 → 0001 → 0003 → 0002 → 0004 → 0006 → 0019 → 0010 → 0009 → 0007 → 0008 → 0012 → 0013 → 0014 → 0015 → 0016 → 0017 → 0018.
+Reading order for a new contributor: 0005 → 0001 → 0003 → 0002 → 0004 → 0006 → 0019 → 0007 → 0012 → 0013 → 0014 → 0015 → 0016 → 0017 → 0018.
 
 ## Open ADRs to write
 

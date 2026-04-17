@@ -11,7 +11,7 @@
 
 ## Context
 
-With a shared Harness ([ADR-0001](0001-single-session-scoped-harness.md)) and a scoped test-isolation model ([ADR-0002](0002-scoped-registry-test-isolation.md)), inbound messages from transports (LBM, mocks, stateful fakes) still need to be routed to the right test's pending Futures. Parallel scenarios share the Harness — so a single receiver may see messages intended for several concurrent tests.
+With a shared Harness ([ADR-0001](0001-single-session-scoped-harness.md)) and a scoped test-isolation model ([ADR-0002](0002-scoped-registry-test-isolation.md)), inbound messages from transports (NATS, Kafka, mocks, stateful fakes) still need to be routed to the right test's pending Futures. Parallel scenarios share the Harness — so a single receiver may see messages intended for several concurrent tests.
 
 The question is: who is responsible for that routing, and what information does it use?
 
@@ -50,7 +50,7 @@ How are inbound messages from transports routed to the right test's Future, acro
 
 - **Parallel test throughput** — this is the mechanism that makes parallel execution correct.
 - **Single change surface** — observability and replay must land in one place.
-- **Transport-agnosticism** — the broker should not care whether a message came from LBM, NATS, or any in-process fake.
+- **Transport-agnosticism** — the broker should not care whether a message came from NATS, Kafka, or any in-process fake.
 - **Debuggability** — when a test's Future never resolves, we need to know if the message arrived and was misrouted vs never arrived at all.
 - **Performance** — the broker is on the hot path for every inbound message.
 
@@ -122,7 +122,7 @@ How are inbound messages from transports routed to the right test's Future, acro
 ### Rationale
 
 - The Mediator pattern is the textbook solution for "many-to-many routing decoupled from participants" (Gang of Four).
-- Single routing implementation scales to any number of transports: LbmTransport, NatsTransport, in-process stateful fakes (both inbound subscription and outbound publish), potentially other back-ends later.
+- Single routing implementation scales to any number of transports: NatsTransport, KafkaTransport, in-process stateful fakes (both inbound subscription and outbound publish), potentially other back-ends later.
 - Central dispatch gives one home for observability (metrics, tracing, surprise logs) and forensic features (replay, capture) without restructuring later.
 - Per-test filters (Option 2) distribute the same complexity across N callbacks with no central hook; Option 3 adds queueing overhead without a clear benefit for single-process asyncio.
 
@@ -143,7 +143,7 @@ How are inbound messages from transports routed to the right test's Future, acro
 ### Negative
 
 - One more object in the architecture. Boot / teardown / lifecycle to manage.
-- Correlation extraction must be registered per topic / message type (e.g. one topic uses a JSON field, another uses a protobuf field, another uses a transport-level header). The broker owns that extractor registry.
+- Correlation extraction must be registered per topic / message type (e.g. one topic uses a JSON field, another uses a binary-schema field, another uses a transport-level header). The broker owns that extractor registry.
 - A broker bug affects routing for every scenario — single point of failure, but also single point of fix.
 
 ### Neutral
@@ -159,7 +159,7 @@ The broker is the single dispatch surface for the harness, which makes it both p
 1. **Correlation IDs are cryptographically random** — UUIDv4 or `secrets.token_hex(16)`. Never sequential, never timestamp-based. Prevents a buggy or adversarial SUT from echoing a predictable ID from a prior scope and firing a later scope's Future.
 2. **Scope-liveness check on dispatch** — before resolving a Future, assert the target scope is still registered. Late-arriving messages to a deregistered correlation go to the surprise log as `timeout_race` and do not resolve anything.
 3. **Extractor constraints** — `register_extractor(topic_or_msg_type, extractor_fn)` accepts only pure parsing functions. No deserialisers that execute payload-provided code (`pickle.loads`, `yaml.load` without SafeLoader, custom `__reduce__` hooks). Enforced by type hint + framework-internal test that attempts to register a `pickle.loads`-based extractor and asserts it is rejected.
-4. **Surprise-log redaction** — unmatched inbound may contain sensitive payload data (identifiers, personal data, monetary amounts, regulatory short-codes). The surprise log records only (a) topic or message type, (b) correlation ID value, (c) payload size, (d) timestamp, (e) classification bucket (`timeout_race`, `unknown_scope`, `no_correlation_field`). Full payload capture requires an explicit `--unsafe-full-capture` CLI flag and is forbidden in CI.
+4. **Surprise-log redaction** — unmatched inbound may contain sensitive payload data (identifiers, personal data, tokens, regulated content). The surprise log records only (a) topic or message type, (b) correlation ID value, (c) payload size, (d) timestamp, (e) classification bucket (`timeout_race`, `unknown_scope`, `no_correlation_field`). Full payload capture requires an explicit `--unsafe-full-capture` CLI flag and is forbidden in CI.
 5. **Cross-field sanity check (adversarial SUT)** — optional but recommended: the broker can verify that a second discriminating field on the payload matches what the registered scope expects, before resolving. A mismatch is logged and dropped. Default: disabled; enabled per-test via a scope flag.
 6. **Tampering resistance** — `Dispatcher` methods are declared `@typing.final`. A startup integrity check asserts `Dispatcher.dispatch.__func__ is Dispatcher._original_dispatch` (set at class-definition time) to catch monkey-patching by rogue conftest plugins or compromised dev dependencies.
 
@@ -186,7 +186,7 @@ Not applicable — greenfield.
 ### Timeline
 
 - Phase 1 (skeleton with MockTransport): broker implemented + unit-tested without SDK.
-- Phase 2 (real transports): broker wired into LBM + NATS.
+- Phase 2 (real transports): broker wired into NATS and Kafka.
 - Phase 3 (observability): metrics, surprise log, replay hooks.
 
 ---
@@ -232,7 +232,7 @@ How will we know this decision was correct?
 **Open follow-ups:**
 
 - **Extractor registry ownership.** Who owns `harness/extractors.yaml`? Proposal: each service team adds its entries when onboarding to the harness; a schema CI check verifies every inbound topic the harness subscribes to has a matching entry. **Owner:** Platform / Test Infrastructure, in coordination with service teams.
-- **Correlation-less broadcasts.** Market-data snapshots may have no correlation field at all. PRD-001 Open Question #3 tracks this. Proposal: a special `broadcast` subscription mechanism on the Harness; the broker treats broadcasts as fan-out and skips the correlation check. **Owner:** Framework.
+- **Correlation-less broadcasts.** Fan-out broadcast messages may have no correlation field at all. PRD-001 Open Question #3 tracks this. Proposal: a special `broadcast` subscription mechanism on the Harness; the broker treats broadcasts as fan-out and skips the correlation check. **Owner:** Framework.
 - **Adversarial-SUT cross-field sanity** — per Security Considerations item 5, this is implementable but not default. Revisit once we have real-world data on how often wrong-echo happens in practice. **Owner:** Framework.
 
 **Last Updated:** 2026-04-17
