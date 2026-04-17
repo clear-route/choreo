@@ -185,13 +185,13 @@ class KafkaTransport:
         for task in tasks:
             try:
                 await asyncio.wait_for(task, timeout=5.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            except (TimeoutError, asyncio.CancelledError, Exception):
                 pass
         # Stop consumers after reader tasks have exited the poll loop.
         for consumer in consumers:
             try:
                 await asyncio.wait_for(consumer.stop(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
 
         # Drain any producer tasks we spawned. Bounded so a single stuck
@@ -203,19 +203,19 @@ class KafkaTransport:
                     asyncio.gather(*self._pending, return_exceptions=True),
                     timeout=10.0,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
 
         if self._producer is not None:
             try:
                 await asyncio.wait_for(self._producer.stop(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
 
         if self._admin is not None:
             try:
                 await asyncio.wait_for(self._admin.close(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
 
         self._producer = None
@@ -272,9 +272,7 @@ class KafkaTransport:
                 # (admin failed, cluster slow), aiokafka can stall here.
                 # connect_timeout_s is the authoritative budget for
                 # "subscribe should be ready by now".
-                await asyncio.wait_for(
-                    consumer.start(), timeout=self._connect_timeout_s
-                )
+                await asyncio.wait_for(consumer.start(), timeout=self._connect_timeout_s)
                 # Force the consumer's read position to the current end
                 # offset BEFORE signalling ready. With auto_offset_reset=
                 # 'latest' and a fresh group_id, position is otherwise
@@ -287,9 +285,7 @@ class KafkaTransport:
                 # publishes land at a later offset that this consumer
                 # does read.
                 try:
-                    await asyncio.wait_for(
-                        consumer.seek_to_end(), timeout=self._connect_timeout_s
-                    )
+                    await asyncio.wait_for(consumer.seek_to_end(), timeout=self._connect_timeout_s)
                 except Exception:
                     # seek_to_end can race partition assignment on a slow
                     # cluster; fall through and let the first poll resolve
@@ -342,11 +338,11 @@ class KafkaTransport:
             task.cancel()
             try:
                 await asyncio.wait_for(task, timeout=5.0)
-            except (asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            except (TimeoutError, asyncio.CancelledError, Exception):
                 pass
             try:
                 await asyncio.wait_for(consumer.stop(), timeout=5.0)
-            except (asyncio.TimeoutError, Exception):
+            except (TimeoutError, Exception):
                 pass
 
         self._track(loop.create_task(_teardown()))
@@ -423,7 +419,7 @@ class KafkaTransport:
             )
         except TopicAlreadyExistsError:
             pass
-        except (asyncio.TimeoutError, Exception):
+        except (TimeoutError, Exception):
             # Best effort — fall through to consumer.start(), which will
             # surface its own TimeoutError if metadata never arrives.
             pass

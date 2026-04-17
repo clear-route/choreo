@@ -55,10 +55,15 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
-      - name: Install packages
+      - name: Install packages with every transport extra
+        # Transport unit tests (test_rabbit_transport, test_redis_transport,
+        # etc.) instantiate the transport to exercise no-broker paths like
+        # credential redaction. Without the extras installed, the constructor
+        # short-circuits with "transport requires <dep>" before the code under
+        # test runs, which looks like a test bug but is really install surface.
         run: |
           python -m pip install --upgrade pip
-          pip install -e 'packages/core[test]'
+          pip install -e 'packages/core[nats,kafka,rabbitmq,redis,test]'
           pip install -e 'packages/core-reporter[test]'
 
       - name: Run unit tests
@@ -86,8 +91,18 @@ jobs:
           pip install -e 'packages/core[nats,kafka,rabbitmq,redis,test]'
           pip install -e 'packages/core-reporter[test]'
 
-      - name: Run e2e tests
-        run: pytest -m e2e
+      - name: Run e2e tests with report
+        # Override the default `--harness-report-disable` from addopts so the
+        # reporter plugin writes to ./test-report/. Keeps xdist parallelism.
+        run: pytest -m e2e -o "addopts=-n auto" --harness-report=test-report
+
+      - name: Upload test report
+        if: always()  # upload even on failure — the report is most useful when tests are broken
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-e2e
+          path: test-report/
+          retention-days: 30
 
       - name: Tear down broker stack
         if: always()
