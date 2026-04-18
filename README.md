@@ -8,7 +8,7 @@
   <strong>Python 3.11+</strong>&ensp;|&ensp;<strong>Apache 2.0</strong>&ensp;|&ensp;<a href="https://github.com/clear-route/choreo/actions/workflows/ci.yml">CI</a>&ensp;|&ensp;<a href="https://studious-bassoon-1qqgzov.pages.github.io/">Live Test Report</a>
 </p>
 
-<p align="center"><em>Distributed systems need a choreographer. This one's yours.</em></p>
+<p align="center"><em>Distributed systems need a choreographer.</em></p>
 
 An async Python test framework for **message-driven systems**. Write tests that
 declare *"when I publish X, I expect Y"* and the harness handles the routing,
