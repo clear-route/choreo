@@ -62,6 +62,12 @@ Three self-contained, runnable projects in [examples/](examples/):
   fake upstream service inside the test with `on(trigger).publish(reply)`.
 - **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** —
   opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
+- **[examples/04-transport-auth/](examples/04-transport-auth/)** — wire a
+  typed `auth=` descriptor into a transport, see credential lifecycle and
+  redaction in action.
+- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** — fetch
+  credentials at `connect()` time via sync/async resolvers (env vars,
+  Vault, Secrets Manager pattern).
 
 Each example ships its own `README.md` explaining what it shows. Run any
 of them with `pytest examples/<dir>/`.

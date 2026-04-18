@@ -8,6 +8,8 @@ complete pytest project — `cd` into it and run `pytest`.
 | [01-hello-world](01-hello-world/) | The minimum useful test: publish a dict, expect a shape, assert passed. |
 | [02-request-reply](02-request-reply/) | The `on(trigger).publish(reply)` primitive — staging a fake upstream service inside a test. |
 | [03-parallel-isolation](03-parallel-isolation/) | Opting into per-scope routing with a `CorrelationPolicy` so parallel scenarios don't cross-match. |
+| [04-transport-auth](04-transport-auth/) | Wire a typed `auth=` descriptor into a transport — credential lifecycle, redaction, and the Mock parity guarantee. |
+| [05-auth-resolver](05-auth-resolver/) | Fetch credentials at `connect()` time via sync/async resolvers — env vars, Vault, Secrets Manager. |
 
 ## Prerequisites
 
