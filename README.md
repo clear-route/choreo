@@ -1,6 +1,14 @@
-# Choreo
+<p align="center">
+  <img src="docs/logo.png" alt="Choreo" width="200">
+</p>
 
-*Because distributed systems are a dance, and someone has to count the beats.*
+<h1 align="center">Choreo</h1>
+
+<p align="center">
+  <strong>Python 3.11+</strong>&ensp;|&ensp;<strong>Apache 2.0</strong>&ensp;|&ensp;<a href="https://github.com/clear-route/choreo/actions/workflows/ci.yml">CI</a>&ensp;|&ensp;<a href="https://studious-bassoon-1qqgzov.pages.github.io/">Live Test Report</a>
+</p>
+
+<p align="center"><em>Because distributed systems are a dance, and someone has to count the beats.</em></p>
 
 An async Python test framework for **message-driven systems**. Write tests that
 declare *"when I publish X, I expect Y"* and the harness handles the routing,
@@ -93,23 +101,13 @@ Both packages build with Hatchling and ship `py.typed`.
 
 ## Architecture at a glance
 
-```
-  ┌──────────┐   publish    ┌──────────────────┐
-  │   test   │ ───────────▶ │ system under test │
-  └────┬─────┘              └─────────┬─────────┘
-       │                              │  reply (on the wire)
-       │                              ▼
-       │                    ┌──────────────────┐
-       │                    │   Loop-poster    │  move off the network thread
-       │                    └─────────┬────────┘
-       │                              ▼
-       │                    ┌──────────────────┐
-       │                    │   Dispatcher     │  "whose reply is this?"
-       │                    └─────────┬────────┘
-       │                              ▼
-       │    handle fulfilled  ┌──────────────┐
-       └────────────────────◀ │   Scenario   │
-                              └──────────────┘
+```mermaid
+flowchart TD
+    T["Test"] -- publish --> SUT["System Under Test"]
+    SUT -- "reply (on the wire)" --> LP["Loop-poster\n<em>move off the network thread</em>"]
+    LP --> D["Dispatcher\n<em>whose reply is this?</em>"]
+    D --> S["Scenario"]
+    S -- "handle fulfilled" --> T
 ```
 
 Four dancers on the floor:
@@ -218,10 +216,13 @@ A scenario moves through three states. Each state exposes only the methods
 valid at that point — illegal transitions raise `AttributeError` at runtime
 (ADR-0012).
 
-```
-┌─────────┐ expect()/on() ┌───────────┐ publish() ┌───────────┐ await_all() ┌──────────────────┐
-│ BUILDER ├──────────────▶│ EXPECTING ├──────────▶│ TRIGGERED ├────────────▶│ ScenarioResult   │
-└─────────┘               └───────────┘           └───────────┘             └──────────────────┘
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> BUILDER
+    BUILDER --> EXPECTING : expect() / on()
+    EXPECTING --> TRIGGERED : publish()
+    TRIGGERED --> ScenarioResult : await_all()
 ```
 
 ### `expect(topic, matcher) → Handle`
@@ -653,7 +654,7 @@ the asyncio loop thread.
 
 ## Test report
 
-![Choreo test report — Jaeger-style waterfall with per-scenario timeline, matcher diffs, and reply lifecycle](docs/test-report.png)
+**[View the live test report →](https://studious-bassoon-1qqgzov.pages.github.io/)**
 
 The **choreo-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every

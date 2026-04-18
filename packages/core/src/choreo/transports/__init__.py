@@ -13,7 +13,12 @@ from .mock import MockTransport
 
 __all__ = [
     "ConflictingAuthError",
+    "KafkaTransport",
     "MockTransport",
+    "NatsAuth",
+    "NatsTransport",
+    "RabbitTransport",
+    "RedisTransport",
     "Transport",
     "TransportCallback",
     "TransportCapabilities",

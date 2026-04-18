@@ -30,6 +30,10 @@ coverage.xml
 # choreo-reporter output (PRD-007)
 test-report/
 
+# Environment files
+.env
+.env.*
+
 # Editor/OS
 .DS_Store
 *.swp

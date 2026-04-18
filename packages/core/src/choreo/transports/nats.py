@@ -2,9 +2,8 @@
 
 Purpose: exercise the Transport Protocol contract against a live broker in
 the e2e suite. NATS is cheap, async-native, and dot-separated subjects map
-1:1 to harness topics. It is NOT the production wire (that is LBM) — it is
-a probe that the contract holds outside of MockTransport's happy-path
-in-memory shortcut.
+1:1 to harness topics. It is a probe that the Transport Protocol contract
+holds outside of MockTransport's happy-path in-memory shortcut.
 
 Threading / loop model:
     nats-py is fully asyncio. The harness's Transport Protocol is sync for
@@ -31,7 +30,7 @@ from typing import Any
 
 from ..environment import load_allowlist
 from ._auth import AuthParam, _clear_auth_fields, _resolve_auth
-from .base import OnSent, TransportCallback, TransportCapabilities, TransportError
+from .base import OnSent, TransportCallback, TransportCapabilities, TransportError, safe_url
 
 
 class NatsTransport:
@@ -152,7 +151,8 @@ class NatsTransport:
                 timeout=self._connect_timeout_s,
             )
         except (TimeoutError, NoServersError, NatsTimeoutError, NatsError) as e:
-            raise TransportError(f"could not connect to NATS at {self._servers!r}: {e}") from e
+            safe_servers = [safe_url(s) for s in self._servers]
+            raise TransportError(f"could not connect to NATS at {safe_servers!r}: {e}") from e
         finally:
             # Clear on exit — runs on success, failure, and cancellation
             # (ADR-0020 §Implementation step 4.7).

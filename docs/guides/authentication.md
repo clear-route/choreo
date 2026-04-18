@@ -112,7 +112,7 @@ transport = NatsTransport(
         ca="/path/to/ca.pem",
         cert="/path/to/client.pem",  # optional
         key="/path/to/client-key.pem",  # optional
-        hostname="broker.internal",  # optional SNI override
+        hostname="broker.example.com",  # optional SNI override
     ),
 )
 ```

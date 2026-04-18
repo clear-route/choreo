@@ -121,7 +121,7 @@ def allowlist_yaml_path(tmp_path_factory):
     path = tmp_path_factory.mktemp("env") / "environments.yaml"
     path.write_text("""
 dev:
-  nats_servers: ["nats://prod-cluster.internal:4222"]
+  nats_servers: ["nats://prod.example.com:4222"]
   ...
 """)
     return path

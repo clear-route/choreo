@@ -37,6 +37,9 @@ kafka_brokers:
   - "kafka:9092"
 
 # RabbitMQ URLs permitted by RabbitTransport (used by the e2e suite).
+# These use RabbitMQ's default guest:guest credentials for local testing only.
+# Real deployments should supply credentials via the transport's auth= parameter
+# rather than embedding them in allowlist URLs.
 amqp_brokers:
   - "amqp://guest:guest@localhost:5672/"
   - "amqp://guest:guest@127.0.0.1:5672/"

@@ -1,29 +1,26 @@
 # Code owners. GitHub requires every PR to have a review from an owner of
 # every touched path (if the repo is configured to require reviews).
-#
-# Replace the @ placeholders with real GitHub handles before flipping the
-# repo public. Until then, the catch-all below keeps reviews routable.
 
 # Catch-all
-*                                      @clear-route/choreo-maintainers
+*                                      @L0wry
 
 # Architecture decisions need a second opinion from architecture reviewers.
-/docs/adr/                             @clear-route/choreo-maintainers @clear-route/choreo-architects
-/docs/prd/                             @clear-route/choreo-maintainers @clear-route/choreo-architects
+/docs/adr/                             @L0wry
+/docs/prd/                             @L0wry
 
 # Allowlist / security-sensitive configuration.
-/config/allowlist.yaml                 @clear-route/choreo-maintainers @clear-route/choreo-security
-/SECURITY.md                           @clear-route/choreo-maintainers @clear-route/choreo-security
+/config/allowlist.yaml                 @L0wry
+/SECURITY.md                           @L0wry
 
 # Transports: changes interact with allowlist + e2e contract tests.
-/packages/core/src/choreo/transports/  @clear-route/choreo-maintainers
-/packages/core/src/choreo/_internal/   @clear-route/choreo-maintainers
+/packages/core/src/choreo/transports/  @L0wry
+/packages/core/src/choreo/_internal/   @L0wry
 
 # Reporter: HTML/JSON output is part of the public contract (schema versioned).
-/packages/core-reporter/               @clear-route/choreo-maintainers
-/docs/schemas/                         @clear-route/choreo-maintainers
+/packages/core-reporter/               @L0wry
+/docs/schemas/                         @L0wry
 
 # CI / release / dependency config.
-/.github/                              @clear-route/choreo-maintainers
-/pyproject.toml                        @clear-route/choreo-maintainers
-/packages/*/pyproject.toml             @clear-route/choreo-maintainers
+/.github/                              @L0wry
+/pyproject.toml                        @L0wry
+/packages/*/pyproject.toml             @L0wry

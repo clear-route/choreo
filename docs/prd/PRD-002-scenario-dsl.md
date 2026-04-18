@@ -330,7 +330,7 @@ async with harness.scenario("bad") as s:
 - Basic matchers (field_equals, field_in, field_gt, field_exists, all_of, any_of)
 - Handle type
 - asyncio.timeout_at integration
-- Unit tests using MockLbmTransport
+- Unit tests using MockTransport
 
 **Phase 2: Scope lifecycle + cleanup** (Target: +1 week after Phase 1)
 - `async with` scope with guaranteed teardown

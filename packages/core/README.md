@@ -5,9 +5,9 @@ declare *"when I publish X, I expect Y"* and the harness handles routing,
 correlation, timing, and reporting.
 
 The library is transport-agnostic. Plug in a transport — `MockTransport` for
-unit tests, `NatsTransport` for end-to-end, your own for LBM / Kafka /
-RabbitMQ / anything else — and the same scenario DSL works against all of
-them.
+unit tests, `NatsTransport` / `KafkaTransport` / `RabbitTransport` /
+`RedisTransport` for end-to-end, or your own — and the same scenario DSL
+works against all of them.
 
 - Python 3.11+
 - No runtime dependencies; `pytest`, `pytest-asyncio`, and `pyyaml` are test

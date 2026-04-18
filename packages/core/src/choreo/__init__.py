@@ -3,7 +3,7 @@
 The public surface is small by design:
 
     from choreo import Harness, BundleFn
-    from choreo.transports import MockTransport            # or LbmTransport etc. (future)
+    from choreo.transports import MockTransport            # or your own
     from choreo.codecs import JSONCodec, RawCodec, Codec
     from choreo.environment import Allowlist, load_allowlist
     from choreo.matchers import field_equals, all_of, ...
