@@ -11,7 +11,6 @@ import logging
 from pathlib import Path
 
 import pytest
-
 from choreo import (
     CorrelationIdNotInNamespaceError,
     CorrelationPolicy,

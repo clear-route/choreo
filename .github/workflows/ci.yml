@@ -177,9 +177,15 @@ jobs:
     # Deploy the e2e test report to GitHub Pages so it lives at a stable URL.
     # Only runs on main pushes: PRs generate the workflow artefact (above) but
     # never overwrite the canonical published report.
+    #
+    # `continue-on-error: true` until GitHub Pages entitlement is confirmed on
+    # the org — private Pages needs a Team/Enterprise plan. Until then the
+    # deploy returns 404 but the workflow artefact `test-report-e2e` from the
+    # e2e job is a usable fallback. Drop the flag once the site is serving.
     name: publish test report (GitHub Pages)
     needs: e2e
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
       pages: write       # deploy-pages needs write
