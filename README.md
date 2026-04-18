@@ -5,7 +5,7 @@
 <h1 align="center">Choreo</h1>
 
 <p align="center">
-  <strong>Python 3.11+</strong>&ensp;|&ensp;<strong>Apache 2.0</strong>&ensp;|&ensp;<a href="https://github.com/clear-route/choreo/actions/workflows/ci.yml">CI</a>&ensp;|&ensp;<a href="https://studious-bassoon-1qqgzov.pages.github.io/">Live Test Report</a>
+  <strong>Python 3.11+</strong>&ensp;|&ensp;<strong>Apache 2.0</strong>&ensp;|&ensp;<a href="https://github.com/clear-route/choreo/actions/workflows/ci.yml">CI</a>&ensp;|&ensp;<a href="https://clear-route.github.io/choreo/">Live Test Report</a>
 </p>
 
 <p align="center"><em>Distributed systems need a choreographer.</em></p>
@@ -657,7 +657,7 @@ the asyncio loop thread.
 
 ## Test report
 
-**[View the live test report →](https://studious-bassoon-1qqgzov.pages.github.io/)**
+**[View the live test report →](https://clear-route.github.io/choreo/)**
 
 The **choreo-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every
