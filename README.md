@@ -12,19 +12,20 @@
 
 An async Python test framework for **message-driven systems**. Write tests that
 declare *"when I publish X, I expect Y"* and the harness handles the routing,
-correlation, timing, and reporting for you — one, two, three, publish, expect,
+correlation, timing, and reporting for you. One, two, three: publish, expect,
 await.
 
-The library is **transport-agnostic**. You plug in a transport — `MockTransport`
+The library is **transport-agnostic**. Plug in a transport (`MockTransport`
 for unit tests, `NatsTransport` / `KafkaTransport` / `RabbitTransport` /
-`RedisTransport` for end-to-end, or your own for any other backend — and the
-same scenario DSL works against all of them. It ships with an
+`RedisTransport` for end-to-end, or your own) and the same scenario DSL
+works against all of them. It ships with an
 [interactive HTML + JSON test report](#test-report) that renders a Jaeger-style
 waterfall of every message, match, reply, and latency budget.
 
 - Python 3.11+, no runtime dependencies.
 - `pytest`, `pytest-asyncio`, and `pyyaml` are test extras only.
-- `nats-py` is an optional extra (`pip install 'choreo[nats]'`) for the e2e suite.
+- Transport client libraries (`nats-py`, `aiokafka`, `aio-pika`, `redis`)
+  are optional extras installed per transport.
 - Packages ship `py.typed`; consumers get full mypy coverage.
 
 ---
@@ -32,7 +33,7 @@ waterfall of every message, match, reply, and latency budget.
 ## When to use this
 
 Use this framework when your system is **message-driven** and your tests need
-to assert on what comes back over the wire — event pipelines, pub/sub fan-out,
+to assert on what comes back over the wire: event pipelines, pub/sub fan-out,
 request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS
 read models.
 
@@ -41,9 +42,9 @@ What it gives you:
 - **Scoped test isolation (opt-in).** Each scenario is a clean subscription
   context. Configure a `CorrelationPolicy` and scenarios route their own
   traffic, so a hundred scenarios can share one broker connection without
-  cross-contamination — see [ADR-0019](docs/adr/0019-pluggable-correlation-policy.md).
+  cross-contamination (see [ADR-0019](docs/adr/0019-pluggable-correlation-policy.md)).
 - **Structured matching.** First-class matchers (`field_equals`,
-  `contains_fields`, `all_of`, `any_of`, …) against decoded payloads — not
+  `contains_fields`, `all_of`, `any_of`, ...) against decoded payloads, not
   regex against log lines.
 - **Per-expectation latency budgets.** Declare `within_ms(50)` and the handle
   resolves as `SLOW` rather than `PASS` if it matched late.
@@ -51,7 +52,7 @@ What it gives you:
   bug; a `TIMEOUT` with non-empty near-misses is an expectation bug. The
   report tells you which.
 - **Reply primitives.** `on(topic).publish(reply_topic, builder)` lets a test
-  react to inbound messages — useful for staging fake upstream services.
+  react to inbound messages, useful for staging fake upstream services.
 - **HTML + JSON reports** rendered at suite exit, with timeline, diffs,
   credential redaction, and `pytest-xdist` merge support.
 
@@ -62,18 +63,18 @@ Not a good fit for: pure unit tests with no I/O, HTTP request/response testing
 
 ## Examples
 
-Three self-contained, runnable projects in [examples/](examples/):
+Five self-contained, runnable projects in [examples/](examples/):
 
-- **[examples/01-hello-world/](examples/01-hello-world/)** — the minimum
+- **[examples/01-hello-world/](examples/01-hello-world/)** - the minimum
   useful test. Publish, expect, assert.
-- **[examples/02-request-reply/](examples/02-request-reply/)** — stage a
+- **[examples/02-request-reply/](examples/02-request-reply/)** - stage a
   fake upstream service inside the test with `on(trigger).publish(reply)`.
-- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** —
+- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** -
   opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
-- **[examples/04-transport-auth/](examples/04-transport-auth/)** — wire a
+- **[examples/04-transport-auth/](examples/04-transport-auth/)** - wire a
   typed `auth=` descriptor into a transport, see credential lifecycle and
   redaction in action.
-- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** — fetch
+- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** - fetch
   credentials at `connect()` time via sync/async resolvers (env vars,
   Vault, Secrets Manager pattern).
 
@@ -112,12 +113,12 @@ flowchart TD
 
 Four dancers on the floor:
 
-**Harness** — the session-scoped coordinator. You construct one with a
+**Harness** - the session-scoped coordinator. You construct one with a
 Transport and call `connect()`. The transport runs its allowlist check,
 opens its socket, and reports ready. When the suite ends, `disconnect()`
 tears everything down.
 
-**Scenario** — the per-test scope. Opening one owns its expectations,
+**Scenario** - the per-test scope. Opening one owns its expectations,
 replies, and timeline, and cleans them up on exit (normal or exception).
 Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the
 library default is transparent passthrough (`NoCorrelationPolicy`), so
@@ -125,12 +126,12 @@ library default is transparent passthrough (`NoCorrelationPolicy`), so
 the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()`
 at Harness construction (ADR-0019).
 
-**Dispatcher** — the router. Every inbound message lands here. It pulls the
+**Dispatcher** - the router. Every inbound message lands here. It pulls the
 correlation ID out of the payload and hands the message to the scenario
 that claimed it. Unmatched messages go to a **surprise log** (metadata
 only; payloads not retained).
 
-**Loop-poster** — the thread-safe bridge. Stateful client libraries or
+**Loop-poster** - the thread-safe bridge. Stateful client libraries or
 native-code backends that deliver messages on their own thread use the
 loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto
 the asyncio loop before the dispatcher sees them. Without it, you'd get
@@ -213,7 +214,7 @@ worker** to avoid cross-matching on shared topics, configure a
 ## The Scenario DSL
 
 A scenario moves through three states. Each state exposes only the methods
-valid at that point — illegal transitions raise `AttributeError` at runtime
+valid at that point; illegal transitions raise `AttributeError` at runtime
 (ADR-0012).
 
 ```mermaid
@@ -258,8 +259,8 @@ Sends a message through the transport. `payload` can be either raw `bytes`
 (passed through untouched) or a `dict` (codec-encoded; defaults to JSON).
 
 With the default `NoCorrelationPolicy`, the payload goes to the wire
-unchanged — no library-injected fields. To opt into per-scope correlation
-isolation, configure a `CorrelationPolicy` at Harness construction — see
+unchanged, with no library-injected fields. To opt into per-scope correlation
+isolation, configure a `CorrelationPolicy` at Harness construction; see
 [Correlation policy](#correlation-policy) below.
 
 ### `await_all(timeout_ms) → ScenarioResult`
@@ -278,13 +279,13 @@ Returns a `ScenarioResult`:
 | `result.failure_summary()` | multi-line diagnostic including last 20 timeline entries |
 | `result.reply_at(trigger_topic)` | lookup a reply by its trigger topic |
 
-`assert_passed()` is the canonical assertion — its message distinguishes a
+`assert_passed()` is the canonical assertion. Its message distinguishes a
 *silent timeout* (nothing arrived, routing bug) from a *near-miss*
 (messages arrived but failed the matcher, expectation bug).
 
 ---
 
-## Replies — `on().publish()`
+## Replies: `on().publish()`
 
 A scenario can register a **reply**: when a matching message arrives on
 a trigger topic, publish a response. The framework ships the primitive;
@@ -320,16 +321,16 @@ assert report.match_count == 1
 
 Rules:
 
-- Must be registered **before** `publish()` — it's a pre-trigger
+- Must be registered **before** `publish()`. It is a pre-trigger
   arrangement, not a background subscription (ADR-0016).
-- Fires **once per scope** — the chain is single-use; calling `.publish()`
+- Fires **once per scope**. The chain is single-use; calling `.publish()`
   a second time on the same `ReplyChain` raises `ReplyAlreadyBoundError`.
 - The `matcher` argument is optional; `None` means *every inbound on the
   topic matches*.
 - The `payload` can be a static `dict`, static `bytes`, or a callable
   `Callable[[decoded_trigger], dict | bytes]`.
 - Failures in the builder function are captured as exception **class name
-  only** in the report — never `str(e)`, so secrets from a failing builder
+  only** in the report, never `str(e)`, so secrets from a failing builder
   never leak into the report (ADR-0017).
 
 Each registered reply produces a `ReplyReport` in `result.replies`:
@@ -353,7 +354,7 @@ ships three profiles:
 ```python
 from choreo import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
 
-# Default — transparent passthrough. s.publish(topic, payload) sends
+# Default: transparent passthrough. s.publish(topic, payload) sends
 # `payload` unchanged. Every live scope on a topic sees every message.
 # Safe for: single-scenario tests, dedicated or per-run infrastructure.
 Harness(transport)
@@ -411,7 +412,7 @@ lives in [examples/03-parallel-isolation/](examples/03-parallel-isolation/).
 
 `NoCorrelationPolicy` only routes by topic. If two scenarios subscribe to
 the same topic on a shared broker, they see each other's messages. This
-is the intended semantics — no policy means no isolation — but the
+is the intended semantics (no policy means no isolation), but the
 failure mode is subtle (extra matches, not missing ones). For anything
 other than dedicated or per-run infrastructure, pick a routing policy.
 The harness emits a `correlator_noop_against_real_transport` WARNING at
@@ -445,11 +446,11 @@ s.expect("evt",     field_matches("order_id", r"^ORD-\d+$"))
 
 Paths come in three forms:
 
-- **Dotted string** — sugar for the common case. Numeric segments are
+- **Dotted string** - sugar for the common case. Numeric segments are
   treated as list indices, so `"items.0.id"` walks into a list.
-- **Bare int** — a single-level lookup, useful for integer-keyed payloads
+- **Bare int** - a single-level lookup, useful for integer-keyed payloads
   (tag-value maps): `field_equals(35, "D")`.
-- **Sequence** (tuple or list) — the canonical form. It is the only way
+- **Sequence** (tuple or list) - the canonical form. It is the only way
   to reach a dict key that literally contains `"."`, and it disambiguates
   a string key `"0"` from a list index `0`:
 
@@ -490,7 +491,7 @@ all_of(field_equals("kind", "CREATE"), field_gt("count", 0))
 any_of(field_equals("status", "COMPLETED"), field_equals("status", "PART_COMPLETED"))
 not_(field_equals("status", "REJECTED"))
 
-# List quantifiers — use inside contains_fields or at the top level.
+# List quantifiers: use inside contains_fields or at the top level.
 every(field_gt("px", 0.0))                       # every element passes
 any_element(field_equals("side", "BUY"))         # at least one element passes
 ```
@@ -509,7 +510,7 @@ matcher.
 
 When you need to match on a non-JSON payload (a fixed-width wire format,
 a binary blob), `payload_contains` does a substring check on the raw bytes.
-It **requires a `bytes` payload** and raises `TypeError` otherwise — if
+It **requires a `bytes` payload** and raises `TypeError` otherwise. If
 you have a decoded dict or string, use `field_matches` / `contains_fields`
 instead.
 
@@ -521,7 +522,7 @@ s.expect("frames.echo", payload_contains(b"MAGIC"))
 
 ### Writing your own
 
-A matcher is anything implementing the `Matcher` Protocol — `description: str`
+A matcher is anything implementing the `Matcher` Protocol: `description: str`
 plus `match(payload) → MatchResult`. For a side-by-side expected/actual
 diff in the report, also implement the optional `Reportable` Protocol
 (`expected_shape()`); matchers without it fall back to `description`.
@@ -531,14 +532,14 @@ Build one as a frozen dataclass and compose it exactly like the built-ins.
 
 ## Transports
 
-The library ships two transports and defines a 5-method `Transport`
+The library ships five transports and defines a 7-method `Transport`
 Protocol so you can drop in your own.
 
 ### `MockTransport`
 
 In-memory pub/sub. Synchronous dispatch (subscribers fire before
 `publish()` returns). Optionally validates `endpoint` against the
-`mock_endpoints` allowlist category — demonstrates the enforcement
+`mock_endpoints` allowlist category, demonstrating the enforcement
 pattern real transports use.
 
 ```python
@@ -557,7 +558,7 @@ Diagnostic methods (for testing your test code, not your system):
 
 ### `NatsTransport`
 
-Talks to a real NATS broker. Lazy-imported — `nats-py` is only required if
+Talks to a real NATS broker. Lazy-imported: `nats-py` is only required if
 you actually construct one. Good for exercising the Transport contract
 against a real network without standing up production infrastructure.
 
@@ -577,7 +578,7 @@ Validates `nats_servers` in the allowlist.
 
 ### Transport authentication
 
-Every real transport accepts an optional `auth=` parameter — a typed
+Every real transport accepts an optional `auth=` parameter, a typed
 descriptor for the auth mode your broker requires. Credentials are cleared
 from memory after `connect()` returns and never appear in `repr()`,
 `pickle`, error messages, or pytest assertion diffs.
@@ -585,19 +586,19 @@ from memory after `connect()` returns and never appear in `repr()`,
 ```python
 from choreo.transports import NatsTransport, NatsAuth
 
-# Literal — credentials in source (fine for local dev / CI).
+# Literal: credentials in source (fine for local dev / CI).
 transport = NatsTransport(
     servers=["nats://broker:4222"],
     auth=NatsAuth.user_password("admin", "s3cret"),
 )
 
-# Resolver — credentials fetched at connect() time (stronger lifetime).
+# Resolver: credentials fetched at connect() time (stronger lifetime).
 transport = NatsTransport(
     servers=["nats://broker:4222"],
     auth=lambda: NatsAuth.token(os.environ["NATS_TOKEN"]),
 )
 
-# Async resolver — for Vault, Secrets Manager, etc.
+# Async resolver: for Vault, Secrets Manager, etc.
 async def fetch_creds():
     secret = await vault_client.read("secret/nats")
     return NatsAuth.user_password(secret["username"], secret["password"])
@@ -608,21 +609,21 @@ transport = NatsTransport(
 )
 ```
 
-`MockTransport` accepts `auth=` too — it validates the descriptor shape
+`MockTransport` accepts `auth=` too. It validates the descriptor shape
 and discards it, so you can develop against Mock and swap for a real
 authenticated transport later.
 
 See [docs/guides/authentication.md](docs/guides/authentication.md) for the
-full cookbook — every NATS auth mode, TLS variants, resolver recipes for
+full cookbook: every NATS auth mode, TLS variants, resolver recipes for
 Vault and AWS Secrets Manager, and the consumer fixture pattern.
 
 ### Writing your own transport
 
 Drop a module under
 [packages/core/src/choreo/transports/](packages/core/src/choreo/transports/)
-implementing the five-method `Transport` Protocol. The `connect()`
-implementation is where your allowlist enforcement, credential handling,
-and socket setup all live — the Harness never sees those details.
+implementing the `Transport` Protocol. The `connect()` implementation is
+where your allowlist enforcement, credential handling, and socket setup
+all live. The Harness never sees those details.
 
 ```python
 from typing import Protocol, Callable, Optional
@@ -642,12 +643,14 @@ class Transport(Protocol):
         *,
         on_sent: Optional[OnSent] = None,
     ) -> None: ...
+    def active_subscription_count(self) -> int: ...
+    def clear_subscriptions(self) -> None: ...
 ```
 
 Follow the pattern in [mock.py](packages/core/src/choreo/transports/mock.py)
 (synchronous) or [nats.py](packages/core/src/choreo/transports/nats.py)
 (asyncio-native). The `on_sent` callback is how you report post-wire
-timing to the timeline — fire it after the message is on the wire, on
+timing to the timeline. Fire it after the message is on the wire, on
 the asyncio loop thread.
 
 ---
@@ -660,7 +663,7 @@ The **choreo-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every
 pytest run.
 
-Install and it's active — no explicit opt-in needed (via pytest11 entry
+Install and it is active, no explicit opt-in needed (via pytest11 entry
 point).
 
 ```bash
@@ -670,7 +673,7 @@ pip install -e 'packages/core-reporter[test]'
 pytest
 
 # Output (default location)
-ls .harness-report/
+ls test-report/
 # index.html   results.json   assets/
 
 # Custom location
@@ -683,11 +686,11 @@ pytest --harness-report-disable
 What the report includes:
 
 - **Scenario list** with pass/fail/slow/timeout counts at a glance.
-- **Jaeger-style waterfall timeline** for each scenario — every publish,
+- **Jaeger-style waterfall timeline** for each scenario: every publish,
   receive, match, mismatch, reply, and deadline event plotted on one axis.
 - **Expected-vs-actual diffs** for failing handles, driven by
   `matcher.expected_shape()`.
-- **Per-reply lifecycle** — was it armed? did it match? did it fire?
+- **Per-reply lifecycle** - was it armed? did it match? did it fire?
 - **Git metadata** per test (commit, branch, author).
 - **Credential redaction (best-effort).** The default redactor strips
   values under a denylist of field names (`password`, `token`, `secret`,
@@ -704,7 +707,7 @@ What the report includes:
   register_redactor(mask_api_keys)
   ```
 
-  Redaction is best-effort — see [SECURITY.md](SECURITY.md) for the
+  Redaction is best-effort. See [SECURITY.md](SECURITY.md) for the
   scope and the recommended posture for PII-heavy test suites.
 
 - **pytest-xdist support.** Each worker writes partial JSON; the reporter
@@ -716,7 +719,7 @@ What the report includes:
 
 The `choreo` package is designed to be installed as a library by separate
 repos that test their own services. It ships no pytest fixtures and reads
-no environment variables — those are consumer decisions.
+no environment variables. Those are consumer decisions.
 
 ```python
 # consumer-repo/conftest.py
@@ -795,7 +798,7 @@ If `nats-py` isn't installed, or no broker is reachable at `NATS_URL`
 (default `nats://localhost:4222`), the e2e suite **skips** rather than
 fails. CI should treat a skip there as the compose stack not coming up.
 
-Override the broker URL with `NATS_URL` — but add the URL to the
+Override the broker URL with `NATS_URL`, but add the URL to the
 `nats_servers` category in your allowlist first, or `connect()` will refuse.
 
 ---
