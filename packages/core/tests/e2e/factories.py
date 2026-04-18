@@ -32,6 +32,9 @@ from choreo.transports.base import TransportCapabilities
 
 
 NATS_URL = os.environ.get("NATS_URL", "nats://localhost:4222")
+NATS_AUTH_URL = os.environ.get("NATS_AUTH_URL", "nats://localhost:4223")
+NATS_AUTH_USER = "test"
+NATS_AUTH_PASSWORD = "choreo-e2e-password-do-not-log"
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
 AMQP_URL = os.environ.get("AMQP_URL", "amqp://guest:guest@localhost:5672/")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -116,6 +119,64 @@ class NatsFactory(TransportFactory):
         from choreo.transports import NatsTransport
 
         return NatsTransport(servers=[NATS_URL], allowlist_path=allowlist_path)
+
+
+# -- NATS (authenticated, ADR-0020) -----------------------------------------
+
+
+class NatsAuthFactory(TransportFactory):
+    """Factory for an authenticated NATS broker on port 4223.
+
+    Uses ``NatsAuth.user_password(...)`` to exercise the auth descriptor
+    path end-to-end.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="nats-auth",
+            capabilities=TransportCapabilities(
+                broadcast_fanout=True,
+                loses_messages_without_subscriber=True,
+                ordered_per_topic=True,
+            ),
+        )
+
+    async def _probe(self) -> str | None:
+        try:
+            import nats
+            from nats.errors import NoServersError
+            from nats.errors import TimeoutError as NatsTimeoutError
+        except ImportError:
+            return (
+                "nats-py is not installed — run `pip install 'choreo[nats]'` to "
+                "enable the NATS auth contract tests"
+            )
+        try:
+            nc = await nats.connect(
+                servers=[NATS_AUTH_URL],
+                user=NATS_AUTH_USER,
+                password=NATS_AUTH_PASSWORD,
+                connect_timeout=2.0,
+                allow_reconnect=False,
+            )
+        except (NoServersError, NatsTimeoutError, Exception) as e:
+            return (
+                f"no authenticated NATS broker at {NATS_AUTH_URL}: {e} — "
+                f"bring one up with `docker compose -f docker/compose.e2e.yaml "
+                f"--profile nats up -d`"
+            )
+        await nc.drain()
+        return None
+
+    def build(self, allowlist_path: Path) -> Any:
+        from choreo.transports import NatsTransport
+        from choreo.transports.nats_auth import NatsAuth
+
+        return NatsTransport(
+            servers=[NATS_AUTH_URL],
+            allowlist_path=allowlist_path,
+            auth=NatsAuth.user_password(NATS_AUTH_USER, NATS_AUTH_PASSWORD),
+        )
 
 
 # -- Kafka ------------------------------------------------------------------
@@ -263,6 +324,7 @@ class RedisFactory(TransportFactory):
 
 ALL_FACTORIES: tuple[TransportFactory, ...] = (
     NatsFactory(),
+    NatsAuthFactory(),
     KafkaFactory(),
     RabbitFactory(),
     RedisFactory(),

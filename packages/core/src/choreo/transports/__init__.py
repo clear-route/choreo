@@ -8,9 +8,11 @@ pattern shown in `MockTransport`.
 from __future__ import annotations
 
 from .base import Transport, TransportCallback, TransportCapabilities, TransportError
+from ._auth import ConflictingAuthError
 from .mock import MockTransport
 
 __all__ = [
+    "ConflictingAuthError",
     "MockTransport",
     "Transport",
     "TransportCallback",
@@ -21,6 +23,7 @@ __all__ = [
 
 _LAZY = {
     "NatsTransport": ("nats", "NatsTransport"),
+    "NatsAuth": ("nats_auth", "NatsAuth"),
     "KafkaTransport": ("kafka", "KafkaTransport"),
     "RabbitTransport": ("rabbit", "RabbitTransport"),
     "RedisTransport": ("redis", "RedisTransport"),

@@ -1,6 +1,6 @@
 # 0020. Transport Authentication — Typed Per-Transport Auth with Optional Resolver
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-04-18
 **Deciders:** Platform / Test Infrastructure
 **Technical Story:** Follow-up to [ADR-0006](0006-environment-boundary-enforcement.md); supersedes (and re-scopes) the removed draft on Harness-level secret management.
@@ -40,13 +40,16 @@ minimum-surface API that every pathway can drive.
   explicitly silent on trust properties of the channel (TLS required?
   mTLS required?). This ADR keeps that separation: auth is not the
   allowlist's job.
-- The deleted `ADR-0010 Secret Management in the Harness` (git history;
-  removed when the `Environment` / `HarnessConfig` model was dropped) was
-  framed around a `HarnessConfig.password` field that no longer exists.
-  Its **principles** — bounded lifetime, no read-back accessor, redacted
-  in every representation, no pickle, fetched-not-stored, auditable
-  boundary — are still correct; this ADR rehomes them at the transport
-  layer, which is now the correct surface per [ADR-0006 §Notes](0006-environment-boundary-enforcement.md).
+- The deleted `ADR-0010 Secret Management in the Harness` (retrievable
+  via `git log --diff-filter=D --follow -- docs/adr/0010-*.md`;
+  removed when the `Environment` / `HarnessConfig` model was dropped)
+  was framed around a `HarnessConfig.password` field that no longer
+  exists. Its **principles** — bounded lifetime, no read-back
+  accessor, redacted in every representation, no pickle, fetched-
+  not-stored, auditable boundary — are still correct; this ADR
+  rehomes them at the transport layer, which is now the correct
+  surface per
+  [ADR-0006 §Notes — Correction](0006-environment-boundary-enforcement.md#notes).
 - [CLAUDE.md §Runtime configuration](../../CLAUDE.md) already commits the
   library to a "transport owns its own config" posture. Auth is a first-
   class part of that config. [ADR-0006 §Notes — "Correction: library no longer owns the environment concept"](0006-environment-boundary-enforcement.md#notes) records the same posture from the allowlist angle.
@@ -173,10 +176,12 @@ modifying the library?
 - Typed at the API boundary: a Kafka SASL descriptor passed to
   `NatsTransport` is a static type error.
 - Literal and resolver forms share one parameter. The literal form
-  (`auth=NatsAuth.token("foo")`) exists for small dev and test cases; the
-  resolver form (`auth=lambda: NatsAuth.token(vault.get("nats/token"))`
-  or an async equivalent) is the Vault / Secrets Manager path and gets
-  the stronger bounded-lifetime guarantee.
+  (`auth=NatsAuth.token("foo")`) is a single expression with no
+  import beyond the transport and its auth module; the resolver form
+  (`auth=lambda: NatsAuth.token(vault.get("nats/token"))` or an async
+  equivalent) is the Vault / Secrets Manager path and gets the
+  stronger materialised-at-connect lifetime guarantee (see §Security
+  Considerations item 1).
 - Sync and async resolvers are both accepted, accommodating async-native
   secret-store SDKs without a sync wrapper.
 - Redaction is structural (per-field `repr=False` plus `eq=False` on the
@@ -214,7 +219,9 @@ kwargs directly on each transport's `__init__`. Validation happens at
 
 **Pros:**
 - No new types; the shape reads like the underlying client library.
-- One-line call sites for the simple cases.
+- Call sites read like the underlying client library's own kwargs,
+  so a developer who knows the client library transfers the
+  knowledge directly.
 
 **Cons:**
 - Combinatorial surface: `NatsTransport.__init__` grows by ~10 fields,
@@ -364,26 +371,26 @@ underlying client themselves, or to monkey-patch the import.
 
 ### Neutral
 
-- `MockTransport` accepts `auth=`, validates the descriptor is a
-  concrete `<Concrete>Auth` instance (shape check only; values are not
-  inspected), emits a `mock_transport_ignored_auth` WARNING once per
-  Mock instance, and discards the descriptor. The `_clear_auth_fields`
-  helper runs before the WARNING is built so the WARNING payload
-  cannot reference any secret-bearing field. The shape validation gives
-  the "write once, swap for a real transport later" property genuinely:
-  a typo in the descriptor surfaces against Mock too, not only against
-  the real transport.
-- `safe_url()` (in [transports/base.py](../../packages/core/src/choreo/transports/base.py)) is extended to redact
-  credential-shaped query-string keys (`password`, `token`, `secret`,
-  `key`, case-insensitive) in addition to userinfo. Every existing
-  caller continues to work; the extension is additive.
-- `__reduce__` behaviour on each transport raises **unconditionally**,
-  matching [ADR-0001](0001-single-session-scoped-harness.md) §Security
-  Considerations item 2. A post-clear authenticated transport is
-  therefore still unpickleable; a never-authenticated Mock is also
-  unpickleable. This is a deliberate loss of pickle-for-diagnostics on
-  Mock setups; the gain is zero divergence from the ADR-0001 posture
-  and no conditional branch whose correctness depends on `_auth` state.
+- `MockTransport` accepts `auth=`, validates descriptor shape, emits
+  a `mock_transport_ignored_auth` WARNING at most once per Mock
+  instance, and discards the descriptor (§Implementation step 5).
+  The once-per-instance flag is deliberate: a test harness that
+  constructs a new Mock per test (function-scoped fixture) will
+  emit one WARNING per test, which is still quieter than
+  once-per-call but can become noticeable in large suites. Consumers
+  who want silence in that case switch to a session-scoped Mock
+  fixture.
+- `safe_url()` gains query-string redaction (§Security item 8,
+  §Implementation step 10). The public contract extends from "redact
+  userinfo" to "redact userinfo and credential-shaped query-string
+  values"; flagged in CHANGELOG for downstream callers that parsed
+  the returned URL expecting the query string unchanged.
+- `__reduce__` on every transport raises **unconditionally**,
+  matching [ADR-0001](0001-single-session-scoped-harness.md)
+  §Security Considerations item 2. This is a deliberate loss of
+  pickle-for-diagnostics even on Mock and on post-clear transports;
+  the gain is zero divergence from the ADR-0001 posture (§Security
+  item 4).
 
 ### Security Considerations
 
@@ -899,17 +906,21 @@ Primary ADR for transport authentication.
 - **Phase 4 — Redis.** `RedisAuth` + `RedisTransport`. Depends on
   Phase 1. Enforces `ConflictingAuthError` on URL + `auth=`
   co-presence. Completes the cross-transport contract matrix.
-- **Phase 5 — docs and tooling.** Authentication guide, CHANGELOG,
-  compose `--auth` profile, log-scanner wiring. Depends on all
-  prior phases for accurate examples.
+- **Phase 5 — docs and tooling.** Authentication guide,
+  per-transport recipes, CHANGELOG, compose `--auth` profile,
+  log-scanner wiring. Ships **incrementally alongside each earlier
+  phase**: Phase 1 brings a NATS guide section + compose profile;
+  each subsequent phase extends the same files. A final
+  consolidation PR lands with Phase 4 to cross-link everything and
+  publish the full matrix as the release announcement.
 
 Phases 2–4 are mutually independent and may ship in any order (or
 in parallel PRs) after Phase 1. Phase 1 has no external dependency
 and is independently releasable on its own; each subsequent phase
-is releasable when its predecessors ship. The `§Validation §Tests`
-cross-transport contract file is populated **per phase** — a Phase
-1 release ships only the NATS and Mock rows, not a false claim of
-full-matrix coverage.
+is releasable when its predecessors ship. The
+[§Validation §Tests](#tests) cross-transport contract file is
+populated **per phase** — a Phase 1 release ships only the NATS
+and Mock rows, not a false claim of full-matrix coverage.
 
 ---
 
@@ -918,8 +929,10 @@ full-matrix coverage.
 ### Success Metrics
 
 - **Coverage matrix.** Every row below reaches a connected broker in
-  the e2e suite and completes a round-trip. Matrix rows that are not
-  yet green are the release-gating checklist:
+  the e2e suite and completes a round-trip. The matrix is the single
+  source of truth for the release gate; it must stay aligned with
+  the §Implementation step 2 variant list. If a variant is added
+  there, a matrix row must land alongside it.
 
   | Transport | Variant | Status gate |
   |-----------|---------|-------------|
@@ -927,7 +940,9 @@ full-matrix coverage.
   | NATS | `token` | Phase 1 |
   | NATS | `nkey` | Phase 1 |
   | NATS | `credentials_file` | Phase 1 |
-  | NATS | `tls` | Phase 1 |
+  | NATS | `tls` (unauthenticated TLS tunnel) | Phase 1 |
+  | NATS | `user_password_with_tls` | Phase 1 |
+  | NATS | `token_with_tls` | Phase 1 |
   | NATS | `nkey_with_tls` | Phase 1 |
   | NATS | `credentials_file_with_tls` | Phase 1 |
   | Kafka | `sasl_plain` | Phase 2 |
@@ -941,8 +956,19 @@ full-matrix coverage.
   | Rabbit | `amqps` | Phase 3 |
   | Redis | `password` | Phase 4 |
   | Redis | `acl` | Phase 4 |
-  | Redis | `tls` | Phase 4 |
+  | Redis | `tls` (unauthenticated TLS tunnel) | Phase 4 |
   | Redis | `acl_tls` | Phase 4 |
+
+  `NatsAuth.tls(...)` and `RedisAuth.tls(...)` on their own describe
+  an unauthenticated TLS tunnel (no SASL, no token, just channel
+  encryption) — a legitimate auth mode for brokers that delegate
+  identity to a separate mechanism or allow anonymous TLS.
+  Consumers who need TLS + identity pick the corresponding `*_with_tls`
+  / `acl_tls` variant. RabbitMQ's `amqps` is the equivalent
+  "TLS with no client cert" row; RabbitMQ plain-over-AMQPS is out of
+  scope — consumers combining PLAIN with TLS use `amqps` URL +
+  `RabbitAuth.plain(...)`, covered by the `plain` row running
+  against an AMQPS broker in the authenticated compose profile.
 
 - **No credential egress:** zero occurrences of any test credential's
   literal value in captured CI logs, test reports, or exception
@@ -1027,10 +1053,12 @@ For `KafkaAuth.sasl_scram` specifically:
 
 For `KafkaAuth.sasl_oauthbearer` specifically (carve-out tests):
 
-- `test_a_sasl_oauthbearer_descriptor_should_retain_the_token_provider_for_the_transports_lifetime`
-- `test_a_connected_kafka_transport_with_sasl_oauthbearer_should_not_clear_the_token_provider_on_connect`
-  (asserts the documented carve-out, so a future "fix" that clears
-  the provider breaks the test loudly)
+- `test_a_kafka_transport_using_sasl_oauthbearer_should_invoke_the_supplied_callable_on_every_token_refresh_after_connect`
+  (observable behaviour: the callable is called more than once, on
+  refresh, with return values flowing to the broker)
+- `test_a_kafka_transport_using_sasl_oauthbearer_should_continue_to_produce_fresh_tokens_after_a_simulated_refresh_window`
+  (asserts the carve-out from the consumer's point of view — tokens
+  keep flowing — not via internal `_token_provider` introspection)
 
 For `RabbitAuth.external` specifically:
 
@@ -1120,20 +1148,49 @@ e2e workflow after `pytest -m e2e` completes.
   event at `connect()` success with `{transport: ..., auth_variant:
   ...}` — never any field values. A CI log scanner asserts the
   emission and asserts the absence of credential-shaped values.
-- PR-gate: an AST-based CI check (same pattern as
+- **High-severity sentinel events.** The CI log scanner treats the
+  following structured events as high-severity: any occurrence in a
+  passing run is a release gate, not an advisory:
+  - `plain_auth_over_plaintext` — plaintext credentials potentially
+    leaving the process unencrypted. Emitted by Kafka `sasl_plain`
+    over a plaintext bootstrap and Redis `password` over `redis://`.
+    A passing test that trips this event must either switch to a
+    TLS-bearing variant or add an explicit `# noqa: channel-trust`
+    marker on the test with the operator's rationale.
+  - `mock_transport_ignored_auth` — not high-severity (expected in
+    tests that swap Mock for a real transport), but the count is
+    reported so a suite that emits it for every test gets visibility.
+- **PR-gate stringification check.** An AST-based CI check (same
+  pattern as
   [ADR-0003](0003-threadsafe-call-soon-bridge.md)'s thread-safety
-  whitelist) flags any `str(auth)`, `f"{auth}"`, `format(auth)`,
-  `logger.*(... auth)`, or `struct_log.bind(auth=...)` /
-  `loguru.bind(auth=...)` / `structlog.bind(auth=...)` reference to a
-  descriptor in framework code outside the descriptor's own module.
-  Tests that intentionally stringify (for the repr-safety test) use
-  an explicit `# noqa` with a rationale comment. The check lives at
+  whitelist) flags any reference to a descriptor-valued expression
+  in framework code outside the descriptor's own module. Flagged
+  patterns:
+  - `str(x)`, `repr(x)`, `format(x)`, `ascii(x)` on a descriptor.
+  - f-string interpolation: `f"{x}"`, `f"{x!r}"`, `f"{x!s}"`,
+    `f"{x!a}"`.
+  - `"%s" % x`, `"%r" % x`, `"{}".format(x)`, `"{!r}".format(x)`.
+  - `logger.*(..., x, ...)`, `logger.*(..., extra={"...": x, ...})`,
+    `structlog.*.bind(*=x)`, `structlog.*.info(..., x)`,
+    `loguru.logger.*(..., x)`, `loguru.logger.bind(*=x)`.
+  - Implicit-`str` contexts: `", ".join([..., x, ...])`,
+    `json.dumps({"...": x, ...})`, `textwrap.shorten(str(x))`,
+    `print(x)`, `sys.stderr.write(str(x))`.
+
+  The check defines "descriptor-valued expression" narrowly:
+  variable assigned from `<Concrete>Auth.<variant>(...)`, from
+  `_resolve_auth(...)`, or from a parameter typed as
+  `<Concrete>Auth | _TransportAuth`. It is not exhaustive — a
+  resolver whose return type is `Any` escapes — and the §Notes
+  flags this as residual risk. Tests that intentionally stringify
+  (for the repr-safety test) use an explicit `# noqa` with a
+  rationale comment. The check lives at
   `scripts/check_auth_stringify.py` and runs in the same CI step as
   the existing AST checks.
-- Scheduled check: a nightly CI job brings up the compose `--auth`
-  profile, runs the authenticated contract tests, and fails if any
-  sentinel appears in the captured logs. Catches regressions in the
-  log-redaction rule.
+- **Scheduled check.** A nightly CI job brings up the compose
+  `--auth` profile, runs the authenticated contract tests, and
+  fails if any sentinel appears in the captured logs. Catches
+  regressions in the log-redaction rule.
 
 ---
 
@@ -1143,18 +1200,20 @@ e2e workflow after `pytest -m e2e` completes.
 - [ADR-0003](0003-threadsafe-call-soon-bridge.md) — AST-based CI check pattern reused by the `scripts/check_auth_stringify.py` gate.
 - [ADR-0006](0006-environment-boundary-enforcement.md) — Environment-boundary enforcement (unchanged; auth is additive to the endpoint allowlist, not a substitute).
 - [ADR-0007](0007-harness-failure-recovery.md) — Harness failure recovery (rebuild path pulls credentials fresh via the resolver; the recovery path is the only sanctioned way to "re-auth").
-- **Deleted ADR-0010 "Secret Management in the Harness"** — principles partially inherited (no read-back, redacted repr, no pickle) and rehomed at the transport layer. The "fetched, not stored" principle is preserved only on the resolver branch (see §Rationale and §Security Considerations item 1). The deleted ADR is retrievable via `git show <sha>:docs/adr/0010-secret-management-in-harness.md` at the commit preceding its removal on 2026-04-18.
+- **Deleted ADR-0010 "Secret Management in the Harness"** — principles partially inherited (no read-back, redacted repr, no pickle) and rehomed at the transport layer. The "fetched, not stored" principle is preserved only when the secret materialises inside the resolver (see §Rationale and §Security Considerations item 1). The deleted ADR is retrievable from git history via `git log --diff-filter=D --follow -- docs/adr/0010-secret-management-in-harness.md`; the last commit where it was present is the parent of its removal commit.
 
 ---
 
 ## References
 
-- NATS Python client authentication docs: https://nats-io.github.io/nats.py/ (authentication section)
-- aiokafka SASL / SSL docs: https://aiokafka.readthedocs.io/en/stable/ (producer / consumer security)
-- aio-pika connection docs: https://aio-pika.readthedocs.io/en/latest/ (TLS + EXTERNAL auth)
-- redis-py asyncio TLS docs: https://redis.readthedocs.io/en/stable/
-- OWASP ASVS V2 "Authentication Architectural Requirements" — baseline for credential handling in library APIs.
-- HashiCorp Vault / AWS Secrets Manager / Azure Key Vault reference docs — for consumer-side resolver recipes.
+- NATS Python client authentication: https://nats-io.github.io/nats.py/modules.html#nats.aio.client.Client.connect
+- aiokafka security / SASL: https://aiokafka.readthedocs.io/en/stable/producer.html#aiokafka.AIOKafkaProducer (see `security_protocol`, `sasl_mechanism`, `sasl_plain_username`, `sasl_plain_password`, `ssl_context` kwargs)
+- aio-pika TLS and EXTERNAL auth: https://aio-pika.readthedocs.io/en/latest/apidoc.html#aio_pika.connect_robust (see `ssl` / `ssl_options` / `ssl_context`)
+- redis-py asyncio TLS: https://redis.readthedocs.io/en/stable/examples/ssl_connection_examples.html
+- OWASP ASVS V2 "Authentication Architectural Requirements": https://github.com/OWASP/ASVS/blob/v4.0.3/4.0/en/0x11-V2-Authentication.md
+- HashiCorp Vault KV v2 secrets engine: https://developer.hashicorp.com/vault/docs/secrets/kv/kv-v2
+- AWS Secrets Manager Python SDK (`boto3` `get_secret_value`): https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/secretsmanager/client/get_secret_value.html
+- Azure Key Vault Python SDK (`SecretClient.get_secret`): https://learn.microsoft.com/en-us/python/api/azure-keyvault-secrets/azure.keyvault.secrets.secretclient
 
 ---
 
@@ -1163,8 +1222,8 @@ e2e workflow after `pytest -m e2e` completes.
 ### Revision history (pre-Accepted)
 
 - **2026-04-18 (initial draft).** First version of this ADR.
-- **2026-04-18 (review revision, this file).** Updates from a
-  three-actor review (architect / security-auditor / code-reviewer).
+- **2026-04-18 (revision 1).** Updates from a three-actor review
+  (architect / security-auditor / code-reviewer).
   Substantive changes:
   - Dropped the incorrect reliance on
     [_redact.py](../../packages/core/src/choreo/_redact.py)'s
@@ -1208,6 +1267,78 @@ e2e workflow after `pytest -m e2e` completes.
   - Floating directory link fixed; ADR-0006 §Notes anchor added;
     deleted-ADR-0010 git retrieval command added in §Related
     Decisions.
+- **2026-04-18 (revision 2, this file).** Second-round review
+  responses. Substantive changes:
+  - §Security item 1 reframed from "resolver vs literal branch" to
+    "materialised inside `connect()` vs materialised before `connect()`
+    vs never connected" — the lifetime guarantee depends on when the
+    secret enters memory, not on the `auth=` type; the "never
+    connected" case is explicitly documented as not defended.
+  - `_has_connected` flag now set at the **head** of `connect()`,
+    before the resolver runs. A resolver failure, variant-check
+    rejection, or logon timeout all leave the transport in
+    "refuse reconnect" state — no silent retry with a consumed
+    resolver.
+  - Descriptor reuse across transports is now **refused** (was
+    documented as "relying on undocumented behaviour"). A
+    `_consumed` flag on every descriptor, flipped by
+    `_clear_auth_fields`, is checked at the head of every
+    resolve-and-logon sequence with a loud error on reuse.
+  - `__init_subclass__` scope clarified: primary defence is the
+    exact-type `_ALLOWED_VARIANTS` check at `connect()`; the
+    `__init_subclass__` module-prefix check is secondary and
+    stated as a string-prefix heuristic, not a true package
+    boundary.
+  - Resolver-failure sanitiser now explicitly sets
+    `__suppress_context__ = True` on the TransportError (not just
+    `from None`) — covers the case where a higher-up re-wrap via
+    `raise ... from te` would otherwise re-expose `te.__context__`
+    through log-formatter traversal.
+  - Sync vs async resolver dispatch rule pinned: call the
+    resolver, then `asyncio.iscoroutine(result)` decides whether to
+    `await`. Uniform handling for bare `async def`,
+    `functools.partial`-wrapped, and `Callable[[], Awaitable[...]]`.
+  - `_resolve_auth` result's `_consumed` flag checked alongside
+    the variant type.
+  - URL collision predicate and `safe_url()` both use
+    `urllib.parse.urlsplit` + `parse_qsl(keep_blank_values=True)`
+    against a single canonical `_CREDENTIAL_KEY_NAMES` set.
+    Percent-encoded keys are normalised; repeated keys are all
+    inspected.
+  - `_CREDENTIAL_KEY_NAMES` and `_ALLOWED_VARIANTS` declared
+    private-unstable; consumer tests pinning their contents are
+    unsupported.
+  - `_sanitise_resolver_failure` escapes exotic qualname
+    characters (`re.sub(r'[^\w.]', '_', ...)`) for log / report
+    formatter safety.
+  - `_clear_auth_fields` documented correctly: zeroes
+    `bytearray` / `memoryview` in place; drops references for
+    immutable `bytes` and `str` (it cannot zero them in place).
+  - §Monitoring gains a high-severity sentinel list:
+    `plain_auth_over_plaintext` is release-gating.
+  - AST stringification check expanded to cover `f"{x!r}"`,
+    `repr(x)`, `%`-formatting, `.format(x)`, implicit-`str`
+    contexts (`join`, `json.dumps`, `print`, `sys.stderr.write`),
+    and all common logger / structlog / loguru bind patterns.
+    Scope of "descriptor-valued expression" is narrow and the
+    limitation is flagged.
+  - Coverage matrix expanded to include `user_password_with_tls`
+    and `token_with_tls`; the bare `tls` row clarified as the
+    "unauthenticated TLS tunnel" case; Rabbit `plain_with_tls` is
+    not a separate variant — the matrix documents that combining
+    PLAIN with TLS is `amqps` URL + `RabbitAuth.plain(...)`.
+  - OAUTHBEARER tests recast from internal-attribute-focused to
+    observable-behaviour (token refresh is observed, not
+    `_token_provider` introspection).
+  - `MockTransport` WARNING emits at most once per instance
+    regardless of fixture scope; function-scoped fixtures emit one
+    per test, noted in §Consequences/Neutral.
+  - `safe_url()` public-contract extension called out in
+    CHANGELOG per §Implementation step 10.
+  - External references now anchor to specific sub-pages; OWASP
+    ASVS points at v4.0.3 V2.md.
+  - Deleted ADR-0010 reference uses `git log --diff-filter=D`
+    instead of a placeholder sha.
 
 ### Open follow-ups
 

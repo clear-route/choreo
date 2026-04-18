@@ -7,14 +7,25 @@ their own connect() methods.
 For consumers who just want a harness against nothing real, this is what
 they inject. For consumers writing their own fakes, they can follow the
 allowlist-enforcement shape here.
+
+When ``auth=`` is supplied, MockTransport validates the descriptor shape
+(same variant-allowlist and ``_consumed`` checks as real transports),
+clears the descriptor, and emits a ``mock_transport_ignored_auth`` WARNING
+at most once per instance.  This ensures "write once, swap for a real
+transport later" is genuinely safe — a wrong-variant descriptor fails
+against Mock, not only against the real broker.
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from ..environment import load_allowlist
 from .base import OnSent, TransportCallback, TransportCapabilities
+from ._auth import AuthParam, _clear_auth_fields, _resolve_auth
+
+logger = logging.getLogger(__name__)
 
 
 class MockTransport:
@@ -26,7 +37,12 @@ class MockTransport:
     transport's enforcement looks like.
 
     When `allowlist_path` is None, the transport skips enforcement entirely
-    (useful for tests that don't care about the guard)."""
+    (useful for tests that don't care about the guard).
+
+    When ``auth`` is provided, the descriptor is validated and cleared on
+    ``connect()`` for parity with real transports, but credentials are not
+    used (Mock has no broker to authenticate against).
+    """
 
     capabilities = TransportCapabilities(
         broadcast_fanout=True,
@@ -39,16 +55,41 @@ class MockTransport:
         *,
         allowlist_path: Path | None = None,
         endpoint: str | None = None,
+        auth: AuthParam = None,
     ) -> None:
         self._allowlist_path = allowlist_path
         self._endpoint = endpoint
+        self._auth = auth
+        self._has_connected = False
+        self._auth_warned = False
         self._connected = False
         self._callbacks: dict[str, list[TransportCallback]] = {}
         self._sent: list[tuple[str, bytes]] = []
 
+    def __reduce__(self) -> None:  # type: ignore[override]
+        raise TypeError("MockTransport does not support pickling")
+
     # ---- lifecycle -------------------------------------------------------
 
     async def connect(self) -> None:
+        # --- resolve and validate auth (ADR-0020 §Implementation step 5) ---
+        raw_auth = self._auth
+        self._auth = None
+        descriptor = await _resolve_auth(raw_auth, "mock")
+
+        if descriptor is not None:
+            # Clear BEFORE building the warning event so the payload cannot
+            # reference any secret-bearing field even by accident.
+            variant_tag = type(descriptor).__qualname__
+            _clear_auth_fields(descriptor)
+
+            if not self._auth_warned:
+                self._auth_warned = True
+                logger.warning(
+                    "mock_transport_ignored_auth",
+                    extra={"auth_variant": variant_tag},
+                )
+
         if self._allowlist_path is not None and self._endpoint is not None:
             load_allowlist(self._allowlist_path).enforce(
                 "mock_endpoints",

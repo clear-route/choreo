@@ -49,3 +49,46 @@ def test_safe_url_should_return_a_malformed_url_unchanged() -> None:
     """We prefer not to eat pre-existing malformed input — returning the
     original string keeps the caller's error clearer than `<redacted>`."""
     assert safe_url("not-a-url") == "not-a-url"
+
+
+# ---------------------------------------------------------------------------
+# Query-string redaction (ADR-0020)
+# ---------------------------------------------------------------------------
+
+
+def test_safe_url_should_redact_credential_shaped_query_string_parameters() -> None:
+    """Credential-shaped query params (password, token, secret, etc.) should
+    have their values replaced with <redacted>."""
+    url = "redis://localhost:6379/0?password=s3cret&timeout=30"
+    result = safe_url(url)
+    assert "s3cret" not in result
+    assert "timeout=30" in result
+    assert "password=%3Credacted%3E" in result or "password=<redacted>" in result
+
+
+def test_safe_url_should_redact_multiple_credential_query_params() -> None:
+    url = "amqp://host:5672/?username=admin&password=hunter2&token=my-jwt-tok"
+    result = safe_url(url)
+    assert "admin" not in result
+    assert "hunter2" not in result
+    assert "my-jwt-tok" not in result
+
+
+def test_safe_url_should_handle_both_userinfo_and_query_credentials() -> None:
+    url = "redis://user:pass@host:6379/0?token=secret"
+    result = safe_url(url)
+    assert "user" not in result or "user" in "<redacted>"
+    assert "pass" not in result or "pass" in "<redacted>"
+    assert "secret" not in result
+
+
+def test_safe_url_should_preserve_non_credential_query_params() -> None:
+    url = "nats://localhost:4222?heartbeat=30&retry=true"
+    result = safe_url(url)
+    assert result == url  # no credential-shaped params, unchanged
+
+
+def test_safe_url_should_be_case_insensitive_for_credential_keys() -> None:
+    url = "redis://localhost:6379?Password=s3cret"
+    result = safe_url(url)
+    assert "s3cret" not in result

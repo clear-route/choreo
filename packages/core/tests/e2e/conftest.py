@@ -31,9 +31,13 @@ from .factories import (
     ALL_FACTORIES,
     AMQP_URL,
     KAFKA_BOOTSTRAP,
+    NATS_AUTH_PASSWORD,
+    NATS_AUTH_URL,
+    NATS_AUTH_USER,
     NATS_URL,
     REDIS_URL,
     KafkaFactory,
+    NatsAuthFactory,
     RabbitFactory,
     RedisFactory,
     TransportFactory,
@@ -72,6 +76,32 @@ async def _nats_available(nats_url: str) -> bool:
             f"--profile nats up -d`"
         )
     await nc.drain()
+    return True
+
+
+# -- Authenticated NATS fixtures (ADR-0020) ---------------------------------
+
+
+@pytest.fixture(scope="session")
+def nats_auth_url() -> str:
+    return NATS_AUTH_URL
+
+
+@pytest.fixture(scope="session")
+def nats_auth_user() -> str:
+    return NATS_AUTH_USER
+
+
+@pytest.fixture(scope="session")
+def nats_auth_password() -> str:
+    return NATS_AUTH_PASSWORD
+
+
+@pytest.fixture(scope="session")
+async def _nats_auth_available(nats_auth_url: str) -> bool:
+    """Probe the authenticated NATS broker once per session."""
+    factory = NatsAuthFactory()
+    await factory.probe_or_skip()
     return True
 
 

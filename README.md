@@ -568,6 +568,47 @@ transport = NatsTransport(
 
 Validates `nats_servers` in the allowlist.
 
+### Transport authentication
+
+Every real transport accepts an optional `auth=` parameter — a typed
+descriptor for the auth mode your broker requires. Credentials are cleared
+from memory after `connect()` returns and never appear in `repr()`,
+`pickle`, error messages, or pytest assertion diffs.
+
+```python
+from choreo.transports import NatsTransport, NatsAuth
+
+# Literal — credentials in source (fine for local dev / CI).
+transport = NatsTransport(
+    servers=["nats://broker:4222"],
+    auth=NatsAuth.user_password("admin", "s3cret"),
+)
+
+# Resolver — credentials fetched at connect() time (stronger lifetime).
+transport = NatsTransport(
+    servers=["nats://broker:4222"],
+    auth=lambda: NatsAuth.token(os.environ["NATS_TOKEN"]),
+)
+
+# Async resolver — for Vault, Secrets Manager, etc.
+async def fetch_creds():
+    secret = await vault_client.read("secret/nats")
+    return NatsAuth.user_password(secret["username"], secret["password"])
+
+transport = NatsTransport(
+    servers=["nats://broker:4222"],
+    auth=fetch_creds,
+)
+```
+
+`MockTransport` accepts `auth=` too — it validates the descriptor shape
+and discards it, so you can develop against Mock and swap for a real
+authenticated transport later.
+
+See [docs/guides/authentication.md](docs/guides/authentication.md) for the
+full cookbook — every NATS auth mode, TLS variants, resolver recipes for
+Vault and AWS Secrets Manager, and the consumer fixture pattern.
+
 ### Writing your own transport
 
 Drop a module under
@@ -717,22 +758,31 @@ deployment concerns.
 ## Running end-to-end tests
 
 The unit suite runs entirely in-memory via `MockTransport`. A separate e2e
-suite exercises the Transport Protocol against a real network by pointing
-`NatsTransport` at a disposable NATS broker.
+suite exercises the Transport Protocol against real networks by pointing
+transport implementations at disposable brokers under Docker Compose.
 
 ```bash
 # Install the NATS extra
 pip install -e 'packages/core[test,nats]'
 
-# Bring up the broker (port 4222)
-docker compose -f docker/compose.e2e.yaml up -d
+# Bring up all brokers (NATS, NATS-auth, Kafka, RabbitMQ, Redis)
+docker compose -f docker/compose.e2e.yaml --profile all up -d
+
+# Or just one transport
+docker compose -f docker/compose.e2e.yaml --profile nats up -d
 
 # Run just the e2e suite
 pytest -m e2e
 
 # Tear down
-docker compose -f docker/compose.e2e.yaml down
+docker compose -f docker/compose.e2e.yaml --profile all down
 ```
+
+The compose stack includes both unauthenticated and authenticated broker
+profiles. The `nats` profile brings up two NATS containers: one without
+auth on port 4222 and one with user/password auth on port 4223. The e2e
+suite exercises the Transport Protocol contract against both, verifying
+that the `auth=` descriptor path works end-to-end.
 
 If `nats-py` isn't installed, or no broker is reachable at `NATS_URL`
 (default `nats://localhost:4222`), the e2e suite **skips** rather than

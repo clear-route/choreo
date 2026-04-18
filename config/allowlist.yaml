@@ -21,10 +21,13 @@ mock_endpoints:
   - "mock://localhost"
 
 # NATS servers permitted by NatsTransport (used by the e2e suite).
+# Port 4222 is unauthenticated; port 4223 requires user/password (ADR-0020).
 nats_servers:
   - "nats://localhost:4222"
   - "nats://127.0.0.1:4222"
   - "nats://nats:4222"
+  - "nats://localhost:4223"
+  - "nats://127.0.0.1:4223"
 
 # Kafka bootstrap servers permitted by KafkaTransport (used by the e2e suite).
 # Bare host:port form — Kafka bootstrap entries do not carry a URL scheme.

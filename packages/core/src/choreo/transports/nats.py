@@ -25,11 +25,13 @@ to install the extra.
 from __future__ import annotations
 
 import asyncio
+import ssl
 from pathlib import Path
 from typing import Any
 
 from ..environment import load_allowlist
 from .base import OnSent, TransportCallback, TransportCapabilities, TransportError
+from ._auth import AuthParam, _clear_auth_fields, _resolve_auth
 
 
 class NatsTransport:
@@ -45,6 +47,9 @@ class NatsTransport:
             caller has already validated upstream.
         name: Client name reported to the server (useful in ``nats-top``).
         connect_timeout_s: Seconds before a connect attempt fails.
+        auth: Authentication descriptor, sync resolver, or async resolver.
+            See ``NatsAuth`` for available variants.  When ``None`` (the
+            default), no authentication is performed.
     """
 
     capabilities = TransportCapabilities(
@@ -60,6 +65,7 @@ class NatsTransport:
         allowlist_path: Path | None = None,
         name: str = "choreo",
         connect_timeout_s: float = 5.0,
+        auth: AuthParam = None,
     ) -> None:
         if not servers:
             raise ValueError("NatsTransport requires at least one server URL")
@@ -67,6 +73,8 @@ class NatsTransport:
         self._allowlist_path = allowlist_path
         self._name = name
         self._connect_timeout_s = connect_timeout_s
+        self._auth = auth
+        self._has_connected = False
         self._nc: Any = None
         # topic -> list of (callback, subscribe_task) pairs. A list (not a
         # dict keyed by callback) so repeated subscribes of the same callback
@@ -83,9 +91,21 @@ class NatsTransport:
         # `add_done_callback` when the subscribe completes.
         self._pending_subs: set[asyncio.Task[Any]] = set()
 
+    def __reduce__(self) -> None:  # type: ignore[override]
+        raise TypeError("NatsTransport does not support pickling")
+
     # ---- lifecycle -------------------------------------------------------
 
     async def connect(self) -> None:
+        # --- reconnect guard (ADR-0020 §Implementation step 4.1) ---
+        if self._auth is not None and self._has_connected:
+            raise TransportError(
+                "auth-bearing transports do not support reconnect; "
+                "construct a fresh transport"
+            )
+        if self._auth is not None:
+            self._has_connected = True
+
         if self._allowlist_path is not None:
             load_allowlist(self._allowlist_path).enforce(
                 "nats_servers",
@@ -93,14 +113,25 @@ class NatsTransport:
                 label="NATS server",
             )
 
+        # --- resolve auth descriptor ---
+        descriptor = await _resolve_auth(self._auth, "nats")
+
+        # Drop instance reference before logon so a crash cannot leave it
+        # on self (ADR-0020 §Implementation step 4.5).
+        self._auth = None
+
         try:
             import nats
+            from nats.errors import Error as NatsError
             from nats.errors import NoServersError
             from nats.errors import TimeoutError as NatsTimeoutError
         except ImportError as e:
             raise TransportError(
                 "NatsTransport requires nats-py — install with `pip install 'choreo[nats]'`"
             ) from e
+
+        # --- translate descriptor to nats-py kwargs ---
+        connect_kwargs = self._auth_to_nats_kwargs(descriptor)
 
         try:
             # connect_timeout_s is authoritative: wrap nats.connect in wait_for
@@ -117,11 +148,90 @@ class NatsTransport:
                     connect_timeout=self._connect_timeout_s,
                     allow_reconnect=False,
                     max_reconnect_attempts=0,
+                    **connect_kwargs,
                 ),
                 timeout=self._connect_timeout_s,
             )
-        except (TimeoutError, NoServersError, NatsTimeoutError) as e:
+        except (TimeoutError, NoServersError, NatsTimeoutError, NatsError) as e:
             raise TransportError(f"could not connect to NATS at {self._servers!r}: {e}") from e
+        finally:
+            # Clear on exit — runs on success, failure, and cancellation
+            # (ADR-0020 §Implementation step 4.7).
+            if descriptor is not None:
+                _clear_auth_fields(descriptor)
+
+    @staticmethod
+    def _auth_to_nats_kwargs(descriptor: Any) -> dict[str, Any]:
+        """Translate a resolved NatsAuth descriptor to nats-py connect kwargs."""
+        if descriptor is None:
+            return {}
+
+        from .nats_auth import (
+            _NatsUserPassword,
+            _NatsToken,
+            _NatsNKey,
+            _NatsCredentialsFile,
+            _NatsTLS,
+            _NatsUserPasswordWithTLS,
+            _NatsTokenWithTLS,
+            _NatsNKeyWithTLS,
+            _NatsCredentialsFileWithTLS,
+        )
+
+        kwargs: dict[str, Any] = {}
+
+        def _tls_kwargs(tls: _NatsTLS) -> dict[str, Any]:
+            tk: dict[str, Any] = {}
+            if isinstance(tls.ca, ssl.SSLContext):
+                tk["tls"] = tls.ca
+            else:
+                ctx = ssl.create_default_context()
+                if isinstance(tls.ca, (str, Path)):
+                    ctx.load_verify_locations(str(tls.ca))
+                elif isinstance(tls.ca, bytes):
+                    ctx.load_verify_locations(cadata=tls.ca.decode())
+                if tls.cert is not None and tls.key is not None:
+                    if isinstance(tls.cert, bytes) or isinstance(tls.key, bytes):
+                        # nats-py doesn't support in-memory cert/key directly;
+                        # for bytes the consumer should pass an SSLContext.
+                        raise TransportError(
+                            "in-memory cert/key bytes require passing an "
+                            "ssl.SSLContext via NatsAuth.tls(ca=ctx)"
+                        )
+                    ctx.load_cert_chain(str(tls.cert), str(tls.key))
+                if tls.hostname is not None:
+                    tk["tls_hostname"] = tls.hostname
+                tk["tls"] = ctx
+            return tk
+
+        variant_type = type(descriptor)
+
+        if variant_type is _NatsUserPassword:
+            kwargs["user"] = descriptor.username
+            kwargs["password"] = descriptor.password
+        elif variant_type is _NatsToken:
+            kwargs["token"] = descriptor.token
+        elif variant_type is _NatsNKey:
+            kwargs["nkeys_seed"] = str(descriptor.seed) if isinstance(descriptor.seed, (str, bytes, bytearray)) else descriptor.seed
+        elif variant_type is _NatsCredentialsFile:
+            kwargs["user_credentials"] = str(descriptor.path)
+        elif variant_type is _NatsTLS:
+            kwargs.update(_tls_kwargs(descriptor))
+        elif variant_type is _NatsUserPasswordWithTLS:
+            kwargs["user"] = descriptor.username
+            kwargs["password"] = descriptor.password
+            kwargs.update(_tls_kwargs(descriptor.tls))
+        elif variant_type is _NatsTokenWithTLS:
+            kwargs["token"] = descriptor.token
+            kwargs.update(_tls_kwargs(descriptor.tls))
+        elif variant_type is _NatsNKeyWithTLS:
+            kwargs["nkeys_seed"] = str(descriptor.seed) if isinstance(descriptor.seed, (str, bytes, bytearray)) else descriptor.seed
+            kwargs.update(_tls_kwargs(descriptor.tls))
+        elif variant_type is _NatsCredentialsFileWithTLS:
+            kwargs["user_credentials"] = str(descriptor.path)
+            kwargs.update(_tls_kwargs(descriptor.tls))
+
+        return kwargs
 
     async def disconnect(self) -> None:
         if self._nc is None:

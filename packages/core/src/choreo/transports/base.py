@@ -57,29 +57,63 @@ class TransportError(Exception):
 
 
 def safe_url(url: str) -> str:
-    """Return `url` with any embedded credentials redacted.
+    """Return *url* with any embedded credentials redacted.
 
     Transports format their connection URL into exception messages on connect
-    failure. URLs like `amqp://user:pass@host` or `redis://:pw@host` carry
-    credentials inline; we must not leak those into tracebacks that reach
-    CI logs or test reports. Returns the URL with the userinfo segment
-    replaced by `<redacted>`. A URL without credentials is returned unchanged.
+    failure.  URLs like ``amqp://user:pass@host`` or ``redis://:pw@host``
+    carry credentials inline; we must not leak those into tracebacks that
+    reach CI logs or test reports.
+
+    Redaction covers two surfaces:
+
+    1. **Userinfo** — ``user:password@`` is replaced by ``<redacted>@``.
+    2. **Query-string parameters** — any key whose case-folded name is in
+       ``_CREDENTIAL_KEY_NAMES`` (defined in ``transports/_auth.py``) has
+       its value replaced by ``<redacted>``.  Percent-encoded keys are
+       normalised before matching; repeated keys are all inspected.
+
+    A URL without credentials (in either surface) is returned unchanged.
     """
     try:
-        from urllib.parse import urlsplit, urlunsplit
+        from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
     except ImportError:
         return url
+
+    # Lazy import to avoid circular dependency at module load time.
+    from ._auth import _CREDENTIAL_KEY_NAMES
+
     try:
         parts = urlsplit(url)
     except ValueError:
         return url
-    if not (parts.username or parts.password):
+
+    has_userinfo = bool(parts.username or parts.password)
+
+    # --- query-string redaction ---
+    redacted_query = parts.query
+    if parts.query:
+        pairs = parse_qsl(parts.query, keep_blank_values=True)
+        needs_redaction = any(k.casefold() in _CREDENTIAL_KEY_NAMES for k, _ in pairs)
+        if needs_redaction:
+            redacted_pairs = [
+                (k, "<redacted>") if k.casefold() in _CREDENTIAL_KEY_NAMES else (k, v)
+                for k, v in pairs
+            ]
+            redacted_query = urlencode(redacted_pairs)
+
+    if not has_userinfo and redacted_query == parts.query:
         return url
-    host = parts.hostname or ""
-    if parts.port is not None:
-        host = f"{host}:{parts.port}"
-    netloc = f"<redacted>@{host}" if host else "<redacted>"
-    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+    # --- userinfo redaction ---
+    if has_userinfo:
+        host = parts.hostname or ""
+        if parts.port is not None:
+            host = f"{host}:{parts.port}"
+        netloc = f"<redacted>@{host}" if host else "<redacted>"
+    else:
+        netloc = parts.netloc
+
+    return urlunsplit((parts.scheme, netloc, parts.path, redacted_query, parts.fragment))
 
 
 @runtime_checkable

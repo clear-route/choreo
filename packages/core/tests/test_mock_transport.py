@@ -128,3 +128,65 @@ async def test_a_mock_transport_should_record_every_publish_for_later_assertion(
     assert ("a", b"3") in sent
 
     await t.disconnect()
+
+
+# ---------------------------------------------------------------------------
+# Auth parity tests (ADR-0020)
+# ---------------------------------------------------------------------------
+
+
+async def test_a_mock_transport_given_an_auth_descriptor_should_log_a_warning_and_ignore_it() -> None:
+    import logging
+
+    from choreo.transports import MockTransport
+    from choreo.transports.nats_auth import NatsAuth
+
+    t = MockTransport(auth=NatsAuth.token("test"))
+    # caplog is not available in plain tests; use a manual handler
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = lambda r: records.append(r)  # type: ignore[assignment]
+    logger = logging.getLogger("choreo.transports.mock")
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING)
+    try:
+        await t.connect()
+        assert t._connected
+        assert any("mock_transport_ignored_auth" in r.getMessage() for r in records)
+    finally:
+        logger.removeHandler(handler)
+        await t.disconnect()
+
+
+async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_the_warning_event_is_built() -> None:
+    """The clear runs before the WARNING so the payload cannot reference secrets."""
+    from choreo.transports import MockTransport
+    from choreo.transports.nats_auth import NatsAuth
+
+    ba = bytearray(b"SECRET")
+    descriptor = NatsAuth.nkey(ba)
+    t = MockTransport(auth=descriptor)
+    await t.connect()
+    # The bytearray should be zeroed after connect
+    assert all(b == 0 for b in ba)
+    assert t._auth is None
+    await t.disconnect()
+
+
+async def test_a_mock_transport_given_a_wrong_variant_descriptor_should_raise_the_same_way_a_real_transport_does() -> None:
+    from choreo.transports import MockTransport, TransportError
+
+    # Pass a non-descriptor via a resolver
+    t = MockTransport(auth=lambda: "not-a-descriptor")  # type: ignore[arg-type]
+    with pytest.raises(TransportError, match="not a known variant"):
+        await t.connect()
+
+
+async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_after_connect() -> None:
+    from choreo.transports import MockTransport
+    from choreo.transports.nats_auth import NatsAuth
+
+    t = MockTransport(auth=NatsAuth.token("ephemeral"))
+    await t.connect()
+    assert t._auth is None
+    await t.disconnect()

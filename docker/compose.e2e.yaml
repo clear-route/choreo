@@ -38,6 +38,32 @@ services:
       timeout: 2s
       retries: 10
 
+  # Authenticated NATS — user/password required.  Used by the auth
+  # contract tests (ADR-0020).  Runs on port 4223 alongside the
+  # unauthenticated broker on 4222.  The sentinel password is
+  # deliberately unusual so the CI log scanner can detect it if it
+  # leaks into test output.
+  nats-auth:
+    image: nats:2.10-alpine
+    container_name: choreo-e2e-nats-auth
+    profiles: ["all", "nats", "nats-auth"]
+    ports:
+      - "127.0.0.1:4223:4222"
+      - "127.0.0.1:8223:8222"
+    command:
+      - "-js"
+      - "-m"
+      - "8222"
+      - "--user"
+      - "test"
+      - "--pass"
+      - "choreo-e2e-password-do-not-log"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
   # Kafka in single-node KRaft mode (no separate Zookeeper). The
   # KAFKA_LISTENER_* envs below are the standard single-broker recipe for
   # Confluent's KRaft image: one internal listener for controller traffic,
