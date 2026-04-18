@@ -125,8 +125,12 @@ _CSS = """
 
 /* Header — run-level aggregate */
 .harness-report .hr-header { background: var(--hr-surface); border-bottom: 1px solid var(--hr-border); padding: var(--hr-space-5) var(--hr-space-6); position: sticky; top: 0; z-index: 10; }
-.harness-report .hr-hero-project { font-size: var(--hr-text-xs); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--hr-text-subtle); margin-bottom: var(--hr-space-2); }
+.harness-report .hr-hero-meta { display: flex; align-items: baseline; gap: var(--hr-space-3); margin-bottom: var(--hr-space-2); }
+.harness-report .hr-hero-project { font-size: var(--hr-text-xs); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--hr-text-subtle); }
 .harness-report .hr-hero-project[hidden] { display: none; }
+.harness-report .hr-hero-brand { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; color: var(--hr-text-subtle); }
+.harness-report .hr-hero-brand a { color: var(--hr-text-muted); text-decoration: none; }
+.harness-report .hr-hero-brand a:hover { color: var(--hr-info); text-decoration: underline; }
 .harness-report .hr-hero { display: flex; align-items: baseline; gap: var(--hr-space-4); }
 .harness-report .hr-hero-sentence { flex: 0 1 auto; font-size: var(--hr-text-lg); font-weight: 400; margin: 0; letter-spacing: -0.02em; color: var(--hr-text-muted); line-height: 1.2; }
 .harness-report .hr-hero-sentence strong { color: var(--hr-text); font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -2402,7 +2406,10 @@ _HTML_TEMPLATE = (
     "<body>\n"
     '<div class="harness-report" data-schema-version="1">\n'
     '  <header class="hr-header">\n'
-    '    <div class="hr-hero-project" data-field="project_name" hidden></div>\n'
+    '    <div class="hr-hero-meta">\n'
+    '      <div class="hr-hero-project" data-field="project_name" hidden></div>\n'
+    '      <div class="hr-hero-brand">built by <a href="https://clearroute.io" target="_blank" rel="noopener noreferrer">clearroute</a></div>\n'
+    '    </div>\n'
     '    <div class="hr-hero">\n'
     '      <h1 class="hr-hero-sentence" data-field="title"></h1>\n'
     '      <div class="hr-hero-credit" data-field="project_credit" hidden></div>\n'
