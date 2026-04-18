@@ -9,17 +9,17 @@ import copy
 import logging
 
 import pytest
-
 from choreo.transports import MockTransport, TransportError
 from choreo.transports.nats_auth import NatsAuth
-
 
 # ---------------------------------------------------------------------------
 # Resolver failure redaction
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_error_wrapping_a_resolver_failure_should_not_carry_the_resolver_exceptions_original_args() -> None:
+async def test_a_transport_error_wrapping_a_resolver_failure_should_not_carry_the_resolver_exceptions_original_args() -> (
+    None
+):
     def resolver():
         raise ValueError("password=s3cret host=db.internal")
 
@@ -31,7 +31,9 @@ async def test_a_transport_error_wrapping_a_resolver_failure_should_not_carry_th
     assert "db.internal" not in msg
 
 
-async def test_a_transport_error_wrapping_a_resolver_failure_should_not_expose_the_original_exceptions_cause_chain() -> None:
+async def test_a_transport_error_wrapping_a_resolver_failure_should_not_expose_the_original_exceptions_cause_chain() -> (
+    None
+):
     def resolver():
         try:
             raise ConnectionError("tcp://secret-host:5432")
@@ -53,7 +55,9 @@ async def test_a_transport_error_wrapping_a_resolver_failure_should_not_expose_t
 # ---------------------------------------------------------------------------
 
 
-def test_a_descriptor_subjected_to_pytest_assertion_rewriting_should_not_leak_any_field_value() -> None:
+def test_a_descriptor_subjected_to_pytest_assertion_rewriting_should_not_leak_any_field_value() -> (
+    None
+):
     a = NatsAuth.user_password("admin", "super-secret-password")
     b = NatsAuth.user_password("admin", "super-secret-password")
     # eq=False means they compare by identity, so a != b

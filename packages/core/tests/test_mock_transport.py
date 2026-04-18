@@ -135,7 +135,9 @@ async def test_a_mock_transport_should_record_every_publish_for_later_assertion(
 # ---------------------------------------------------------------------------
 
 
-async def test_a_mock_transport_given_an_auth_descriptor_should_log_a_warning_and_ignore_it() -> None:
+async def test_a_mock_transport_given_an_auth_descriptor_should_log_a_warning_and_ignore_it() -> (
+    None
+):
     import logging
 
     from choreo.transports import MockTransport
@@ -158,7 +160,9 @@ async def test_a_mock_transport_given_an_auth_descriptor_should_log_a_warning_an
         await t.disconnect()
 
 
-async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_the_warning_event_is_built() -> None:
+async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_the_warning_event_is_built() -> (
+    None
+):
     """The clear runs before the WARNING so the payload cannot reference secrets."""
     from choreo.transports import MockTransport
     from choreo.transports.nats_auth import NatsAuth
@@ -173,7 +177,9 @@ async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_
     await t.disconnect()
 
 
-async def test_a_mock_transport_given_a_wrong_variant_descriptor_should_raise_the_same_way_a_real_transport_does() -> None:
+async def test_a_mock_transport_given_a_wrong_variant_descriptor_should_raise_the_same_way_a_real_transport_does() -> (
+    None
+):
     from choreo.transports import MockTransport, TransportError
 
     # Pass a non-descriptor via a resolver

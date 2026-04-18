@@ -22,8 +22,8 @@ import logging
 from pathlib import Path
 
 from ..environment import load_allowlist
-from .base import OnSent, TransportCallback, TransportCapabilities
 from ._auth import AuthParam, _clear_auth_fields, _resolve_auth
+from .base import OnSent, TransportCallback, TransportCapabilities
 
 logger = logging.getLogger(__name__)
 

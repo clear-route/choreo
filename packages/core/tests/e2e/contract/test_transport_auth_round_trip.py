@@ -15,7 +15,6 @@ Runs only under ``pytest -m e2e``.  Requires the auth compose profile:
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from pathlib import Path
 

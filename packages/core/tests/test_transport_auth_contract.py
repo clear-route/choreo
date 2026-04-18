@@ -7,16 +7,11 @@ so each transport runs the identical suite.  See ADR-0020 §Validation.
 
 from __future__ import annotations
 
-import asyncio
 import pickle
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from choreo.transports import MockTransport, TransportError
 from choreo.transports.nats_auth import NatsAuth, _NatsToken
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -33,7 +28,9 @@ def _mock_factory(auth=None):
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_constructed_without_auth_should_not_alter_current_connect_behaviour() -> None:
+async def test_a_transport_constructed_without_auth_should_not_alter_current_connect_behaviour() -> (
+    None
+):
     t = MockTransport()
     await t.connect()
     assert t._connected
@@ -57,7 +54,9 @@ async def test_a_transport_with_an_auth_descriptor_should_accept_a_literal_value
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_with_a_sync_auth_resolver_should_call_it_exactly_once_per_connect() -> None:
+async def test_a_transport_with_a_sync_auth_resolver_should_call_it_exactly_once_per_connect() -> (
+    None
+):
     call_count = 0
 
     def resolver():
@@ -76,7 +75,9 @@ async def test_a_transport_with_a_sync_auth_resolver_should_call_it_exactly_once
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_with_an_async_auth_resolver_should_await_it_exactly_once_per_connect() -> None:
+async def test_a_transport_with_an_async_auth_resolver_should_await_it_exactly_once_per_connect() -> (
+    None
+):
     call_count = 0
 
     async def resolver():
@@ -104,7 +105,9 @@ async def test_a_transport_auth_resolver_that_raises_should_surface_a_transport_
         await t.connect()
 
 
-async def test_a_transport_auth_resolver_error_message_should_not_contain_the_resolver_exception_args() -> None:
+async def test_a_transport_auth_resolver_error_message_should_not_contain_the_resolver_exception_args() -> (
+    None
+):
     def bad_resolver():
         raise ValueError("super secret message from vault")
 
@@ -114,7 +117,9 @@ async def test_a_transport_auth_resolver_error_message_should_not_contain_the_re
     assert "super secret message" not in str(exc_info.value)
 
 
-async def test_a_transport_auth_resolver_error_should_suppress_the_original_exception_cause_chain() -> None:
+async def test_a_transport_auth_resolver_error_should_suppress_the_original_exception_cause_chain() -> (
+    None
+):
     def bad_resolver():
         raise RuntimeError("should not appear")
 
@@ -125,7 +130,9 @@ async def test_a_transport_auth_resolver_error_should_suppress_the_original_exce
     assert exc_info.value.__suppress_context__ is True
 
 
-async def test_a_transport_auth_resolver_error_should_record_the_original_exception_class_name_on_a_resolver_cause_attribute() -> None:
+async def test_a_transport_auth_resolver_error_should_record_the_original_exception_class_name_on_a_resolver_cause_attribute() -> (
+    None
+):
     def bad_resolver():
         raise RuntimeError("internal")
 
@@ -140,10 +147,11 @@ async def test_a_transport_auth_resolver_error_should_record_the_original_except
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_given_a_descriptor_of_another_transports_variant_should_raise_a_transport_error_without_stringifying_the_descriptor() -> None:
+async def test_a_transport_given_a_descriptor_of_another_transports_variant_should_raise_a_transport_error_without_stringifying_the_descriptor() -> (
+    None
+):
     """Pass something that isn't a registered variant."""
     # Create an object that looks like a descriptor but isn't registered
-    from choreo.transports._auth import _TransportAuth
 
     # We can't subclass _TransportAuth from outside, so use a non-descriptor
     # callable that returns a non-variant type.
@@ -160,9 +168,12 @@ async def test_a_transport_given_a_descriptor_of_another_transports_variant_shou
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_given_a_subclass_of_a_known_variant_should_raise_a_transport_error() -> None:
+async def test_a_transport_given_a_subclass_of_a_known_variant_should_raise_a_transport_error() -> (
+    None
+):
     """Subclassing is blocked at import time by __init_subclass__."""
     with pytest.raises(TypeError, match="cannot subclass"):
+
         class SneakyToken(_NatsToken):
             pass
 
@@ -172,7 +183,9 @@ async def test_a_transport_given_a_subclass_of_a_known_variant_should_raise_a_tr
 # ---------------------------------------------------------------------------
 
 
-async def test_a_connected_transport_should_not_expose_its_auth_descriptor_via_any_public_accessor() -> None:
+async def test_a_connected_transport_should_not_expose_its_auth_descriptor_via_any_public_accessor() -> (
+    None
+):
     t = MockTransport(auth=NatsAuth.token("secret"))
     await t.connect()
     # _auth should be None after connect
@@ -180,7 +193,9 @@ async def test_a_connected_transport_should_not_expose_its_auth_descriptor_via_a
     await t.disconnect()
 
 
-async def test_a_connected_transport_should_report_its_bytes_secret_fields_as_all_zero_after_connect() -> None:
+async def test_a_connected_transport_should_report_its_bytes_secret_fields_as_all_zero_after_connect() -> (
+    None
+):
     ba = bytearray(b"SECRET_SEED")
     descriptor = NatsAuth.nkey(ba)
     t = MockTransport(auth=descriptor)
@@ -195,9 +210,10 @@ async def test_a_connected_transport_should_report_its_bytes_secret_fields_as_al
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_whose_logon_fails_should_still_clear_the_auth_descriptor_on_the_failure_path() -> None:
+async def test_a_transport_whose_logon_fails_should_still_clear_the_auth_descriptor_on_the_failure_path() -> (
+    None
+):
     """For Mock, logon doesn't fail, so test the resolver failure path."""
-    descriptor = NatsAuth.token("secret-to-clear")
 
     def failing_resolver():
         raise RuntimeError("boom")
@@ -214,7 +230,9 @@ async def test_a_transport_whose_logon_fails_should_still_clear_the_auth_descrip
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_constructed_without_auth_should_permit_reconnect_after_disconnect() -> None:
+async def test_a_transport_constructed_without_auth_should_permit_reconnect_after_disconnect() -> (
+    None
+):
     t = MockTransport()
     await t.connect()
     await t.disconnect()
@@ -253,7 +271,9 @@ async def test_a_transport_repr_should_never_contain_any_auth_descriptor_value()
 # ---------------------------------------------------------------------------
 
 
-async def test_a_transport_connect_failure_should_raise_a_transport_error_that_does_not_contain_any_secret() -> None:
+async def test_a_transport_connect_failure_should_raise_a_transport_error_that_does_not_contain_any_secret() -> (
+    None
+):
     def resolver():
         raise ValueError("vault-password-do-not-log")
 

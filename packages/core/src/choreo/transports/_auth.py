@@ -38,17 +38,19 @@ AuthParam: TypeAlias = Union["_TransportAuth", AuthResolver, AsyncAuthResolver, 
 # Credential key names (canonical, case-folded)
 # ---------------------------------------------------------------------------
 
-_CREDENTIAL_KEY_NAMES: frozenset[str] = frozenset({
-    "password",
-    "token",
-    "secret",
-    "key",
-    "auth",
-    "credential",
-    "credentials",
-    "username",
-    "user",
-})
+_CREDENTIAL_KEY_NAMES: frozenset[str] = frozenset(
+    {
+        "password",
+        "token",
+        "secret",
+        "key",
+        "auth",
+        "credential",
+        "credentials",
+        "username",
+        "user",
+    }
+)
 
 # ---------------------------------------------------------------------------
 # Variant registry — populated by each *_auth.py module at import time
@@ -65,6 +67,7 @@ def _register_variants(transport_name: str, variants: frozenset[type]) -> None:
 # ---------------------------------------------------------------------------
 # Base descriptor
 # ---------------------------------------------------------------------------
+
 
 class _TransportAuth:
     """Abstract base for per-transport auth descriptors.
@@ -102,19 +105,16 @@ class _TransportAuth:
         return f"{type(self).__qualname__}(<redacted>)"
 
     def __reduce__(self) -> None:  # type: ignore[override]
-        raise TypeError(
-            f"{type(self).__qualname__} does not support pickling"
-        )
+        raise TypeError(f"{type(self).__qualname__} does not support pickling")
 
     def __deepcopy__(self, memo: dict) -> None:  # type: ignore[override]
-        raise TypeError(
-            f"{type(self).__qualname__} does not support deepcopy"
-        )
+        raise TypeError(f"{type(self).__qualname__} does not support deepcopy")
 
 
 # ---------------------------------------------------------------------------
 # ConflictingAuthError
 # ---------------------------------------------------------------------------
+
 
 class ConflictingAuthError(TransportError):
     """Raised when a transport detects both URL-carried and explicit auth."""
@@ -123,6 +123,7 @@ class ConflictingAuthError(TransportError):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _clear_auth_fields(descriptor: _TransportAuth) -> None:
     """Zero or drop every field on *descriptor*, then mark it consumed.
@@ -200,16 +201,12 @@ async def _resolve_auth(
     # --- variant allowlist check ---
     allowed = _ALLOWED_VARIANTS.get(transport_name)
     if allowed is None:
-        raise TransportError(
-            f"no auth variants registered for transport {transport_name!r}"
-        )
+        raise TransportError(f"no auth variants registered for transport {transport_name!r}")
     if type(descriptor) not in allowed:
         raise TransportError("auth descriptor is not a known variant")
 
     # --- reuse check ---
     if descriptor._consumed:
-        raise TransportError(
-            "auth descriptor has already been consumed by another connect()"
-        )
+        raise TransportError("auth descriptor has already been consumed by another connect()")
 
     return descriptor

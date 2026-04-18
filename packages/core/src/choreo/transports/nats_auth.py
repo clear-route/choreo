@@ -30,12 +30,12 @@ import ssl
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ._auth import _TransportAuth, _register_variants
-
+from ._auth import _register_variants, _TransportAuth
 
 # ---------------------------------------------------------------------------
 # Variants
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True, eq=False, repr=False)
 class _NatsUserPassword(_TransportAuth):
@@ -113,6 +113,7 @@ class _NatsCredentialsFileWithTLS(_TransportAuth):
 # Public namespace — named constructors
 # ---------------------------------------------------------------------------
 
+
 class NatsAuth:
     """NATS authentication descriptors.
 
@@ -177,17 +178,19 @@ class NatsAuth:
 # Register variants
 # ---------------------------------------------------------------------------
 
-_ALL_NATS_VARIANTS: frozenset[type] = frozenset({
-    _NatsUserPassword,
-    _NatsToken,
-    _NatsNKey,
-    _NatsCredentialsFile,
-    _NatsTLS,
-    _NatsUserPasswordWithTLS,
-    _NatsTokenWithTLS,
-    _NatsNKeyWithTLS,
-    _NatsCredentialsFileWithTLS,
-})
+_ALL_NATS_VARIANTS: frozenset[type] = frozenset(
+    {
+        _NatsUserPassword,
+        _NatsToken,
+        _NatsNKey,
+        _NatsCredentialsFile,
+        _NatsTLS,
+        _NatsUserPasswordWithTLS,
+        _NatsTokenWithTLS,
+        _NatsNKeyWithTLS,
+        _NatsCredentialsFileWithTLS,
+    }
+)
 
 _register_variants("nats", _ALL_NATS_VARIANTS)
 # Mock accepts all NATS variants for shape-validation parity.

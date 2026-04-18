@@ -7,8 +7,8 @@ pattern shown in `MockTransport`.
 
 from __future__ import annotations
 
-from .base import Transport, TransportCallback, TransportCapabilities, TransportError
 from ._auth import ConflictingAuthError
+from .base import Transport, TransportCallback, TransportCapabilities, TransportError
 from .mock import MockTransport
 
 __all__ = [

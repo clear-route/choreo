@@ -30,8 +30,8 @@ from pathlib import Path
 from typing import Any
 
 from ..environment import load_allowlist
-from .base import OnSent, TransportCallback, TransportCapabilities, TransportError
 from ._auth import AuthParam, _clear_auth_fields, _resolve_auth
+from .base import OnSent, TransportCallback, TransportCapabilities, TransportError
 
 
 class NatsTransport:
@@ -100,8 +100,7 @@ class NatsTransport:
         # --- reconnect guard (ADR-0020 §Implementation step 4.1) ---
         if self._auth is not None and self._has_connected:
             raise TransportError(
-                "auth-bearing transports do not support reconnect; "
-                "construct a fresh transport"
+                "auth-bearing transports do not support reconnect; construct a fresh transport"
             )
         if self._auth is not None:
             self._has_connected = True
@@ -167,15 +166,15 @@ class NatsTransport:
             return {}
 
         from .nats_auth import (
-            _NatsUserPassword,
-            _NatsToken,
-            _NatsNKey,
             _NatsCredentialsFile,
-            _NatsTLS,
-            _NatsUserPasswordWithTLS,
-            _NatsTokenWithTLS,
-            _NatsNKeyWithTLS,
             _NatsCredentialsFileWithTLS,
+            _NatsNKey,
+            _NatsNKeyWithTLS,
+            _NatsTLS,
+            _NatsToken,
+            _NatsTokenWithTLS,
+            _NatsUserPassword,
+            _NatsUserPasswordWithTLS,
         )
 
         kwargs: dict[str, Any] = {}
@@ -212,7 +211,11 @@ class NatsTransport:
         elif variant_type is _NatsToken:
             kwargs["token"] = descriptor.token
         elif variant_type is _NatsNKey:
-            kwargs["nkeys_seed"] = str(descriptor.seed) if isinstance(descriptor.seed, (str, bytes, bytearray)) else descriptor.seed
+            kwargs["nkeys_seed"] = (
+                str(descriptor.seed)
+                if isinstance(descriptor.seed, (str, bytes, bytearray))
+                else descriptor.seed
+            )
         elif variant_type is _NatsCredentialsFile:
             kwargs["user_credentials"] = str(descriptor.path)
         elif variant_type is _NatsTLS:
@@ -225,7 +228,11 @@ class NatsTransport:
             kwargs["token"] = descriptor.token
             kwargs.update(_tls_kwargs(descriptor.tls))
         elif variant_type is _NatsNKeyWithTLS:
-            kwargs["nkeys_seed"] = str(descriptor.seed) if isinstance(descriptor.seed, (str, bytes, bytearray)) else descriptor.seed
+            kwargs["nkeys_seed"] = (
+                str(descriptor.seed)
+                if isinstance(descriptor.seed, (str, bytes, bytearray))
+                else descriptor.seed
+            )
             kwargs.update(_tls_kwargs(descriptor.tls))
         elif variant_type is _NatsCredentialsFileWithTLS:
             kwargs["user_credentials"] = str(descriptor.path)

@@ -12,20 +12,10 @@ import pickle
 from pathlib import Path
 
 import pytest
-
 from choreo.transports.nats_auth import (
     NatsAuth,
-    _NatsCredentialsFile,
-    _NatsCredentialsFileWithTLS,
-    _NatsNKey,
-    _NatsNKeyWithTLS,
-    _NatsToken,
-    _NatsTokenWithTLS,
-    _NatsTLS,
     _NatsUserPassword,
-    _NatsUserPasswordWithTLS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -89,7 +79,7 @@ def test_a_credentials_file_descriptor_should_coerce_to_path() -> None:
 def test_a_descriptor_repr_should_not_contain_any_field_value(
     name: str, descriptor: object
 ) -> None:
-    r = repr(descriptor)  # noqa: repr-safety-test
+    r = repr(descriptor)
     # Should show the variant tag only
     assert "<redacted>" in r
     # None of the test secrets should appear
@@ -156,5 +146,6 @@ def test_two_distinct_descriptors_with_equal_fields_should_not_compare_equal(
 
 def test_a_descriptor_class_should_refuse_subclasses_declared_outside_the_library_package() -> None:
     with pytest.raises(TypeError, match="cannot subclass _TransportAuth"):
+
         class Sneaky(_NatsUserPassword):  # type: ignore[misc]
             pass

@@ -2409,7 +2409,7 @@ _HTML_TEMPLATE = (
     '    <div class="hr-hero-meta">\n'
     '      <div class="hr-hero-project" data-field="project_name" hidden></div>\n'
     '      <div class="hr-hero-brand">built by <a href="https://clearroute.io" target="_blank" rel="noopener noreferrer">clearroute</a></div>\n'
-    '    </div>\n'
+    "    </div>\n"
     '    <div class="hr-hero">\n'
     '      <h1 class="hr-hero-sentence" data-field="title"></h1>\n'
     '      <div class="hr-hero-credit" data-field="project_credit" hidden></div>\n'
