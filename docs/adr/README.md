@@ -33,6 +33,12 @@ Decisions that shape the Choreo architecture. Each ADR records **what was decide
 | [0018](0018-reply-correlation-scoping.md) | Reply correlation scoping — reuse of expect-filter | **Proposed** | Same filter as `expect`; scope-correlation stamped on reply; SUT-originated correlation deferred |
 | [0019](0019-pluggable-correlation-policy.md) | Pluggable correlation policy with no-op default | **Proposed** | `CorrelationPolicy` protocol over an `Envelope`; `NoCorrelationPolicy` default for public release; `test_namespace()` factory ships the current `TEST-` posture as opt-in |
 | [0020](0020-transport-auth.md) | Transport authentication — typed per-transport auth with optional resolver | **Proposed** | `auth: <Concrete>Auth \| AuthResolver \| None` per transport; bounded lifetime, structural redaction, no pickle; allowlist unchanged |
+| [0021](0021-chronicle-api-structure.md) | Chronicle API Structure — Repository + Service Layer | Proposed | |
+| [0022](0022-chronicle-frontend-architecture.md) | Chronicle Frontend Architecture — Stateless React Dashboard | Accepted | |
+| [0023](0023-chronicle-run-summary-view.md) | Chronicle Run Summary View — Component Architecture | Proposed | |
+| [0024](0024-chronicle-run-summary-backend.md) | Chronicle Run Summary Backend — Query Endpoints | Proposed | |
+| [0025](0025-chronicle-topic-drilldown-backend.md) | Chronicle Topic Drilldown Backend — Query Implementation | Proposed | |
+| [0026](0026-chronicle-topic-drilldown-frontend.md) | Chronicle Topic Drilldown Frontend — Component Architecture | Proposed | |
 
 ## Dependency graph
 

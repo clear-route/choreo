@@ -109,6 +109,9 @@ pip install 'choreo-harness[redis]'     # Redis
 
 # Optional: pytest reporter plugin (HTML + JSON output)
 pip install choreo-reporter
+
+# Optional: longitudinal analytics server (TimescaleDB + React dashboard)
+pip install choreo-chronicle
 ```
 
 - Python 3.11+
@@ -720,6 +723,40 @@ What the report includes:
 
 - **pytest-xdist support.** Each worker writes partial JSON; the reporter
   merges them at session end.
+
+---
+
+## Chronicle — Longitudinal Analytics
+
+Chronicle is a self-hosted reporting server that ingests `test-report-v1` JSON
+over time, stores it in TimescaleDB, and serves a React dashboard for
+performance analytics. It answers questions no single report can: "Is this
+topic getting slower?", "Did that deploy break anything?", "Are we within
+budget?"
+
+```bash
+# After your CI pipeline runs pytest:
+curl -X POST https://chronicle.internal/api/v1/runs \
+  -H "Content-Type: application/json" \
+  -H "X-Chronicle-Tenant: my-team" \
+  -d @test-report/results.json
+```
+
+Chronicle lives in `packages/chronicle/`. See the
+[Chronicle README](packages/chronicle/README.md) for installation, API
+reference, and deployment instructions.
+
+**Try it locally:**
+
+```bash
+pip install choreo-chronicle
+docker compose -f docker/compose.chronicle.yaml up -d
+DATABASE_URL=postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle \
+  python -m chronicle migrate
+DATABASE_URL=postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle \
+  python -m chronicle
+# Dashboard at http://localhost:5173
+```
 
 ---
 

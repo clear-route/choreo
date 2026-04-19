@@ -1,0 +1,93 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "choreo-chronicle"
+dynamic = ["version"]
+description = "Chronicle — a longitudinal reporting server for Choreo test performance analytics"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "The Choreo Authors" }]
+keywords = ["testing", "reporting", "analytics", "timescaledb", "performance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: FastAPI",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "sqlalchemy[asyncio]>=2.0,<3",
+    "asyncpg>=0.29,<1",
+    "pydantic>=2.0,<3",
+    "pydantic-settings>=2.0,<3",
+    "alembic>=1.13,<2",
+    "jsonschema>=4.18,<5",
+    "sse-starlette>=2.0,<3",
+]
+
+[project.urls]
+Homepage = "https://github.com/clear-route/choreo"
+Repository = "https://github.com/clear-route/choreo"
+Issues = "https://github.com/clear-route/choreo/issues"
+Changelog = "https://github.com/clear-route/choreo/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+source = "vcs"
+raw-options.root = "../.."
+fallback-version = "0.0.0"
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0,<10",
+    "pytest-asyncio>=0.24,<2.0",
+    "httpx>=0.27,<1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "mypy",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chronicle"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/chronicle/py.typed" = "chronicle/py.typed"
+# Pre-built React frontend (built by CI before `hatch build`).
+# Consumers get a working dashboard from `pip install` — no Node.js needed.
+"frontend/dist" = "chronicle/static"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = [
+    "chronicle_db: requires TimescaleDB via docker compose (docker/compose.chronicle.yaml). Run with `pytest -m chronicle_db`; excluded by default.",
+]
+addopts = "-m 'not chronicle_db'"
+filterwarnings = [
+    'ignore:directory "/run/secrets" does not exist:UserWarning',
+]
+
+[tool.mutmut]
+# Explicit paths prevent mutmut v3 from guessing and walking the entire
+# filesystem (which fails on macOS with /.VolumeIcon.icns).
+paths_to_mutate = ["src/chronicle/services/", "src/chronicle/api/"]
+tests_dir = ["tests/unit/", "tests/integration/"]
+also_copy = ["src/chronicle/"]
+debug = true

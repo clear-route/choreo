@@ -38,6 +38,43 @@ Use [docs/adr/template.md](docs/adr/template.md). ADRs are reviewed on the same 
 - Commit messages follow the subject / body pattern. Subject under 70 chars; body explains *why*, not *what*.
 - Don't bundle a rename with a refactor with a new feature.
 
+## Chronicle
+
+Chronicle is a separate package (`packages/chronicle/`) with its own FastAPI backend, TimescaleDB persistence, and React frontend. Follow the same test naming conventions as the core library.
+
+### Dev environment setup
+
+```bash
+# 1. Start TimescaleDB
+docker compose -f docker/compose.chronicle.yaml up -d
+
+# 2. Install the package with test extras
+pip install -e 'packages/chronicle[test]'
+
+# 3. Apply database migrations
+cd packages/chronicle && alembic upgrade head
+```
+
+### Frontend development
+
+Requires Node.js 20. The Vite dev server proxies API calls to the backend on port 8000.
+
+```bash
+cd packages/chronicle/frontend
+npm install
+npm run dev
+```
+
+### Running tests
+
+```bash
+# Unit and integration tests (no database required)
+pytest packages/chronicle/tests/
+
+# End-to-end tests (requires TimescaleDB from the compose stack above)
+pytest packages/chronicle/tests/ -m chronicle_db
+```
+
 ## Security
 
 If you spot a vulnerability, do not open a public issue. See [SECURITY.md](SECURITY.md) for private reporting.

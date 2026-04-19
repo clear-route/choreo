@@ -1,0 +1,17 @@
+# Never bake local config or secrets into images
+.env
+.env.*
+*.env
+
+# Development artefacts
+.mutmut-cache/
+mutants/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+tests/
+alembic.ini
+
+# Version control
+.git/

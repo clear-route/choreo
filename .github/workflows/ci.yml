@@ -56,18 +56,14 @@ jobs:
           cache: pip
 
       - name: Install packages with every transport extra
-        # Transport unit tests (test_rabbit_transport, test_redis_transport,
-        # etc.) instantiate the transport to exercise no-broker paths like
-        # credential redaction. Without the extras installed, the constructor
-        # short-circuits with "transport requires <dep>" before the code under
-        # test runs, which looks like a test bug but is really install surface.
         run: |
           python -m pip install --upgrade pip
           pip install -e 'packages/core[nats,kafka,rabbitmq,redis,test]'
           pip install -e 'packages/core-reporter[test]'
+          pip install -e 'packages/chronicle[test]'
 
       - name: Run unit tests
-        run: pytest -m "not e2e"
+        run: pytest -m "not e2e and not chronicle_db"
 
   e2e:
     name: e2e (nats, kafka, rabbitmq, redis)
@@ -92,12 +88,10 @@ jobs:
           pip install -e 'packages/core-reporter[test]'
 
       - name: Run e2e tests with report
-        # Override the default `--harness-report-disable` from addopts so the
-        # reporter plugin writes to ./test-report/. Keeps xdist parallelism.
         run: pytest -m e2e -o "addopts=-n auto" --harness-report=test-report
 
       - name: Upload test report (workflow artefact)
-        if: always()  # upload even on failure — the report is most useful when tests are broken
+        if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: test-report-e2e
@@ -105,9 +99,6 @@ jobs:
           retention-days: 30
 
       - name: Upload test report (Pages artefact)
-        # Only build the Pages-format artefact on main pushes — PRs don't
-        # publish to the canonical site. `deploy-pages` in the follow-up job
-        # reads the single `github-pages` artefact this action produces.
         if: github.event_name == 'push' && github.ref == 'refs/heads/main' && success()
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa  # v3
         with:
@@ -116,6 +107,42 @@ jobs:
       - name: Tear down broker stack
         if: always()
         run: docker compose -f docker/compose.e2e.yaml --profile all down -v
+
+  chronicle-e2e:
+    name: chronicle e2e (TimescaleDB)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Bring up TimescaleDB
+        run: docker compose -f docker/compose.chronicle.yaml up -d --wait
+
+      - name: Install chronicle
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e 'packages/chronicle[test]'
+
+      - name: Run migrations
+        working-directory: packages/chronicle
+        env:
+          DATABASE_URL: postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle
+        run: alembic upgrade head
+
+      - name: Run chronicle e2e tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle
+        run: pytest packages/chronicle/tests/ -m chronicle_db -o "addopts="
+
+      - name: Tear down TimescaleDB
+        if: always()
+        run: docker compose -f docker/compose.chronicle.yaml down -v
 
   build:
     name: build + twine check
@@ -130,15 +157,30 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: packages/chronicle/frontend/package-lock.json
+
       - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
           pip install build twine
 
+      - name: Build Chronicle frontend
+        working-directory: packages/chronicle/frontend
+        run: |
+          npm ci
+          npm run lint
+          npm audit --omit=dev
+          npm run build
+
       - name: Build wheels + sdists
         run: |
           python -m build packages/core --outdir dist/
           python -m build packages/core-reporter --outdir dist/
+          python -m build packages/chronicle --outdir dist/
 
       - name: Validate distributions
         run: twine check dist/*
@@ -169,27 +211,20 @@ jobs:
           pip install pip-audit
           pip install -e 'packages/core[nats,kafka,rabbitmq,redis,test]'
           pip install -e 'packages/core-reporter[test]'
+          pip install -e 'packages/chronicle[test]'
 
       - name: pip-audit
         run: pip-audit --skip-editable
 
   publish-report:
-    # Deploy the e2e test report to GitHub Pages so it lives at a stable URL.
-    # Only runs on main pushes: PRs generate the workflow artefact (above) but
-    # never overwrite the canonical published report.
-    #
-    # `continue-on-error: true` until GitHub Pages entitlement is confirmed on
-    # the org — private Pages needs a Team/Enterprise plan. Until then the
-    # deploy returns 404 but the workflow artefact `test-report-e2e` from the
-    # e2e job is a usable fallback. Drop the flag once the site is serving.
     name: publish test report (GitHub Pages)
     needs: e2e
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     continue-on-error: true
     runs-on: ubuntu-latest
     permissions:
-      pages: write       # deploy-pages needs write
-      id-token: write    # OIDC for the Pages deployment
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}

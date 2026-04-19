@@ -12,6 +12,7 @@
 testpaths = [
     "packages/core/tests",
     "packages/core-reporter/tests",
+    "packages/chronicle/tests",
 ]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
@@ -19,6 +20,7 @@ asyncio_default_test_loop_scope = "session"
 markers = [
     "e2e: requires docker-compose services (NATS, Kafka, RabbitMQ, Redis). Run with `pytest -m e2e`; excluded by default via `pytest -m 'not e2e'`.",
     "choreo(timeout_ms, tags): scenario metadata surfaced in the test report. timeout_ms sets the default await budget; tags are string labels for filtering and grouping.",
+    "chronicle_db: requires TimescaleDB via docker compose (docker/compose.chronicle.yaml). Run with `pytest -m chronicle_db`; excluded by default.",
 ]
 # Default addopts:
 #   --harness-report-disable: keep the reporter plugin quiet during the core
@@ -28,7 +30,7 @@ markers = [
 #     by scope correlation IDs (ADR-0002) and UUID-suffixed topics in e2e, so
 #     parallel is safe. Override with `-n 0` (serial) or `-p no:xdist` when
 #     debugging a single failure and you want deterministic stdout order.
-addopts = "--harness-report-disable -n auto"
+addopts = "--harness-report-disable -n auto -m 'not chronicle_db'"
 
 # Ruff: single source of truth for lint + format across the monorepo.
 # Invoke from the repo root: `ruff check packages/` and `ruff format packages/`.

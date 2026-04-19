@@ -1,14 +1,25 @@
 # Changelog
 
-All notable changes to the Choreo packages (`choreo`, `choreo-reporter`) are
-recorded here. Both packages release in lockstep under a single `vX.Y.Z`
-git tag; an entry under a version heading applies to both unless called
-out otherwise.
+All notable changes to the Choreo packages (`choreo`, `choreo-reporter`,
+`choreo-chronicle`) are recorded here. Both `choreo` and `choreo-reporter`
+release in lockstep under a single `vX.Y.Z` git tag; an entry under a version
+heading applies to both unless called out otherwise. `choreo-chronicle` is
+versioned independently.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+### Added (Chronicle)
+- Chronicle reporting server (`choreo-chronicle`) — FastAPI + TimescaleDB + React dashboard.
+- Ingest `test-report-v1` JSON via `POST /api/v1/runs` with idempotency support.
+- Tenant management with auto-creation on first ingest.
+- Per-topic latency analytics with continuous aggregates (hourly, daily).
+- Anomaly detection: rolling baseline, budget violation, outcome shift.
+- Six dashboard views: Runs, Topics, Topic Drilldown, Reliability, Compare, Anomalies.
+- SSE streaming for live dashboard updates.
+- Docker Compose for self-hosted deployment.
 
 ## [0.1.0] - 2026-04-19
 

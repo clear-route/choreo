@@ -20,6 +20,8 @@ venv/
 .ruff_cache/
 .tox/
 .nox/
+.mutmut-cache/
+mutants/
 
 # Coverage
 .coverage
@@ -30,12 +32,30 @@ coverage.xml
 # choreo-reporter output (PRD-007)
 test-report/
 
+# Node / React (Chronicle frontend)
+node_modules/
+packages/chronicle/frontend/dist/
+*.tsbuildinfo
+
 # Environment files
 .env
 .env.*
 
+# Screenshots (dev artefacts, not source)
+chronicle-*.png
+og-report-*.png
+anomalies-page.png
+regression-page.png
+runs-page.png
+topic-drilldown-page.png
+
+# Built frontend assets (built by CI, not source)
+packages/chronicle/src/chronicle/static/
+
 # Editor/OS
 .DS_Store
+.idea/
+.vscode/
 *.swp
 *.swo
 *~

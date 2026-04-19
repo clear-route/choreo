@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+ * Chronicle design tokens — aligned with the OG harness test report.
+ *
+ * Uses the same oklch colour model, surface hierarchy, type scale,
+ * and spacing rhythm as the report's .harness-report CSS custom properties.
+ * Chronicle inherits the report's developer-tool aesthetic: dense,
+ * information-first, flat surfaces, tight radii, system font stack.
+ */
+@theme {
+  /* Font stacks — match the OG report exactly */
+  --font-sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Surface hierarchy — flat, no shadows. bg → surface → surface-2 */
+  --color-bg: oklch(0.99 0 0);
+  --color-surface: oklch(0.98 0 0);
+  --color-surface-2: oklch(0.965 0 0);
+
+  /* Borders — subtle, 1px */
+  --color-border: oklch(0.91 0 0);
+  --color-border-strong: oklch(0.83 0 0);
+
+  /* Text — neutral greys, no blue tint */
+  --color-text: oklch(0.18 0 0);
+  --color-text-muted: oklch(0.50 0.01 250);
+  --color-text-subtle: oklch(0.67 0.01 250);
+
+  /* Status — oklch, same hues as OG report */
+  --color-pass: oklch(0.62 0.15 150);
+  --color-pass-tint: oklch(0.96 0.05 150);
+  --color-fail: oklch(0.62 0.18 25);
+  --color-fail-tint: oklch(0.96 0.05 25);
+  --color-slow: oklch(0.70 0.15 75);
+  --color-slow-tint: oklch(0.96 0.05 75);
+  --color-timeout: oklch(0.55 0.18 15);
+  --color-timeout-tint: oklch(0.96 0.05 15);
+  --color-skip: oklch(0.67 0.01 250);
+
+  /* Info / interactive — blue */
+  --color-info: oklch(0.60 0.15 245);
+  --color-info-tint: oklch(0.96 0.05 245);
+  --color-info-border: oklch(0.70 0.15 245);
+
+  /* Badge foreground (white on solid fill) */
+  --color-badge-fg: oklch(1 0 0);
+
+  /* Severity aliases */
+  --color-warning: oklch(0.70 0.15 75);
+  --color-critical: oklch(0.62 0.18 25);
+
+  /* Chart line colours */
+  --color-p50: oklch(0.60 0.15 245);
+  --color-p95: oklch(0.70 0.15 75);
+  --color-p99: oklch(0.62 0.18 25);
+
+  /* Heatmap scale */
+  --color-heatmap-min: oklch(0.96 0.05 150);
+  --color-heatmap-mid: oklch(0.96 0.05 75);
+  --color-heatmap-max: oklch(0.96 0.05 25);
+}

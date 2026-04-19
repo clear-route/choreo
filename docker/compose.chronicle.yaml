@@ -1,0 +1,32 @@
+# Docker Compose stack for Chronicle's TimescaleDB dependency.
+#
+# Runs TimescaleDB for local development and integration testing.
+# Chronicle itself runs on the host — no application container here.
+#
+# Usage:
+#   docker compose -f docker/compose.chronicle.yaml up -d
+#   pytest packages/chronicle/tests/ -m chronicle_db
+#   docker compose -f docker/compose.chronicle.yaml down
+
+services:
+  # TimescaleDB — PostgreSQL with time-series extensions.
+  # Port bound to 127.0.0.1 only; default credentials are for local dev.
+  chronicle-db:
+    image: timescale/timescaledb-ha:pg18
+    container_name: choreo-chronicle-db
+    ports:
+      - "127.0.0.1:5433:5432"       # 5433 to avoid conflict with host Postgres
+    environment:
+      POSTGRES_USER: chronicle
+      POSTGRES_PASSWORD: chronicle
+      POSTGRES_DB: chronicle
+    volumes:
+      - chronicle_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronicle"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+volumes:
+  chronicle_data:
