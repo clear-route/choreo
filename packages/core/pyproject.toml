@@ -90,6 +90,7 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 markers = [
     "e2e: requires docker-compose services (NATS, Kafka, RabbitMQ, Redis). Run with `pytest -m e2e`; excluded by default via `pytest -m 'not e2e'`.",
+    "choreo(timeout_ms, tags): scenario metadata surfaced in the test report. timeout_ms sets the default await budget; tags are string labels for filtering and grouping.",
 ]
 # Parallel by default via pytest-xdist. Tests are isolated by scope correlation
 # IDs (ADR-0002) and UUID-suffixed topics in e2e. Override with `-n 0` when

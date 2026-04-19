@@ -10,54 +10,183 @@
 
 <p align="center"><em>Distributed systems need a choreographer.</em></p>
 
-An async Python test framework for **message-driven systems**. Write tests that
-declare *"when I publish X, I expect Y"* and the harness handles the routing,
-correlation, timing, and reporting for you. One, two, three: publish, expect,
-await.
+---
 
-The library is **transport-agnostic**. Plug in a transport (`MockTransport`
-for unit tests, `NatsTransport` / `KafkaTransport` / `RabbitTransport` /
-`RedisTransport` for end-to-end, or your own) and the same scenario DSL
-works against all of them. It ships with an
-[interactive HTML + JSON test report](#test-report) that renders a Jaeger-style
-waterfall of every message, match, reply, and latency budget.
+Your services do not talk over function calls. They talk over queues. Orders fans out to payments. Payments calls fraud. Fraud replies. Orders watches the result. Every hop is a topic, not a return value.
 
-- Python 3.11+, no runtime dependencies.
-- `pytest`, `pytest-asyncio`, and `pyyaml` are test extras only.
-- Transport client libraries (`nats-py`, `aiokafka`, `aio-pika`, `redis`)
-  are optional extras installed per transport.
-- Packages ship `py.typed`; consumers get full mypy coverage.
+When the test fails, a plain `TimeoutError` rarely tells you which hop broke. Did the message arrive at all? Did it arrive with the wrong shape? Did it arrive on time? Standard async test code cannot tell these apart, so teams either write a pile of bespoke glue around every test or ship on hope.
+
+Choreo is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
+
+Supporting: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
 
 ---
 
-## When to use this
+## Why Choreo
 
-Use this framework when your system is **message-driven** and your tests need
-to assert on what comes back over the wire: event pipelines, pub/sub fan-out,
-request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS
-read models.
+Three things Choreo does that you will not find combined in any other Python test framework today.
 
-What it gives you:
+### Near-miss diagnostics: did the message arrive, or was it wrong?
 
-- **Scoped test isolation (opt-in).** Each scenario is a clean subscription
-  context. Configure a `CorrelationPolicy` and scenarios route their own
-  traffic, so a hundred scenarios can share one broker connection without
-  cross-contamination (see [ADR-0019](docs/adr/0019-pluggable-correlation-policy.md)).
-- **Structured matching.** First-class matchers (`field_equals`,
-  `contains_fields`, `all_of`, `any_of`, ...) against decoded payloads, not
-  regex against log lines.
-- **Per-expectation latency budgets.** Declare `within_ms(50)` and the handle
-  resolves as `SLOW` rather than `PASS` if it matched late.
-- **Near-miss diagnostics.** A `TIMEOUT` with zero near-misses is a routing
-  bug; a `TIMEOUT` with non-empty near-misses is an expectation bug. The
-  report tells you which.
-- **Reply primitives.** `on(topic).publish(reply_topic, builder)` lets a test
-  react to inbound messages, useful for staging fake upstream services.
-- **HTML + JSON reports** rendered at suite exit, with timeline, diffs,
-  credential redaction, and `pytest-xdist` merge support.
+When a scenario times out, the harness has been counting. How many messages landed on the topic, how many passed the matcher, and what the last mismatch looked like.
 
-Not a good fit for: pure unit tests with no I/O, HTTP request/response testing
-(use `httpx` + `respx`), or synchronous Python-only fakes.
+```
+TIMEOUT on 'order.settled': 0 near-misses
+```
+
+Zero near-misses means nothing arrived. You have a routing problem. Wrong topic, wrong subscription, wrong correlation ID.
+
+```
+TIMEOUT on 'order.settled': 3 near-misses
+  last mismatch: status was "PENDING", expected "SETTLED"
+  last payload: {"order_id": "ORD-42", "status": "PENDING", ...}
+```
+
+Three near-misses means the message arrived and every one failed the matcher. Routing works. The service (or the test) has the wrong shape.
+
+One diagnostic, two very different fixes. No more staring at log files guessing which step got missed.
+
+### Latency is an assertion, not a timeout
+
+Every other async test framework treats latency as noise. You pick a generous timeout, cross your fingers, and a breach fails the test for reasons you cannot read.
+
+```python
+h = s.expect("order.settled", field_equals("status", "SETTLED"))
+h.within_ms(50)
+```
+
+- Match inside the budget: `PASS`
+- Match outside the budget, inside the outer timeout: `SLOW` (distinct from `FAIL`)
+- Miss the outer timeout entirely: `FAIL`
+
+Three outcomes, not two. You can surface latency regressions in trend reports without blocking CI, or promote `SLOW` to a build breaker once you are ready. Your SLA is in the test.
+
+### One DSL, any boundary
+
+The queue *is* the natural test boundary. What matters is what lands on it. Because the DSL sits above the transport, the same test can cover one service in isolation, two services composed, or a graph of services running together.
+
+```python
+# Test one service. The test doesn't care what else is in the system.
+async with harness.scenario("single") as s:
+    s.expect("orders.processed", field_equals("status", "COMPLETED"))
+    s = s.publish("orders.created", {"item_id": "ITEM-42"})
+    result = await s.await_all(timeout_ms=500)
+
+result.assert_passed()
+```
+
+Need to stand a mannequin in for a dependency you do not want to boot? Register a reply:
+
+```python
+s.on("fraud.check").publish(
+    "fraud.result",
+    lambda msg: {"correlation_id": msg["correlation_id"], "decision": "APPROVE"},
+)
+```
+
+Want the real upstream in the test instead? Drop the reply, let the service run against the broker, and widen the expectation. The scenario does not care how many dancers are on the floor — it cares about the cues.
+
+---
+
+## When to use Choreo
+
+Use Choreo when your system is message-driven and your tests need to assert on what comes back over the wire: event pipelines, pub/sub fan-out, request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS read models.
+
+**Not a good fit for:** pure unit tests with no I/O, HTTP request/response testing (use `httpx` + `respx`), or synchronous Python-only fakes.
+
+---
+
+## Install
+
+Choreo is not on PyPI yet. Clone the repo and install in editable mode.
+
+```bash
+git clone https://github.com/clear-route/choreo.git
+cd choreo
+
+# Core library + test extras
+pip install -e 'packages/core[test]'
+
+# Add the broker extra(s) you need
+pip install -e 'packages/core[test,nats]'      # NATS
+pip install -e 'packages/core[test,kafka]'     # Kafka
+pip install -e 'packages/core[test,rabbit]'    # RabbitMQ
+pip install -e 'packages/core[test,redis]'     # Redis
+
+# Optional: pytest reporter plugin (HTML + JSON output)
+pip install -e 'packages/core-reporter[test]'
+```
+
+- Python 3.11+
+- No runtime dependencies (`pytest`, `pytest-asyncio`, and `pyyaml` are test extras only)
+- Client libraries (`nats-py`, `aiokafka`, `aio-pika`, `redis`) ship as optional extras per transport and are lazy-imported
+- Both packages ship `py.typed` for full mypy coverage
+
+---
+
+## Quickstart
+
+Zero to a passing scenario against a real NATS broker in three steps. NATS is the lightest broker to boot locally — one container, no ZooKeeper, small image — so it makes the easiest first touch.
+
+### 1. Bring up the broker
+
+The repo ships a `docker compose` profile for this.
+
+```bash
+docker compose -f docker/compose.e2e.yaml --profile nats up -d
+```
+
+### 2. Allow the endpoint
+
+Choreo refuses to connect to anything that is not on an explicit allowlist. This is a safety guard: production endpoints never appear in any checked-in allowlist.
+
+Create `config/allowlist.yaml`:
+
+```yaml
+nats_servers: ["nats://localhost:4222"]
+```
+
+### 3. Write and run a scenario
+
+Create `tests/test_happy_path.py`:
+
+```python
+from pathlib import Path
+
+from choreo import Harness
+from choreo.transports import NatsTransport
+from choreo.matchers import contains_fields, gt
+
+
+async def test_a_created_order_should_be_processed_with_a_positive_count():
+    transport = NatsTransport(
+        servers=["nats://localhost:4222"],
+        allowlist_path=Path("config/allowlist.yaml"),
+    )
+    harness = Harness(transport)
+    await harness.connect()
+
+    async with harness.scenario("happy") as s:
+        s.expect("orders.processed", contains_fields({
+            "status": "COMPLETED",
+            "order": {"item_id": "ITEM-42", "count": gt(0)},
+        }))
+        s = s.publish("orders.created", {"item_id": "ITEM-42", "count": 1000})
+        result = await s.await_all(timeout_ms=500)
+
+    result.assert_passed()
+    await harness.disconnect()
+```
+
+Run it:
+
+```bash
+pytest tests/
+```
+
+That is the whole loop. `pytest-asyncio` runs in `auto` mode with a session-scoped event loop, so `async def` tests need no decorator. Swap `NatsTransport` for `KafkaTransport`, `RabbitTransport`, or `RedisTransport` and nothing above the transport constructor changes.
+
+For real consumer repos, wrap `Harness` in a session-scoped `pytest_asyncio` fixture. See [Downstream consumer pattern](#downstream-consumer-pattern) below.
 
 ---
 
@@ -65,38 +194,13 @@ Not a good fit for: pure unit tests with no I/O, HTTP request/response testing
 
 Five self-contained, runnable projects in [examples/](examples/):
 
-- **[examples/01-hello-world/](examples/01-hello-world/)** - the minimum
-  useful test. Publish, expect, assert.
-- **[examples/02-request-reply/](examples/02-request-reply/)** - stage a
-  fake upstream service inside the test with `on(trigger).publish(reply)`.
-- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** -
-  opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
-- **[examples/04-transport-auth/](examples/04-transport-auth/)** - wire a
-  typed `auth=` descriptor into a transport, see credential lifecycle and
-  redaction in action.
-- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** - fetch
-  credentials at `connect()` time via sync/async resolvers (env vars,
-  Vault, Secrets Manager pattern).
+- **[examples/01-hello-world/](examples/01-hello-world/)** — the minimum useful test. Publish, expect, assert.
+- **[examples/02-request-reply/](examples/02-request-reply/)** — stage a fake upstream service inside the test with `on(trigger).publish(reply)`.
+- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** — opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
+- **[examples/04-transport-auth/](examples/04-transport-auth/)** — wire a typed `auth=` descriptor into a transport, see credential lifecycle and redaction in action.
+- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** — fetch credentials at `connect()` time via sync/async resolvers (env vars, Vault, Secrets Manager pattern).
 
-Each example ships its own `README.md` explaining what it shows. Run any
-of them with `pytest examples/<dir>/`.
-
----
-
-## Install
-
-```bash
-# Editable install with test extras
-pip install -e 'packages/core[test]'
-
-# Optional: NATS transport for the e2e suite
-pip install -e 'packages/core[test,nats]'
-
-# Optional: the pytest reporter plugin (HTML + JSON output)
-pip install -e 'packages/core-reporter[test]'
-```
-
-Both packages build with Hatchling and ship `py.typed`.
+Each example ships its own `README.md` explaining what it shows. Run any of them with `pytest examples/<dir>/`.
 
 ---
 
@@ -113,101 +217,13 @@ flowchart TD
 
 Four dancers on the floor:
 
-**Harness** - the session-scoped coordinator. You construct one with a
-Transport and call `connect()`. The transport runs its allowlist check,
-opens its socket, and reports ready. When the suite ends, `disconnect()`
-tears everything down.
+**Harness** — the session-scoped coordinator. You construct one with a Transport and call `connect()`. The transport runs its allowlist check, opens its socket, and reports ready. When the suite ends, `disconnect()` tears everything down.
 
-**Scenario** - the per-test scope. Opening one owns its expectations,
-replies, and timeline, and cleans them up on exit (normal or exception).
-Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the
-library default is transparent passthrough (`NoCorrelationPolicy`), so
-`s.publish(topic, payload)` sends `payload` unchanged. Consumers who want
-the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()`
-at Harness construction (ADR-0019).
+**Scenario** — the per-test scope. Opening one owns its expectations, replies, and timeline, and cleans them up on exit (normal or exception). Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the library default is transparent passthrough (`NoCorrelationPolicy`), so `s.publish(topic, payload)` sends `payload` unchanged. Consumers who want the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()` at Harness construction (ADR-0019).
 
-**Dispatcher** - the router. Every inbound message lands here. It pulls the
-correlation ID out of the payload and hands the message to the scenario
-that claimed it. Unmatched messages go to a **surprise log** (metadata
-only; payloads not retained).
+**Dispatcher** — the router. Every inbound message lands here. It pulls the correlation ID out of the payload and hands the message to the scenario that claimed it. Unmatched messages go to a **surprise log** (metadata only; payloads not retained).
 
-**Loop-poster** - the thread-safe bridge. Stateful client libraries or
-native-code backends that deliver messages on their own thread use the
-loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto
-the asyncio loop before the dispatcher sees them. Without it, you'd get
-race conditions that vanish when you add a `print()`.
-
----
-
-## Quick start
-
-### 1. Define an allowlist
-
-Endpoints the harness is allowed to talk to. One flat YAML file per
-deployment; categories are transport-defined. Production endpoints **never**
-appear in any checked-in allowlist.
-
-```yaml
-# config/allowlist.yaml
-mock_endpoints: ["mock://localhost"]
-nats_servers:   ["nats://localhost:4222"]
-```
-
-### 2. Write a scenario
-
-```python
-from pathlib import Path
-
-from choreo import Harness
-from choreo.transports import MockTransport
-from choreo.matchers import contains_fields, gt
-
-
-async def test_the_adapter_should_respond_with_pass_when_a_request_matches() -> None:
-    transport = MockTransport(
-        allowlist_path=Path("config/allowlist.yaml"),
-        endpoint="mock://localhost",
-    )
-    harness = Harness(transport)
-    await harness.connect()
-
-    async with harness.scenario("happy") as s:
-        s.expect("events.processed", contains_fields({
-            "status": "PASS",
-            "event": {
-                "item_id": "ITEM-42",
-                "count": gt(0),
-            },
-        }))
-        s = s.publish("events.processed", {
-            "status": "PASS",
-            "event": {"item_id": "ITEM-42", "count": 1000},
-        })
-        result = await s.await_all(timeout_ms=500)
-
-    result.assert_passed()
-    await harness.disconnect()
-```
-
-Swap `MockTransport` for `NatsTransport(servers=[...], allowlist_path=...)`
-or any other backend and nothing above the transport constructor changes.
-
-In real consumer repos, wrap `Harness` in a session-scoped `pytest_asyncio`
-fixture (see [Downstream consumer pattern](#downstream-consumer-pattern)).
-
-### 3. Run tests
-
-```bash
-pytest              # unit suite via MockTransport, no network
-pytest -m e2e       # real broker via NatsTransport, needs docker compose
-```
-
-`pytest-asyncio` runs in `auto` mode with a session-scoped loop, so
-`async def` tests need no decorator. The default `addopts` enables
-`pytest-xdist` (`-n auto`); each worker is a separate process so there is
-no in-process correlation-namespace clash. For scenarios **within a single
-worker** to avoid cross-matching on shared topics, configure a
-`CorrelationPolicy` (ADR-0019).
+**Loop-poster** — the thread-safe bridge. Stateful client libraries or native-code backends that deliver messages on their own thread use the loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto the asyncio loop before the dispatcher sees them. Without it, you'd get race conditions that vanish when you add a `print()`.
 
 ---
 
@@ -245,8 +261,8 @@ After `await_all()` returns, the Handle exposes:
 | `message` | decoded payload |
 | `latency_ms` | elapsed time from registration to match |
 | `attempts` | count of near-misses (messages on correlation that failed matcher) |
-| `last_rejection_reason` | prose from the most recent near-miss |
-| `last_rejection_payload` | decoded payload of that near-miss |
+| `last_rejection_reason` | prose from the most recent mismatch |
+| `last_rejection_payload` | decoded payload of that mismatch |
 | `failures` | structured `MatchFailure` tree (capped at 20) |
 | `was_fulfilled()` | True iff outcome is `PASS` |
 
@@ -374,7 +390,7 @@ Harness(transport, correlation=test_namespace())
 
 | Situation | Policy |
 |---|---|
-| `MockTransport`, one scenario at a time | `NoCorrelationPolicy` (default) |
+| Single scenario at a time against a dedicated broker | `NoCorrelationPolicy` (default) |
 | Parallel scenarios sharing one broker connection | `DictFieldPolicy(field=...)` |
 | Shared broker across tenants / CI runs / dev machines | `DictFieldPolicy(field=..., prefix=<run-unique>)` |
 | Downstream systems filter test traffic on `TEST-` | `test_namespace()` |
@@ -535,32 +551,10 @@ Build one as a frozen dataclass and compose it exactly like the built-ins.
 The library ships five transports and defines a 7-method `Transport`
 Protocol so you can drop in your own.
 
-### `MockTransport`
-
-In-memory pub/sub. Synchronous dispatch (subscribers fire before
-`publish()` returns). Optionally validates `endpoint` against the
-`mock_endpoints` allowlist category, demonstrating the enforcement
-pattern real transports use.
-
-```python
-from pathlib import Path
-from choreo.transports import MockTransport
-
-transport = MockTransport(
-    allowlist_path=Path("config/allowlist.yaml"),   # optional
-    endpoint="mock://localhost",                    # optional
-)
-```
-
-Diagnostic methods (for testing your test code, not your system):
-`transport.sent()`, `transport.active_subscription_count()`,
-`transport.clear_subscriptions()`.
-
 ### `NatsTransport`
 
 Talks to a real NATS broker. Lazy-imported: `nats-py` is only required if
-you actually construct one. Good for exercising the Transport contract
-against a real network without standing up production infrastructure.
+you actually construct one.
 
 ```python
 from pathlib import Path
@@ -575,6 +569,30 @@ transport = NatsTransport(
 ```
 
 Validates `nats_servers` in the allowlist.
+
+`KafkaTransport`, `RabbitTransport`, and `RedisTransport` follow the same
+shape with their own constructor fields and allowlist categories
+(`kafka_brokers`, `amqp_brokers`, `redis_servers`).
+
+### `MockTransport`
+
+In-memory pub/sub for unit-scope tests. Synchronous dispatch (subscribers
+fire before `publish()` returns). Optionally validates `endpoint` against
+the `mock_endpoints` allowlist category.
+
+```python
+from pathlib import Path
+from choreo.transports import MockTransport
+
+transport = MockTransport(
+    allowlist_path=Path("config/allowlist.yaml"),   # optional
+    endpoint="mock://localhost",                    # optional
+)
+```
+
+Diagnostic methods (for testing your test code, not your system):
+`transport.sent()`, `transport.active_subscription_count()`,
+`transport.clear_subscriptions()`.
 
 ### Transport authentication
 
@@ -608,10 +626,6 @@ transport = NatsTransport(
     auth=fetch_creds,
 )
 ```
-
-`MockTransport` accepts `auth=` too. It validates the descriptor shape
-and discards it, so you can develop against Mock and swap for a real
-authenticated transport later.
 
 See [docs/guides/authentication.md](docs/guides/authentication.md) for the
 full cookbook: every NATS auth mode, TLS variants, resolver recipes for
@@ -647,9 +661,9 @@ class Transport(Protocol):
     def clear_subscriptions(self) -> None: ...
 ```
 
-Follow the pattern in [mock.py](packages/core/src/choreo/transports/mock.py)
-(synchronous) or [nats.py](packages/core/src/choreo/transports/nats.py)
-(asyncio-native). The `on_sent` callback is how you report post-wire
+Follow the pattern in [nats.py](packages/core/src/choreo/transports/nats.py)
+(asyncio-native) or [mock.py](packages/core/src/choreo/transports/mock.py)
+(synchronous). The `on_sent` callback is how you report post-wire
 timing to the timeline. Fire it after the message is on the wire, on
 the asyncio loop thread.
 
@@ -690,7 +704,7 @@ What the report includes:
   receive, match, mismatch, reply, and deadline event plotted on one axis.
 - **Expected-vs-actual diffs** for failing handles, driven by
   `matcher.expected_shape()`.
-- **Per-reply lifecycle** - was it armed? did it match? did it fire?
+- **Per-reply lifecycle** — was it armed? did it match? did it fire?
 - **Git metadata** per test (commit, branch, author).
 - **Credential redaction (best-effort).** The default redactor strips
   values under a denylist of field names (`password`, `token`, `secret`,
@@ -729,14 +743,14 @@ from pathlib import Path
 import pytest_asyncio
 
 from choreo import Harness
-from choreo.transports import MockTransport
+from choreo.transports import NatsTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness():
-    transport = MockTransport(
+    transport = NatsTransport(
+        servers=[os.environ.get("MY_APP_NATS_URL", "nats://localhost:4222")],
         allowlist_path=Path(os.environ.get("MY_APP_ALLOWLIST", "config/allowlist.yaml")),
-        endpoint=os.environ.get("MY_APP_MOCK_ENDPOINT", "mock://localhost"),
     )
     h = Harness(transport)
     await h.connect()
@@ -767,9 +781,9 @@ deployment concerns.
 
 ## Running end-to-end tests
 
-The unit suite runs entirely in-memory via `MockTransport`. A separate e2e
-suite exercises the Transport Protocol against real networks by pointing
-transport implementations at disposable brokers under Docker Compose.
+A separate e2e suite exercises the Transport Protocol against real
+networks by pointing transport implementations at disposable brokers under
+Docker Compose.
 
 ```bash
 # Install the NATS extra
@@ -821,3 +835,11 @@ ruff format packages/         # format
 ruff format --check packages/ # verify formatting without rewriting
 ```
 
+---
+
+## Contributing
+
+Issues, bug reports, and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community norms. The project
+is Apache 2.0 licensed.

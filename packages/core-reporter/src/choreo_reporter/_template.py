@@ -294,6 +294,7 @@ _CSS = """
 .harness-report .hr-scenario-name::before { content: "scenario "; color: var(--hr-text-subtle); font-weight: 400; }
 .harness-report .hr-scenario-meta { color: var(--hr-text-subtle); font-size: var(--hr-text-xs); margin-left: auto; display: flex; gap: var(--hr-space-3); font-variant-numeric: tabular-nums; }
 .harness-report .hr-scenario-meta span { color: var(--hr-text-muted); }
+.harness-report .hr-tag { display: inline-block; font-size: var(--hr-text-xs); padding: 1px 6px; border-radius: 3px; background: var(--hr-bg-inset); color: var(--hr-text-muted); border: 1px solid var(--hr-border); margin-left: var(--hr-space-1); font-family: var(--hr-font-mono); }
 .harness-report .hr-scenario-body { background: transparent; }
 
 /* Expectation row — no card chrome. Row is a flex header with an
@@ -1091,7 +1092,13 @@ _JS = r"""
     });
     var badge = el('span', { 'class': 'hr-badge', 'data-outcome': test.outcome }, outcomeLetter(test.outcome));
     row.appendChild(badge);
-    row.appendChild(el('span', { 'class': 'hr-test-name' }, test.name || test.nodeid));
+    var nameSpan = el('span', { 'class': 'hr-test-name' }, test.name || test.nodeid);
+    if (test.choreo_meta && test.choreo_meta.tags) {
+      test.choreo_meta.tags.forEach(function (tag) {
+        nameSpan.appendChild(el('span', { 'class': 'hr-tag' }, tag));
+      });
+    }
+    row.appendChild(nameSpan);
     row.appendChild(el('span', { 'class': 'hr-test-duration' }, formatDuration(test.duration_ms)));
     row.addEventListener('click', function () {
       state.selectedNodeId = test.nodeid;
@@ -1167,6 +1174,18 @@ _JS = r"""
 
     pane.appendChild(el('h2', { 'data-field': 'detail-name' }, test.name || test.nodeid));
     pane.appendChild(el('div', { 'class': 'hr-nodeid', 'data-field': 'detail-nodeid' }, test.nodeid));
+    if (test.choreo_meta) {
+      var metaLine = el('div', { 'class': 'hr-scenario-meta' });
+      if (test.choreo_meta.timeout_ms) {
+        metaLine.appendChild(el('span', {}, 'budget ' + test.choreo_meta.timeout_ms + ' ms'));
+      }
+      if (test.choreo_meta.tags) {
+        test.choreo_meta.tags.forEach(function (tag) {
+          metaLine.appendChild(el('span', { 'class': 'hr-tag' }, tag));
+        });
+      }
+      if (metaLine.childNodes.length) { pane.appendChild(metaLine); }
+    }
 
     if (test.traceback) {
       pane.appendChild(el('pre', { 'class': 'hr-traceback' }, test.traceback));

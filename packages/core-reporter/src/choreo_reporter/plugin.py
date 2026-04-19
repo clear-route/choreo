@@ -294,12 +294,23 @@ def _note_item_metadata(state: _State, item: pytest.Item) -> None:
     cls = getattr(item, "cls", None)
     class_name = cls.__name__ if cls is not None else None
     markers = [m.name for m in item.iter_markers()]
+
+    # Extract @pytest.mark.choreo(...) metadata if present.
+    choreo_meta: dict[str, object] = {}
+    choreo_marker = item.get_closest_marker("choreo")
+    if choreo_marker is not None:
+        if choreo_marker.kwargs.get("timeout_ms") is not None:
+            choreo_meta["timeout_ms"] = choreo_marker.kwargs["timeout_ms"]
+        if choreo_marker.kwargs.get("tags"):
+            choreo_meta["tags"] = list(choreo_marker.kwargs["tags"])
+
     state.collector.note_test_metadata(
         nodeid=item.nodeid,
         file=file,
         name=name,
         class_name=class_name,
         markers=markers,
+        choreo_meta=choreo_meta,
         worker_id=state.worker_id,
     )
 

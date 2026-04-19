@@ -64,6 +64,7 @@ class TestRecord:
     log: str = ""
     skip_reason: str | None = None
     worker_id: str | None = None
+    choreo_meta: dict[str, Any] = field(default_factory=dict)
     scenarios: list[ScenarioRecord] = field(default_factory=list)
     _setup_failed: bool = False
 
@@ -109,6 +110,7 @@ class Collector:
         name: str,
         class_name: str | None,
         markers: list[str],
+        choreo_meta: dict[str, object] | None = None,
         worker_id: str | None,
     ) -> None:
         rec = self.ensure_test(nodeid)
@@ -116,6 +118,8 @@ class Collector:
         rec.name = name
         rec.class_name = class_name
         rec.markers = markers
+        if choreo_meta:
+            rec.choreo_meta = choreo_meta
         rec.worker_id = worker_id
 
     def handle_report(self, report: Any) -> None:
@@ -215,6 +219,7 @@ class Collector:
                     "name": rec.name,
                     "class": rec.class_name,
                     "markers": rec.markers,
+                    "choreo_meta": rec.choreo_meta or None,
                     "outcome": derive_test_outcome(
                         rec.pytest_outcome,
                         scenario_outcomes_per_test[nodeid],

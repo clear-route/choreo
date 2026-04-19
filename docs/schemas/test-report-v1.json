@@ -109,6 +109,7 @@
         "name",
         "class",
         "markers",
+        "choreo_meta",
         "outcome",
         "duration_ms",
         "traceback",
@@ -125,6 +126,19 @@
         "name":         { "type": "string" },
         "class":        { "type": ["string", "null"] },
         "markers":      { "type": "array", "items": { "type": "string" } },
+        "choreo_meta":  {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "properties": {
+                "timeout_ms": { "type": "number", "minimum": 0 },
+                "tags":       { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
         "outcome":      { "enum": ["passed", "failed", "errored", "skipped", "slow"] },
         "duration_ms":  { "type": "number", "minimum": 0 },
         "traceback":    { "type": ["string", "null"] },

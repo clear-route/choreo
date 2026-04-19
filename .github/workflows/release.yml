@@ -4,7 +4,7 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: read  # elevate to write when the release step is re-enabled
+  contents: write  # needed by softprops/action-gh-release to create releases
 
 jobs:
   release:
@@ -58,27 +58,19 @@ jobs:
           path: dist/
           retention-days: 30
 
-      # ---------------------------------------------------------------------
-      # Publish step — DISABLED until the repo is open-source-ready.
-      #
-      # When ready, delete the block comment below and push a fresh tag. The
-      # `softprops/action-gh-release` action reads `CHANGELOG.md` and creates
-      # a GitHub Release with the four artefacts (choreo + choreo-reporter, each
-      # as .whl + .tar.gz) attached.
-      #
-      # - name: Extract release notes from CHANGELOG
-      #   id: notes
-      #   run: |
-      #     python scripts/extract_changelog.py "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
-      #     echo "notes-file=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
-      #
-      # - name: Create GitHub Release
-      #   uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3.0.0
-      #   with:
-      #     tag_name: ${{ github.ref_name }}
-      #     name: ${{ github.ref_name }}
-      #     body_path: ${{ steps.notes.outputs.notes-file }}
-      #     files: dist/*
-      #     fail_on_unmatched_files: true
-      #     draft: false
-      #     prerelease: ${{ contains(github.ref_name, '-') }}
+      - name: Extract release notes from CHANGELOG
+        id: notes
+        run: |
+          python scripts/extract_changelog.py "${GITHUB_REF_NAME}" > RELEASE_NOTES.md
+          echo "notes-file=RELEASE_NOTES.md" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda  # v3.0.0
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.notes.outputs.notes-file }}
+          files: dist/*
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
