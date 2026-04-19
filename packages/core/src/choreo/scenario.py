@@ -101,8 +101,9 @@ class TimelineAction(StrEnum):
     RECEIVED = "received"
     MATCHED = "matched"
     # `MISMATCHED` means a message arrived on the expected topic but the
-    # matcher's predicate rejected it. It is a test-side mismatch between
-    # the received shape and the expected shape, not a reject from the SUT.
+    # matcher's predicate did not accept it. It is a test-side mismatch
+    # between the received shape and the expected shape, not a signal from
+    # the SUT.
     MISMATCHED = "mismatched"
     DEADLINE = "deadline"
     # Reply lifecycle events (PRD-008). `REPLIED` records the post-wire
@@ -197,8 +198,8 @@ class Handle:
     _latency_ms: float | None = None
     _reason: str = ""
     _attempts: int = 0
-    _last_rejection_reason: str | None = None
-    _last_rejection_payload: Any = None
+    _last_mismatch_reason: str | None = None
+    _last_mismatch_payload: Any = None
     _failures: list[MatchFailure] = field(default_factory=list)
     _failures_dropped: int = 0
     _budget_ms: float | None = None
@@ -257,20 +258,20 @@ class Handle:
     def attempts(self) -> int:
         """Count of messages that matched the scope's correlation on this topic
         but failed the matcher. Zero means no message arrived at all;
-        non-zero means routing worked but the matcher rejected what came in."""
+        non-zero means routing worked but the matcher did not accept what came in."""
         return self._attempts
 
     @property
-    def last_rejection_reason(self) -> str | None:
-        """Reason from the most recent matcher rejection, or None if no
+    def last_mismatch_reason(self) -> str | None:
+        """Reason from the most recent matcher mismatch, or None if no
         attempts occurred. Useful for diagnosing near-miss timeouts."""
-        return self._last_rejection_reason
+        return self._last_mismatch_reason
 
     @property
     def failures(self) -> tuple[MatchFailure, ...]:
         """Every near-miss observed on this handle, oldest-first. Bounded by
         `_FAILURES_MAX`; overflow is counted on `failures_dropped`. Structured
-        alternative to `last_rejection_reason` — the report renders these into
+        alternative to `last_mismatch_reason` — the report renders these into
         a typed expected-vs-actual diff without parsing any prose."""
         return tuple(self._failures)
 
@@ -280,12 +281,12 @@ class Handle:
         return self._failures_dropped
 
     @property
-    def last_rejection_payload(self) -> Any:
-        """The decoded payload of the most recent matcher rejection, or None
+    def last_mismatch_payload(self) -> Any:
+        """The decoded payload of the most recent matcher mismatch, or None
         if no attempts occurred. Consumed by the test report (PRD-007) to
         render the actual-side of the expected-vs-actual diff when the
         handle resolves to FAIL (i.e. messages arrived but none matched)."""
-        return self._last_rejection_payload
+        return self._last_mismatch_payload
 
     @property
     def matcher_expected(self) -> Any:
@@ -329,11 +330,11 @@ class ReplyReportState(StrEnum):
 
     The four states distinguish failure modes that look identical from
     outside the reply: wrong topic (no candidates arrived) vs wrong shape
-    (candidates arrived but matcher rejected all).
+    (candidates arrived but matcher did not accept any).
     """
 
     ARMED_NO_MATCH = "armed_no_match"
-    ARMED_MATCHER_REJECTED = "armed_matcher_rejected"
+    ARMED_MATCHER_MISMATCHED = "armed_matcher_mismatched"
     REPLIED = "replied"
     REPLY_FAILED = "reply_failed"
 
@@ -540,8 +541,8 @@ def _diagnose(handle: Handle) -> str:
         plural = "s" if handle._attempts != 1 else ""
         return (
             f"{handle._attempts} message{plural} matched the correlation "
-            f"but failed the matcher; latest rejection: "
-            f"{handle._last_rejection_reason}"
+            f"but failed the matcher; latest mismatch: "
+            f"{handle._last_mismatch_reason}"
         )
     if handle.outcome is Outcome.SLOW:
         budget = handle._budget_ms or 0
@@ -826,12 +827,12 @@ def _register_expectation(context: _ScenarioContext, topic: str, matcher: Matche
             # did not accept the payload shape. The timeline records this
             # as `mismatched` (user-facing vocabulary in the test report);
             # internally we still track attempts and the last mismatch
-            # reason under the `_last_rejection_*` field names for
+            # reason under the `_last_mismatch_*` field names for
             # backwards compatibility with any external consumer of
             # `Handle` attributes.
             handle._attempts += 1
-            handle._last_rejection_reason = result.reason
-            handle._last_rejection_payload = payload
+            handle._last_mismatch_reason = result.reason
+            handle._last_mismatch_payload = payload
             if result.failure is not None:
                 if len(handle._failures) < _FAILURES_MAX:
                     handle._failures.append(result.failure)
@@ -1140,7 +1141,7 @@ def _derive_reply_state(reply: _Reply) -> ReplyReportState:
     # state is ARMED
     if reply.candidate_count == 0:
         return ReplyReportState.ARMED_NO_MATCH
-    return ReplyReportState.ARMED_MATCHER_REJECTED
+    return ReplyReportState.ARMED_MATCHER_MISMATCHED
 
 
 def _freeze_reply_reports(
@@ -1184,13 +1185,13 @@ async def _await_all(context: _ScenarioContext, *, timeout_ms: int) -> ScenarioR
         # on budget.
         exp.handle._latency_ms = max(0.0, (now_t - exp.registered_at) * 1000)
         # Distinguish routing failure (nothing came) from expectation failure
-        # (things came but matcher rejected). The label is the primary DX signal.
+        # (things came but matcher mismatched). The label is the primary DX signal.
         if exp.handle._attempts > 0:
             exp.handle.outcome = Outcome.FAIL
             exp.handle._reason = (
                 f"{exp.handle._attempts} message(s) matched the correlation "
                 f"but failed the matcher within {timeout_ms}ms; "
-                f"latest rejection: {exp.handle._last_rejection_reason}"
+                f"latest mismatch: {exp.handle._last_mismatch_reason}"
             )
             context.timeline.record(
                 now=now_t,
@@ -1283,7 +1284,7 @@ class _ScenarioScope:
                 terminal = (
                     ReplyReportState.ARMED_NO_MATCH
                     if r.candidate_count == 0
-                    else ReplyReportState.ARMED_MATCHER_REJECTED
+                    else ReplyReportState.ARMED_MATCHER_MISMATCHED
                 )
                 _LOG.warning(
                     "reply never sent: trigger=%r reply=%r matcher=%s state=%s candidates=%d",

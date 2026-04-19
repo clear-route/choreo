@@ -289,9 +289,9 @@ Per-handle:
 - `budget_ms` — number or null
 - `matcher_description` — string (from `Handle.matcher_description`)
 - `expected` — object/array/scalar or null. Sourced from `matcher.expected_shape()` if implemented, else `null`. Custom matchers without `expected_shape()` serialise only `matcher_description`.
-- `actual` — object/array/scalar or null. For `PASS`/`SLOW`, the matched payload (from `Handle.message`). For `FAIL`, the last-rejected payload (from the new `Handle.last_rejection_payload` property). For `TIMEOUT` or `PENDING`, `null`.
+- `actual` — object/array/scalar or null. For `PASS`/`SLOW`, the matched payload (from `Handle.message`). For `FAIL`, the last-mismatched payload (from the new `Handle.last_mismatch_payload` property). For `TIMEOUT` or `PENDING`, `null`.
 - `attempts` — integer (from `Handle.attempts`)
-- `reason` — string (from `Handle.reason` for PASS/SLOW, or `Handle.last_rejection_reason` for FAIL)
+- `reason` — string (from `Handle.reason` for PASS/SLOW, or `Handle.last_mismatch_reason` for FAIL)
 - `truncated` — boolean, `true` if the payload was truncated per §5
 
 Per-timeline-entry:

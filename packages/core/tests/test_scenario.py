@@ -155,7 +155,7 @@ async def test_a_non_matching_inbound_on_matching_correlation_should_resolve_as_
 async def test_a_handle_should_retain_a_structured_failure_for_every_near_miss(
     harness,
 ) -> None:
-    """The report renders from `handle.failures`, not a single `last_rejection_*`.
+    """The report renders from `handle.failures`, not a single `last_mismatch_*`.
     Every near-miss on the scope's correlation is kept (bounded) as a typed
     `MatchFailure` so the UI can show the whole expected-vs-actual trail."""
     from choreo.matchers import MatchFailure, field_equals
@@ -506,8 +506,8 @@ async def test_timeout_after_near_misses_should_report_latest_rejection_reason(
         s = s.publish("t", {"status": "REJECTED"})
         result = await s.await_all(timeout_ms=30)
 
-    assert handle.last_rejection_reason is not None
-    assert "REJECTED" in handle.last_rejection_reason
+    assert handle.last_mismatch_reason is not None
+    assert "REJECTED" in handle.last_mismatch_reason
     summary = result.failure_summary()
     assert "REJECTED" in summary
 
@@ -518,7 +518,7 @@ async def test_handle_attempts_should_be_zero_by_default(harness) -> None:
     async with harness.scenario("fresh") as s:
         handle = s.expect("t", field_equals("k", "v"))
         assert handle.attempts == 0
-        assert handle.last_rejection_reason is None
+        assert handle.last_mismatch_reason is None
 
 
 async def test_handle_should_stop_accepting_attempts_after_pass(harness) -> None:

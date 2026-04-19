@@ -95,9 +95,9 @@ async def test_a_non_matching_trigger_should_not_fire_the_reply() -> None:
             result = await s.await_all(timeout_ms=50)
 
         # The scenario passes because nothing was expected to happen — but
-        # the reply report tells us the matcher rejected the candidate.
+        # the reply report tells us the matcher mismatched the candidate.
         report = result.reply_at("payments.request")
-        assert report.state.name == "ARMED_MATCHER_REJECTED"
+        assert report.state.name == "ARMED_MATCHER_MISMATCHED"
         assert report.candidate_count == 1
         assert report.match_count == 0
     finally:

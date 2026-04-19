@@ -529,12 +529,12 @@ _CSS = """
 .harness-report .hr-reply-row[data-state="replied"] { color: var(--hr-text); }
 .harness-report .hr-reply-row[data-state="reply_failed"] { color: var(--hr-text); background: var(--hr-fail-tint); }
 .harness-report .hr-reply-row[data-state="armed_no_match"],
-.harness-report .hr-reply-row[data-state="armed_matcher_rejected"] { color: var(--hr-text-muted); background: var(--hr-slow-tint); }
+.harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { color: var(--hr-text-muted); background: var(--hr-slow-tint); }
 .harness-report .hr-reply-state { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
 .harness-report .hr-reply-state[data-state="replied"] { color: var(--hr-pass); }
 .harness-report .hr-reply-state[data-state="reply_failed"] { color: var(--hr-fail); }
 .harness-report .hr-reply-state[data-state="armed_no_match"],
-.harness-report .hr-reply-state[data-state="armed_matcher_rejected"] { color: var(--hr-slow); }
+.harness-report .hr-reply-state[data-state="armed_matcher_mismatched"] { color: var(--hr-slow); }
 .harness-report .hr-reply-topics { display: flex; gap: var(--hr-space-2); align-items: baseline; color: var(--hr-text); }
 .harness-report .hr-reply-arrow { color: var(--hr-text-subtle); }
 .harness-report .hr-reply-counts { color: var(--hr-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
@@ -1326,7 +1326,7 @@ _JS = r"""
     if (state === 'replied') { return 'replied'; }
     if (state === 'reply_failed') { return 'reply failed'; }
     if (state === 'armed_no_match') { return 'no match'; }
-    if (state === 'armed_matcher_rejected') { return 'rejected'; }
+    if (state === 'armed_matcher_mismatched') { return 'mismatched'; }
     return state;
   }
 

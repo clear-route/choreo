@@ -91,11 +91,11 @@ def test_was_fulfilled_should_be_false_when_outcome_is_fail() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_a_fresh_handle_should_report_no_last_rejection_payload() -> None:
+def test_a_fresh_handle_should_report_no_last_mismatch_payload() -> None:
     from choreo.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
-    assert h.last_rejection_payload is None
+    assert h.last_mismatch_payload is None
 
 
 def test_a_fresh_handle_should_report_no_matcher_expected_shape() -> None:

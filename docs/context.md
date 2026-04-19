@@ -104,7 +104,7 @@ deadline fires. Inspect it after `await_all()` returns:
 | `message` | decoded payload (raises if still `PENDING`) |
 | `latency_ms` | elapsed time from expectation registration to match |
 | `attempts` | count of messages that matched the correlation but failed the matcher |
-| `last_rejection_reason` | prose from the most recent near-miss |
+| `last_mismatch_reason` | prose from the most recent near-miss |
 | `was_fulfilled()` | `True` iff outcome is `PASS` |
 
 A `TIMEOUT` with `attempts == 0` is a routing failure: nothing arrived. A

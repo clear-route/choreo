@@ -341,15 +341,15 @@ async def test_a_rejected_handle_should_capture_the_last_rejected_payload(
         await s.await_all(timeout_ms=30)
 
     assert handle.outcome is Outcome.FAIL
-    # The last rejected payload is retained in full (the transport adds a
+    # The last mismatched payload is retained in full (the transport adds a
     # correlation_id alongside the author's fields; the reporter sees it).
-    payload = handle.last_rejection_payload
+    payload = handle.last_mismatch_payload
     assert isinstance(payload, dict)
     assert payload["status"] == "PENDING"
     assert payload["reason"] == "hold"
 
 
-async def test_a_handle_with_no_attempts_should_have_null_last_rejection_payload(
+async def test_a_handle_with_no_attempts_should_have_null_last_mismatch_payload(
     harness,
 ) -> None:
     from choreo.matchers import field_equals
@@ -361,4 +361,4 @@ async def test_a_handle_with_no_attempts_should_have_null_last_rejection_payload
         await s.await_all(timeout_ms=20)
 
     assert handle.outcome is Outcome.TIMEOUT
-    assert handle.last_rejection_payload is None
+    assert handle.last_mismatch_payload is None

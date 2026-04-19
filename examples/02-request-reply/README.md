@@ -27,7 +27,7 @@ that tell you exactly what happened:
 | State | Meaning |
 |---|---|
 | `REPLIED` | matcher passed, reply went out |
-| `ARMED_MATCHER_REJECTED` | trigger messages arrived, matcher rejected them |
+| `ARMED_MATCHER_MISMATCHED` | trigger messages arrived, matcher mismatched them |
 | `ARMED_NO_MATCH` | no trigger messages arrived at all |
 | `REPLY_FAILED` | builder raised or publish refused |
 

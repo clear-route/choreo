@@ -138,7 +138,7 @@ docker compose -f docker/compose.e2e.yaml --profile nats up -d
 
 ### 2. Allow the endpoint
 
-Choreo refuses to connect to anything that is not on an explicit allowlist. This is a safety guard: production endpoints never appear in any checked-in allowlist.
+Choreo refuses to connect to anything that is not on an explicit allowlist. This is a safety guard
 
 Create `config/allowlist.yaml`:
 
@@ -192,7 +192,7 @@ For real consumer repos, wrap `Harness` in a session-scoped `pytest_asyncio` fix
 
 ## Examples
 
-Five self-contained, runnable projects in [examples/](examples/):
+Self-contained, runnable projects in [examples/](examples/):
 
 - **[examples/01-hello-world/](examples/01-hello-world/)** — the minimum useful test. Publish, expect, assert.
 - **[examples/02-request-reply/](examples/02-request-reply/)** — stage a fake upstream service inside the test with `on(trigger).publish(reply)`.
@@ -261,8 +261,8 @@ After `await_all()` returns, the Handle exposes:
 | `message` | decoded payload |
 | `latency_ms` | elapsed time from registration to match |
 | `attempts` | count of near-misses (messages on correlation that failed matcher) |
-| `last_rejection_reason` | prose from the most recent mismatch |
-| `last_rejection_payload` | decoded payload of that mismatch |
+| `last_mismatch_reason` | prose from the most recent mismatch |
+| `last_mismatch_payload` | decoded payload of that mismatch |
 | `failures` | structured `MatchFailure` tree (capped at 20) |
 | `was_fulfilled()` | True iff outcome is `PASS` |
 
@@ -353,7 +353,7 @@ Each registered reply produces a `ReplyReport` in `result.replies`:
 
 | Field | Meaning |
 |---|---|
-| `state` | `ARMED_NO_MATCH` / `ARMED_MATCHER_REJECTED` / `REPLIED` / `REPLY_FAILED` |
+| `state` | `ARMED_NO_MATCH` / `ARMED_MATCHER_MISMATCHED` / `REPLIED` / `REPLY_FAILED` |
 | `candidate_count` | messages that arrived on the trigger topic |
 | `match_count` | how many passed the optional matcher |
 | `reply_published` | whether the reply actually went out |

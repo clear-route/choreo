@@ -445,9 +445,9 @@ s.expect("alerts.triggered", contains_fields({
 When a handle resolves to `TIMEOUT` or `FAIL`, the `attempts` count tells the caller whether messages arrived at all:
 
 - `attempts == 0` — nothing arrived on the topic matching the scope's correlation. This is a routing bug: the system under test did not respond, or responded on the wrong topic.
-- `attempts > 0` — messages arrived but the matcher rejected all of them. This is an expectation bug: the response shape does not match what the test declared.
+- `attempts > 0` — messages arrived but the optional matcher mismatched all of them. This is an expectation bug: the response shape does not match what the test declared.
 
-The `last_rejection_reason` and `last_rejection_payload` fields carry the most recent mismatch for quick diagnosis. The `failures` tuple carries up to 20 structured `MatchFailure` records for the reporter to render.
+The `last_mismatch_reason` and `last_mismatch_payload` fields carry the most recent mismatch for quick diagnosis. The `failures` tuple carries up to 20 structured `MatchFailure` records for the reporter to render.
 
 ### Writing a custom matcher
 
@@ -536,7 +536,7 @@ Report states:
 | `REPLIED` | Builder ran and reply was published |
 | `REPLY_FAILED` | Builder raised, or publish raised |
 | `ARMED_NO_MATCH` | No message arrived on the trigger topic |
-| `ARMED_MATCHER_REJECTED` | Messages arrived but the optional matcher rejected all of them |
+| `ARMED_MATCHER_MISMATCHED` | Messages arrived but the optional matcher mismatched all of them |
 
 ### Consumer-owned helper modules
 
@@ -608,7 +608,7 @@ await_all(timeout_ms=500) called at t=6ms
 deadline fires at t=506ms
 ```
 
-Any handle that has not resolved by the deadline fires its `DEADLINE` timeline event and is assigned `TIMEOUT` (no message arrived) or `FAIL` (messages arrived but matcher rejected them).
+Any handle that has not resolved by the deadline fires its `DEADLINE` timeline event and is assigned `TIMEOUT` (no message arrived) or `FAIL` (messages arrived but matcher mismatched them).
 
 ---
 
@@ -668,7 +668,7 @@ Events:
 | `PUBLISHED` | A message left the test via `s.publish()` |
 | `RECEIVED` | A subscriber callback saw a message (before matcher runs) |
 | `MATCHED` | The matcher accepted the payload |
-| `MISMATCHED` | The matcher rejected the payload (near-miss) |
+| `MISMATCHED` | The matcher mismatched the payload (near-miss) |
 | `DEADLINE` | The scenario timeout fired on an unresolved handle |
 | `REPLIED` | A reply was published (post-wire, via `on_sent` hook) |
 | `REPLY_FAILED` | A reply builder or publish raised |

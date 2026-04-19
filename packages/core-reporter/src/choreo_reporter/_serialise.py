@@ -264,12 +264,12 @@ def _derive_diagnosis(handle: Handle) -> dict[str, Any]:
 def serialise_handle(handle: Handle, stats: RedactionStats) -> dict[str, Any]:
     outcome = serialise_handle_outcome(handle.outcome)
 
-    # Actual is the matched payload for PASS/SLOW, last-rejected for FAIL,
+    # Actual is the matched payload for PASS/SLOW, last-mismatched for FAIL,
     # null for TIMEOUT / PENDING.
     if handle.outcome in (Outcome.PASS, Outcome.SLOW):
         actual_source = handle._message
     elif handle.outcome is Outcome.FAIL:
-        actual_source = handle.last_rejection_payload
+        actual_source = handle.last_mismatch_payload
     else:
         actual_source = None
 
@@ -277,7 +277,7 @@ def serialise_handle(handle: Handle, stats: RedactionStats) -> dict[str, Any]:
     expected, expected_truncated = cap_payload(handle.matcher_expected, stats)
 
     if handle.outcome is Outcome.FAIL:
-        reason = handle.last_rejection_reason or ""
+        reason = handle.last_mismatch_reason or ""
     else:
         reason = handle.reason
 

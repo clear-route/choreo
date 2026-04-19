@@ -38,7 +38,7 @@ How do replies expose "did I fire?" to the test author without misrepresenting t
 ### Goals
 
 - **Zero new assertion surface.** The test author asserts on downstream effects (via `expect`), not on whether the reply fired.
-- **First-class debuggability.** On scenario failure, the author can tell from the result alone whether the reply fired, never fired, rejected candidates, or blew up in the builder.
+- **First-class debuggability.** On scenario failure, the author can tell from the result alone whether the reply fired, never fired, mismatched candidates, or blew up in the builder.
 - **Consistent with `ScenarioResult`.** Reply results surface in the same result object that carries expectation outcomes.
 - **Payload-safe.** Reply reports must not leak payload content in `__repr__` or summaries — same standard as Handle ([ADR-0014 §Security Considerations](0014-handle-result-model.md)).
 
@@ -65,7 +65,7 @@ How do replies expose "did I fire?" to the test author without misrepresenting t
 
 ### Option 1: ReplyReport only, fire-and-forget (chosen)
 
-**Description:** `s.on(...).publish(...)` returns a transient `ReplyChain` that, once `.publish()` terminates it, hands control back to the scope and exposes no handle. The reply's observability surface is a new field on `ScenarioResult.replies: tuple[ReplyReport, ...]`. Each report carries topic, a redacted matcher description (see §Security Considerations), a terminal state (`ARMED_NO_MATCH` / `ARMED_MATCHER_REJECTED` / `FIRED` / `FIRED_BUILDER_ERROR` — derived at scope exit from the runtime `_ReplyState` in [ADR-0016](0016-reply-lifecycle.md) plus `candidate_count` / `match_count`), `candidate_count`, `match_count`, `reply_published` boolean, and `builder_error` string or `None`.
+**Description:** `s.on(...).publish(...)` returns a transient `ReplyChain` that, once `.publish()` terminates it, hands control back to the scope and exposes no handle. The reply's observability surface is a new field on `ScenarioResult.replies: tuple[ReplyReport, ...]`. Each report carries topic, a redacted matcher description (see §Security Considerations), a terminal state (`ARMED_NO_MATCH` / `ARMED_MATCHER_MISMATCHED` / `FIRED` / `FIRED_BUILDER_ERROR` — derived at scope exit from the runtime `_ReplyState` in [ADR-0016](0016-reply-lifecycle.md) plus `candidate_count` / `match_count`), `candidate_count`, `match_count`, `reply_published` boolean, and `builder_error` string or `None`.
 
 **Pros:**
 - Matches the user's expressed intent ("fire and forget").
@@ -115,7 +115,7 @@ How do replies expose "did I fire?" to the test author without misrepresenting t
 - Nothing to maintain.
 
 **Cons:**
-- Breaks the debuggability goal. A reply that silently rejects every candidate (wrong matcher) looks identical to a reply that never saw a candidate (wrong topic). Both present as downstream expect timeouts.
+- Breaks the debuggability goal. A reply that silently mismatches every candidate (wrong matcher) looks identical to a reply that never saw a candidate (wrong topic). Both present as downstream expect timeouts.
 - Authors fall back to log-diving for common problems.
 - Violates PRD-008's P0 reply-report requirements.
 
@@ -131,7 +131,7 @@ How do replies expose "did I fire?" to the test author without misrepresenting t
 - Option 2 forces a shape onto replies that doesn't fit: latency budgets without a meaningful budget, outcomes without distinct meanings. The additional assertion surface is an attractive nuisance.
 - Option 3 resolves the tension by duplicating the API. Two ways to do one thing is worse than one clean way.
 - Option 4 trades ~50 lines of reporting code for an order-of-magnitude debuggability cost.
-- The four `ReplyReportState` members distinguish failure modes that look identical from outside the reply: `ARMED_NO_MATCH` (wrong topic — zero candidates arrived) versus `ARMED_MATCHER_REJECTED` (right topic, wrong shape — candidates arrived but matcher rejected all of them). Collapsing these into a single "never fired" state would leave the most common debugging question — "is my topic wrong or my matcher wrong?" — unanswerable from the report alone.
+- The four `ReplyReportState` members distinguish failure modes that look identical from outside the reply: `ARMED_NO_MATCH` (wrong topic — zero candidates arrived) versus `ARMED_MATCHER_MISMATCHED` (right topic, wrong shape — candidates arrived but matcher mismatched all of them). Collapsing these into a single "never fired" state would leave the most common debugging question — "is my topic wrong or my matcher wrong?" — unanswerable from the report alone.
 
 ---
 
@@ -175,7 +175,7 @@ The runtime state enum lives in [ADR-0016](0016-reply-lifecycle.md) (`_ReplyStat
 ```
 class ReplyReportState(StrEnum):
     ARMED_NO_MATCH         = "armed_no_match"         # runtime=ARMED, candidate_count == 0
-    ARMED_MATCHER_REJECTED = "armed_matcher_rejected" # runtime=ARMED, candidate_count > 0, match_count == 0
+    ARMED_MATCHER_MISMATCHED = "armed_matcher_mismatched" # runtime=ARMED, candidate_count > 0, match_count == 0
     FIRED                  = "fired"                  # runtime=FIRED
     FIRED_BUILDER_ERROR    = "fired_builder_error"    # runtime=FIRED_BUILDER_ERROR
 
@@ -237,7 +237,7 @@ class ScenarioResult:
 
 ### Warning-log behaviour
 
-At scope exit, any reply whose terminal state is `ARMED_NO_MATCH` or `ARMED_MATCHER_REJECTED` logs at WARNING. `FIRED_BUILDER_ERROR` logs at ERROR. `FIRED` does not log at WARNING (including `FIRED` with `candidate_count > 1` — the report surfaces the over-count; the log does not).
+At scope exit, any reply whose terminal state is `ARMED_NO_MATCH` or `ARMED_MATCHER_MISMATCHED` logs at WARNING. `FIRED_BUILDER_ERROR` logs at ERROR. `FIRED` does not log at WARNING (including `FIRED` with `candidate_count > 1` — the report surfaces the over-count; the log does not).
 
 The WARNING line includes: trigger topic, reply topic, terminal state, candidate count, and a **redacted** matcher description (literal values replaced with `<value>`). The unredacted description remains on the in-memory `ReplyReport` for post-scope test assertions but is never emitted through the logger. See §Security Considerations.
 
@@ -257,7 +257,7 @@ Not applicable — greenfield.
 
 ### Success Metrics
 
-- **Debuggability test.** A scenario with a reply whose matcher rejects the single candidate fails a downstream expect. The `summary()` output names the reply by topic and states `ARMED_MATCHER_REJECTED (1 candidate, 0 matches)`. Target: passing the string assertion on `summary()`.
+- **Debuggability test.** A scenario with a reply whose matcher mismatches the single candidate fails a downstream expect. The `summary()` output names the reply by topic and states `ARMED_MATCHER_MISMATCHED (1 candidate, 0 matches)`. Target: passing the string assertion on `summary()`.
 - **No-leak test.** A test that publishes sensitive-looking JSON as the reply confirms that `ReplyReport.__repr__`, `ScenarioResult.__repr__`, and `summary()` contain no payload substrings. Target: zero matches.
 - **Pickle refusal test.** `pickle.dumps(report)` raises. Target: `TypeError`.
 - **State-coverage test.** Four scenario variants, one per terminal `ReplyReportState`, each produces the expected state on the report. Target: four passing tests.

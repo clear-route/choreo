@@ -122,7 +122,7 @@ There is no primitive for "when I see X, send Y". Tests that need to stand in fo
 
 **As a** test author debugging a scenario where nothing happened,
 **I want to** see whether my reply fired,
-**So that** I can tell "trigger never arrived" apart from "trigger arrived but my matcher rejected it".
+**So that** I can tell "trigger never arrived" apart from "trigger arrived but my matcher mismatched it".
 
 **Acceptance Criteria:**
 - [ ] `ScenarioResult` carries a reply report: per-reply, how many candidate messages arrived, how many the matcher accepted, whether the reply was published.
@@ -253,7 +253,7 @@ s.on("heartbeat.request").publish("heartbeat.response", {"ok": True})
 - Error log + reply-report flag on builder exceptions; scenario continues.
 - Scope-bound cleanup via `__aexit__`, on both happy and exception paths.
 - `summary()` on `ScenarioResult` includes reply section (fired / not-fired, builder errors).
-- Unit tests: single-scope reply, multi-reply scope, no-match, matcher-rejection, builder exception, parallel-scope isolation, cleanup-on-exception.
+- Unit tests: single-scope reply, multi-reply scope, no-match, matcher-mismatch, builder exception, parallel-scope isolation, cleanup-on-exception.
 
 ### Out of Scope
 
@@ -312,8 +312,8 @@ s.on("heartbeat.request").publish("heartbeat.response", {"ok": True})
 - Parallel-isolation test with 100 concurrent scopes, identical topic, distinct correlation IDs: each reply fires exactly once for its own scope.
 
 **Observability:**
-- Every reply lifecycle event (registered, triggered, rejected, fired, builder-error, deregistered) logs at appropriate level with the scope's correlation ID attached.
-- Reply report in `ScenarioResult` distinguishes the four states: `NEVER_ARMED` (registration failed), `ARMED_NO_MATCH` (no candidates arrived), `ARMED_MATCHER_REJECTED` (candidates arrived, matcher rejected all), `FIRED` (fired cleanly), `FIRED_BUILDER_ERROR` (fired, builder raised).
+- Every reply lifecycle event (registered, triggered, mismatched, fired, builder-error, deregistered) logs at appropriate level with the scope's correlation ID attached.
+- Reply report in `ScenarioResult` distinguishes the four states: `NEVER_ARMED` (registration failed), `ARMED_NO_MATCH` (no candidates arrived), `ARMED_MATCHER_MISMATCHED` (candidates arrived, matcher mismatched all), `FIRED` (fired cleanly), `FIRED_BUILDER_ERROR` (fired, builder raised).
 
 **Compatibility:**
 - Python 3.11+ (consistent with [PRD-002](PRD-002-scenario-dsl.md)).
@@ -434,7 +434,7 @@ s.on("heartbeat.request").publish("heartbeat.response", {"ok": True})
 - Fire-once semantics: post-FIRED subscription stays alive for candidate counting, matcher / builder bypassed (per [ADR-0016](../adr/0016-reply-lifecycle.md) §Fire-once enforcement)
 - Correlation-override detection: WARN + `correlation_overridden` flag on the report (per [ADR-0018](../adr/0018-reply-correlation-scoping.md) §Correlation-override detection)
 - Scope cleanup on `__aexit__`
-- Unit tests covering the core happy path, no-match, matcher-rejection, builder exception, parallel-scope isolation
+- Unit tests covering the core happy path, no-match, matcher-mismatch, builder exception, parallel-scope isolation
 
 **Phase 2: Observability** (Target: +1 week after Phase 1)
 - `ReplyReport` + `ScenarioResult.replies`

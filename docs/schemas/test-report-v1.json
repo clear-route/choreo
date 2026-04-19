@@ -198,7 +198,7 @@
       "properties": {
         "trigger_topic":          { "type": "string" },
         "reply_topic":            { "type": "string" },
-        "state":                  { "enum": ["armed_no_match", "armed_matcher_rejected", "replied", "reply_failed"] },
+        "state":                  { "enum": ["armed_no_match", "armed_matcher_mismatched", "replied", "reply_failed"] },
         "matcher_description":    { "type": "string" },
         "candidate_count":        { "type": "integer", "minimum": 0 },
         "match_count":            { "type": "integer", "minimum": 0 },

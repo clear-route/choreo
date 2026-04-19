@@ -268,20 +268,20 @@ async def test_a_reply_that_never_saw_a_candidate_should_report_armed_no_match(
     assert rep.reply_published is False
 
 
-async def test_a_reply_whose_matcher_rejected_every_candidate_should_report_armed_matcher_rejected(
+async def test_a_reply_whose_matcher_mismatched_every_candidate_should_report_armed_matcher_mismatched(
     harness,
 ) -> None:
     from choreo.matchers import field_equals
     from choreo.scenario import ReplyReportState
 
-    async with harness.scenario("matcher-rejected") as s:
+    async with harness.scenario("matcher-mismatched") as s:
         s.on("t", field_equals("kind", "ITEM-A")).publish("t.reply", {"ok": True})
         s = s.publish("t", {"kind": "ITEM-B"})
         s = s.publish("t", {"kind": "ITEM-C"})
         result = await s.await_all(timeout_ms=30)
 
     rep = result.reply_at("t")
-    assert rep.state is ReplyReportState.ARMED_MATCHER_REJECTED
+    assert rep.state is ReplyReportState.ARMED_MATCHER_MISMATCHED
     assert rep.candidate_count == 2
     assert rep.match_count == 0
     assert rep.reply_published is False

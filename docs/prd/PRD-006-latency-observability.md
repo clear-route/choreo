@@ -20,12 +20,12 @@ The Scenario DSL (PRD-002) already captures per-handle latency from expectation 
 
 `Handle._latency_ms` is populated on every match ([packages/core/src/choreo/scenario.py:335](../../packages/core/src/choreo/scenario.py#L335)) and is surfaced in `ScenarioResult.failure_summary()` and `summary()`. It is purely informational. A test that matches content correctly cannot fail on timing: a handle whose matcher passes has `Outcome.PASS` regardless of how long the match took.
 
-For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT` — no correlated message arrived) from near-miss timeouts (`Outcome.FAIL` — messages arrived but the matcher rejected them), tracking `_attempts` and `_last_rejection_reason`. It does not record *when* rejected messages arrived, so a flake that reports `3 messages rejected` gives no signal on whether those arrived 2ms after the publish or 450ms after.
+For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT` — no correlated message arrived) from near-miss timeouts (`Outcome.FAIL` — messages arrived but the matcher rejected them), tracking `_attempts` and `_last_mismatch_reason`. It does not record *when* mismatched messages arrived, so a flake that reports `3 messages mismatched` gives no signal on whether those arrived 2ms after the publish or 450ms after.
 
 ### User Pain Points
 
 - **Latency regressions silently pass CI.** A scenario that used to match in 5ms and now matches in 500ms is a correctness-of-system regression, but the test is green. Authors who care about timing today write ad-hoc `assert handle.latency_ms < 50`, which is boilerplate and inconsistent across tests.
-- **Near-miss timeouts give no temporal signal.** When a scenario times out with `3 messages rejected`, the author cannot tell whether the service is slow (rejections arrived late) or wrong (rejections arrived promptly but with wrong fields).
+- **Near-miss timeouts give no temporal signal.** When a scenario times out with `3 messages mismatched`, the author cannot tell whether the service is slow (mismatches arrived late) or wrong (mismatches arrived promptly but with wrong fields).
 - **No way to see the order events actually arrived in.** Three expectations against the same topic, matched in a non-deterministic order, cannot be debugged without re-running with print statements.
 
 ### Business Impact
@@ -40,7 +40,7 @@ For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT`
 ### Primary Goals
 
 1. **Declarative per-expectation SLA.** A test author writes `s.expect(topic, matcher).within_ms(50)`; if the match arrives after 50ms the scenario fails.
-2. **A new terminal outcome `SLOW`** so `failure_summary()` tells the author "matched, but 72ms > 50ms budget" instead of conflating it with matcher rejections.
+2. **A new terminal outcome `SLOW`** so `failure_summary()` tells the author "matched, but 72ms > 50ms budget" instead of conflating it with matcher mismatches.
 3. **Failure timeline on the scope.** On any non-passing scenario, `ScenarioResult` exposes the ordered list of every named-topic message the scope observed (matched or rejected), with offsets from the scope's t₀.
 4. **Zero cost when unused.** Tests that do not call `.within_ms()` pay no extra runtime or memory cost beyond today's behaviour.
 
@@ -84,7 +84,7 @@ For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT`
 
 **Acceptance Criteria:**
 - [ ] On any non-passing `ScenarioResult`, `result.timeline` returns a tuple of `TimelineEntry` in arrival order.
-- [ ] Each entry reports: `offset_ms` (monotonic, from scope t₀), `wall_clock` (ISO8601), `topic`, `action` (`"matched"` / `"rejected"` / `"correlation_skipped"` if we decide to include them — see Open Questions), and a short payload descriptor (not the full payload; see Non-Functional Requirements for bounding).
+- [ ] Each entry reports: `offset_ms` (monotonic, from scope t₀), `wall_clock` (ISO8601), `topic`, `action` (`"matched"` / `"mismatched"` / `"correlation_skipped"` if we decide to include them — see Open Questions), and a short payload descriptor (not the full payload; see Non-Functional Requirements for bounding).
 - [ ] `failure_summary()` appends a compact timeline block below the per-handle breakdown, one line per entry, truncated to the last N entries (see Open Questions for N).
 - [ ] A passing scenario does not populate `result.timeline` — zero-cost when no failure.
 
@@ -95,7 +95,7 @@ For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT`
 **So that** I can distinguish "wrong content, right speed" (matcher bug or service behaviour change) from "right shape, arrived slowly" (service slowness).
 
 **Acceptance Criteria:**
-- [ ] A near-miss rejection in the timeline shows its offset; a glance at `failure_summary()` tells the author when the rejection happened, not just that N happened.
+- [ ] A near-miss mismatch in the timeline shows its offset; a glance at `failure_summary()` tells the author when the mismatch happened, not just that N happened.
 
 ---
 
@@ -116,7 +116,7 @@ For diagnosis, `ScenarioResult` distinguishes silent timeouts (`Outcome.TIMEOUT`
 
 ### 3. Timeline capture
 
-- A new `_Timeline` lives on `_ScenarioContext`. It records every named-topic message the scope observes on any subscriber registered by the scope's `expect()` calls, regardless of whether that message matched, was rejected, or was filtered by correlation ID.
+- A new `_Timeline` lives on `_ScenarioContext`. It records every named-topic message the scope observes on any subscriber registered by the scope's `expect()` calls, regardless of whether that message matched, was mismatched, or was filtered by correlation ID.
 - Each entry: `offset_ms` (from the scope's first `expect()` registration — same anchor as latency), `wall_clock`, `topic`, `action`, `detail` (a short description; see NFRs).
 - `ScenarioResult.timeline: tuple[TimelineEntry, ...]` is populated only when `passed is False`. When `passed is True`, `timeline` is `()`.
 - `failure_summary()` appends a `Timeline:` block listing the last N entries (see Open Questions).
@@ -242,8 +242,8 @@ correlation: corr-91f3b2
 
 Timeline (last 20 of 23):
     2.1ms  events.created          published
-   14.8ms  state.changed           rejected  (count=500, want 1000)
-   38.0ms  state.changed           rejected  (count=750, want 1000)
+   14.8ms  state.changed           mismatched  (count=500, want 1000)
+   38.0ms  state.changed           mismatched  (count=750, want 1000)
    72.4ms  state.changed           matched   (count=1000)
   500.0ms  validation.approved     deadline  (no message)
 ```
