@@ -3,7 +3,7 @@ requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "choreo"
+name = "choreo-harness"
 dynamic = ["version"]
 description = "Choreo — a declarative async test harness for message-driven systems"
 readme = "README.md"

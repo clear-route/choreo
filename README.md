@@ -98,23 +98,17 @@ Use Choreo when your system is message-driven and your tests need to assert on w
 
 ## Install
 
-Choreo is not on PyPI yet. Clone the repo and install in editable mode.
-
 ```bash
-git clone https://github.com/clear-route/choreo.git
-cd choreo
-
-# Core library + test extras
-pip install -e 'packages/core[test]'
+pip install choreo-harness
 
 # Add the broker extra(s) you need
-pip install -e 'packages/core[test,nats]'      # NATS
-pip install -e 'packages/core[test,kafka]'     # Kafka
-pip install -e 'packages/core[test,rabbit]'    # RabbitMQ
-pip install -e 'packages/core[test,redis]'     # Redis
+pip install 'choreo-harness[nats]'      # NATS
+pip install 'choreo-harness[kafka]'     # Kafka
+pip install 'choreo-harness[rabbitmq]'  # RabbitMQ
+pip install 'choreo-harness[redis]'     # Redis
 
 # Optional: pytest reporter plugin (HTML + JSON output)
-pip install -e 'packages/core-reporter[test]'
+pip install choreo-reporter
 ```
 
 - Python 3.11+
