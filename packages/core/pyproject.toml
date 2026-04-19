@@ -46,7 +46,7 @@ fallback-version = "0.0.0"
 test = [
     "pytest>=8.0,<10",
     "pytest-asyncio>=0.24,<2.0",
-    "pyyaml>=6.0,<7",
+    "pyyaml>=6.0.3,<7",
 ]
 # Transport backends — install the ones your tests actually use.
 # `pip install choreo[nats]` pulls the NATS client only when it's needed.
