@@ -54,7 +54,7 @@ test = [
 nats = ["nats-py>=2.7,<3"]
 kafka = ["aiokafka>=0.11,<1"]
 rabbitmq = ["aio-pika>=9.0,<11"]
-redis = ["redis>=5.0,<7"]
+redis = ["redis>=7.4.0,<8"]
 
 [dependency-groups]
 dev = [
