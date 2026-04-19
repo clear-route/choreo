@@ -3,13 +3,12 @@ on:
   push:
     tags: ["v*"]
 
-permissions:
-  contents: write  # needed by softprops/action-gh-release to create releases
-
 jobs:
-  release:
-    name: build + publish
+  build:
+    name: build + test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
         with:
@@ -51,12 +50,50 @@ jobs:
       - name: Validate distributions
         run: twine check dist/*
 
-      - name: Upload build artefacts to workflow run
+      - name: Upload build artefacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: dist-${{ github.ref_name }}
           path: dist/
           retention-days: 30
+
+  publish-pypi:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write  # OIDC for PyPI trusted publishing
+    steps:
+      - name: Download build artefacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: dist-${{ github.ref_name }}
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b54f72e68e167af67a55e1e8  # v1.12.4
+        with:
+          packages-dir: dist/
+
+  github-release:
+    name: create GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Download build artefacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16  # v4.1.8
+        with:
+          name: dist-${{ github.ref_name }}
+          path: dist/
 
       - name: Extract release notes from CHANGELOG
         id: notes
