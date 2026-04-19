@@ -6,7 +6,7 @@ and partial-bucket merge logic.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -15,7 +15,7 @@ from chronicle.repositories.topic_repo import LatencyBucketRow, TopicRepository
 from chronicle.services.resolution_service import ResolutionService
 
 _TENANT_ID = uuid4()
-_NOW = datetime(2026, 4, 19, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 4, 19, 12, 0, 0, tzinfo=UTC)
 
 
 def _bucket(*, offset_hours: int = 0, p95: float = 50.0, samples: int = 10) -> LatencyBucketRow:
@@ -43,8 +43,11 @@ class TestAutoResolution:
         svc = ResolutionService(repo)
 
         _, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(hours=12), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(hours=12),
+            _NOW,
         )
         assert resolution == "raw"
         repo.query_raw.assert_called_once()
@@ -57,8 +60,11 @@ class TestAutoResolution:
         svc = ResolutionService(repo)
 
         _, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
         )
         assert resolution == "hourly"
 
@@ -70,8 +76,11 @@ class TestAutoResolution:
         svc = ResolutionService(repo)
 
         _, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=60), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=60),
+            _NOW,
         )
         assert resolution == "daily"
 
@@ -82,8 +91,11 @@ class TestAutoResolution:
         svc = ResolutionService(repo)
 
         _, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
             resolution="raw",
         )
         assert resolution == "raw"
@@ -99,8 +111,11 @@ class TestAggregateFallback:
         svc = ResolutionService(repo)
 
         buckets, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
         )
         assert resolution == "raw"
         assert len(buckets) == 1
@@ -113,8 +128,11 @@ class TestAggregateFallback:
         svc = ResolutionService(repo)
 
         buckets, resolution = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
         )
         assert resolution == "raw"
         assert len(buckets) == 0
@@ -132,8 +150,11 @@ class TestPartialBucketMerge:
         svc = ResolutionService(repo)
 
         buckets, _ = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
         )
         # Should have aggregate + partial (3 total)
         assert len(buckets) == 3
@@ -150,7 +171,10 @@ class TestPartialBucketMerge:
         svc = ResolutionService(repo)
 
         buckets, _ = await svc.get_topic_latency(
-            "t", _TENANT_ID, None,
-            _NOW - timedelta(days=7), _NOW,
+            "t",
+            _TENANT_ID,
+            None,
+            _NOW - timedelta(days=7),
+            _NOW,
         )
         assert len(buckets) == 2

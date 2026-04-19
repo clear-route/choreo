@@ -7,7 +7,7 @@ overrides — no database required.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 from uuid import uuid4
 
@@ -15,19 +15,22 @@ import pytest
 from chronicle.app import create_app
 from chronicle.config import Settings
 from chronicle.dependencies import (
+    get_anomaly_repo,
+    get_resolution_service,
     get_run_repo,
     get_tenant_or_404,
     get_topic_repo,
-    get_anomaly_repo,
-    get_resolution_service,
 )
 from chronicle.models.tables import Tenant
-from chronicle.repositories.run_repo import RunRepository
-from chronicle.repositories.topic_repo import TopicRepository, TopicSummaryRow, LatencyBucketRow, TopicRunSummaryRow
 from chronicle.repositories.anomaly_repo import AnomalyRepository
+from chronicle.repositories.run_repo import RunRepository
+from chronicle.repositories.topic_repo import (
+    LatencyBucketRow,
+    TopicRepository,
+    TopicSummaryRow,
+)
 from chronicle.services.resolution_service import ResolutionService
 from fastapi.testclient import TestClient
-
 
 # ── Helpers ──
 
@@ -35,10 +38,10 @@ _TENANT = Tenant(
     id=uuid4(),
     slug="test-team",
     name="test-team",
-    created_at=datetime.now(timezone.utc),
+    created_at=datetime.now(UTC),
 )
 
-_NOW = datetime(2026, 4, 19, 12, 0, 0, tzinfo=timezone.utc)
+_NOW = datetime(2026, 4, 19, 12, 0, 0, tzinfo=UTC)
 
 
 def _make_run(*, passed=10, failed=0, slow=0, branch="main", env="staging"):
@@ -158,7 +161,7 @@ class TestListRuns:
         assert r.status_code == 422
 
     def test_listing_runs_should_return_404_for_unknown_tenant(self):
-        c = _client(tenant=None)
+        _client(tenant=None)
         # Without tenant override, the real dependency runs — but with no DB,
         # we skip this test. The tenant=None case is tested in e2e.
 

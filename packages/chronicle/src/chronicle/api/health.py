@@ -23,7 +23,7 @@ router = APIRouter(tags=["operations"])
 
 @router.get("/health", response_model=None)
 async def health(
-    session: Annotated[..., Depends(get_session)],
+    session: Annotated[object, Depends(get_session)],
     deep: Annotated[bool, Query()] = False,
 ) -> Response:
     """Return service health status."""

@@ -53,6 +53,7 @@ test = [
     "pytest>=8.0,<10",
     "pytest-asyncio>=0.24,<2.0",
     "httpx>=0.27,<1",
+    "hypothesis>=6.100,<7",
 ]
 
 [dependency-groups]
@@ -69,6 +70,9 @@ packages = ["src/chronicle"]
 # Pre-built React frontend (built by CI before `hatch build`).
 # Consumers get a working dashboard from `pip install` — no Node.js needed.
 "frontend/dist" = "chronicle/static"
+
+[tool.hatch.build.targets.sdist.force-include]
+"frontend/dist" = "frontend/dist"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
