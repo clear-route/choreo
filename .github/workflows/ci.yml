@@ -88,7 +88,13 @@ jobs:
           pip install -e 'packages/core-reporter[test]'
 
       - name: Run e2e tests with report
-        run: pytest -m e2e -o "addopts=-n auto" --harness-report=test-report
+        # Only run core/reporter e2e — Chronicle tests are in the chronicle-e2e job.
+        # Override testpaths to exclude chronicle, which isn't installed here.
+        run: >-
+          pytest -m e2e
+          -o "addopts=-n auto"
+          -o "testpaths=packages/core/tests packages/core-reporter/tests"
+          --harness-report=test-report
 
       - name: Upload test report (workflow artefact)
         if: always()
