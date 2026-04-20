@@ -9,8 +9,12 @@ deploy?"*, *"Which topics have the most budget violations this month?"*
 - Python 3.11+ / FastAPI / SQLAlchemy 2.0 async / asyncpg
 - TimescaleDB for time-series storage with continuous aggregates
 - React + Recharts dashboard (pre-built, included in the wheel — no Node.js needed)
-- Server-Sent Events for live updates
-- 12-factor configuration; container-ready
+
+![Runs dashboard — pass rate, failures, and duration over time](../../docs/images/chronicle/runs.png)
+
+![Topic comparison — overlay P50/P95/P99 latency across topics](../../docs/images/chronicle/compare.png)
+
+![Topics list — per-topic latency stats with sorting](../../docs/images/chronicle/topics.png)
 
 ## Install
 
