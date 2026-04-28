@@ -18,7 +18,7 @@ When the test fails, a plain `TimeoutError` rarely tells you which hop broke. Di
 
 Choreo is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
 
-Supporting: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
+Supporting: **NATS**, **Kafka**, **RabbitMQ**, **Redis**, **LBM** (Informatica Ultra Messaging). 
 
 ---
 
@@ -106,6 +106,7 @@ pip install 'choreo-harness[nats]'      # NATS
 pip install 'choreo-harness[kafka]'     # Kafka
 pip install 'choreo-harness[rabbitmq]'  # RabbitMQ
 pip install 'choreo-harness[redis]'     # Redis
+pip install 'choreo-harness[lbm]'       # LBM (requires separate LBM installation)
 
 # Optional: pytest reporter plugin (HTML + JSON output)
 pip install choreo-reporter
@@ -545,7 +546,7 @@ Build one as a frozen dataclass and compose it exactly like the built-ins.
 
 ## Transports
 
-The library ships five transports and defines a 7-method `Transport`
+The library ships six transports and defines a 7-method `Transport`
 Protocol so you can drop in your own.
 
 ### `NatsTransport`
@@ -567,9 +568,9 @@ transport = NatsTransport(
 
 Validates `nats_servers` in the allowlist.
 
-`KafkaTransport`, `RabbitTransport`, and `RedisTransport` follow the same
+`KafkaTransport`, `RabbitTransport`, `RedisTransport`, and `LbmTransport` follow the same
 shape with their own constructor fields and allowlist categories
-(`kafka_brokers`, `amqp_brokers`, `redis_servers`).
+(`kafka_brokers`, `amqp_brokers`, `redis_servers`, `lbm_endpoints`).
 
 ### `MockTransport`
 
@@ -590,6 +591,28 @@ transport = MockTransport(
 Diagnostic methods (for testing your test code, not your system):
 `transport.sent()`, `transport.active_subscription_count()`,
 `transport.clear_subscriptions()`.
+
+### `LbmTransport`
+
+Talks to Informatica Ultra Messaging (LBM), a high-performance multicast
+messaging system. Requires separate LBM installation and commercial license.
+Lazy-imported: `pylbm` is only required if you construct one.
+
+```python
+from pathlib import Path
+from choreo.transports.lbm import LbmTransport
+
+transport = LbmTransport(
+    lbm_config_file=Path("/path/to/lbm_config.xml"),
+    license_file=Path("/path/to/lbm_license.txt"),  # or set LBM_LICENSE_FILENAME env var
+    app_name="choreo_test",                         # LBM context name
+    connect_timeout_s=5.0,
+)
+```
+
+LBM is proprietary software and cannot be run in Docker like other transports.
+E2E tests skip gracefully when LBM is not available. See
+`packages/core/src/choreo/transports/lbm.py` for installation instructions.
 
 ### Transport authentication
 

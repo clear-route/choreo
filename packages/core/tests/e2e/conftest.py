@@ -31,12 +31,15 @@ from .factories import (
     ALL_FACTORIES,
     AMQP_URL,
     KAFKA_BOOTSTRAP,
+    LBM_CONFIG_FILE,
+    LBM_LICENSE_FILE,
     NATS_AUTH_PASSWORD,
     NATS_AUTH_URL,
     NATS_AUTH_USER,
     NATS_URL,
     REDIS_URL,
     KafkaFactory,
+    LbmFactory,
     NatsAuthFactory,
     RabbitFactory,
     RedisFactory,
@@ -165,5 +168,22 @@ def redis_url() -> str:
 @pytest.fixture(scope="session")
 async def _redis_available() -> bool:
     factory = RedisFactory()
+    await factory.probe_or_skip()
+    return True
+
+
+@pytest.fixture(scope="session")
+def lbm_config_file() -> str | None:
+    return LBM_CONFIG_FILE
+
+
+@pytest.fixture(scope="session")
+def lbm_license_file() -> str | None:
+    return LBM_LICENSE_FILE
+
+
+@pytest.fixture(scope="session")
+async def _lbm_available() -> bool:
+    factory = LbmFactory()
     await factory.probe_or_skip()
     return True
