@@ -60,8 +60,9 @@ Each transport implementation defines its own constructor fields. Built-ins
 today: `MockTransport` (in-memory, with optional allowlist enforcement),
 `NatsTransport` (`servers=[...]`, validates the `nats_servers` allowlist
 category), `KafkaTransport` (`bootstrap_servers=[...]`, validates
-`kafka_brokers`), `RabbitTransport` (`url`, validates `amqp_brokers`) and
-`RedisTransport` (`url`, validates `redis_servers`). All are lazy-imported
+`kafka_brokers`), `RabbitTransport` (`url`, validates `amqp_brokers`),
+`RedisTransport` (`url`, validates `redis_servers`) and `LbmTransport`
+(`lbm_config_file`, validates via config file). All are lazy-imported
 so the corresponding extras are only required when you actually use them.
 The Harness never sees these; it just delegates `connect()` / `subscribe()` /
 `publish()`.
@@ -203,10 +204,11 @@ the canonical consumer example above).
 
 The unit suite runs entirely in-memory via `MockTransport`. A separate e2e
 suite exercises the Transport Protocol against real networks by pointing
-`NatsTransport`, `KafkaTransport`, `RabbitTransport`, or `RedisTransport`
-at disposable brokers under Docker Compose. This validates the Transport
-Protocol contract itself — not any production wire, just the contract that
-a consumer's own transport implementation would also need to honour.
+`NatsTransport`, `KafkaTransport`, `RabbitTransport`, `RedisTransport`, or
+`LbmTransport` at disposable brokers under Docker Compose (or a real LBM
+installation for LBM tests). This validates the Transport Protocol contract
+itself — not any production wire, just the contract that a consumer's own
+transport implementation would also need to honour.
 
 ### Running e2e locally
 
