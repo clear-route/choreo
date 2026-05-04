@@ -33,7 +33,8 @@ export interface RunSummary {
   finished_at: string;
   duration_ms: number;
   environment: string | null;
-  transport: string;
+  transport: string | null;
+  transports: string[] | null;
   branch: string | null;
   git_sha: string | null;
   project_name: string | null;

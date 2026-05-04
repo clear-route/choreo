@@ -18,7 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from ._redact import redact_matcher_description
 from .correlation import (
@@ -194,6 +194,15 @@ class Handle:
     matcher_description: str
     correlation_id: str | None
     outcome: Outcome = Outcome.PENDING
+    _transport: str | None = None
+    """Multi-transport scenarios (Stage, ADR-0027) populate this with the
+    transport name the handle was registered against. None for handles
+    created by single-Harness scenarios. The leading underscore plus the
+    `transport` property below mean there is no public setter; the value
+    is set once via the dataclass constructor and is read-only thereafter.
+    Prevents consumer-side post-hoc mutation that would (a) confuse the
+    dispatcher routing and (b) leak unintended values into Handle.__repr__
+    (per ADR-0027 §Security Considerations)."""
     _message: Any = None
     _latency_ms: float | None = None
     _reason: str = ""
@@ -204,6 +213,12 @@ class Handle:
     _failures_dropped: int = 0
     _budget_ms: float | None = None
     _matcher_expected: Any = None
+
+    @property
+    def transport(self) -> str | None:
+        """Read-only transport name. See `_transport` docstring above
+        and ADR-0027 §Security Considerations for the read-only rationale."""
+        return self._transport
 
     def within_ms(self, budget_ms: float) -> Handle:
         """Declare a latency budget for this expectation (PRD-006).
@@ -297,8 +312,16 @@ class Handle:
         return self._matcher_expected
 
     def __repr__(self) -> str:
+        # Stage handles carry a transport name; single-Harness handles
+        # do not. Surface the name in repr so failure diagnostics in
+        # pytest verbose output and CI logs name which transport a
+        # failing handle belongs to (per ADR-0027 §Security
+        # Considerations on Handle.transport observability).
+        transport_part = (
+            f" transport={self._transport}" if self._transport is not None else ""
+        )
         return (
-            f"<Handle topic={self.topic} "
+            f"<Handle topic={self.topic}{transport_part} "
             f"outcome={self.outcome.value} "
             f"matcher={self.matcher_description!r}>"
         )
@@ -422,6 +445,10 @@ class ScenarioResult:
     timeline: tuple[TimelineEntry, ...] = ()
     timeline_dropped: int = 0
     replies: tuple[ReplyReport, ...] = ()
+    # PRD-012 §2.1, §2.8: explicit discriminator the choreo-reporter
+    # dispatches on, replacing the v2-proposed hasattr duck-typing.
+    # Per-type fixed (init=False); a Stage result's `kind` is "stage".
+    kind: Literal["single_harness"] = field(default="single_harness", init=False)
 
     @property
     def failing_handles(self) -> tuple[Handle, ...]:

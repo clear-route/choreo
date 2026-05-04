@@ -89,6 +89,92 @@ async def test_connecting_an_already_connected_harness_should_not_re_enter_trans
     assert harness.is_connected() is True
 
 
+async def test_force_disconnect_should_call_transport_disconnect_when_connect_failed_partway(
+    allowlist_yaml_path: Path,
+) -> None:
+    """A multi-transport coordinator (Stage, ADR-0027) needs to clean up a
+    harness whose `connect()` raised: the transport may have opened
+    resources before raising, but `disconnect()` short-circuits on
+    `is_connected() is False`. `force_disconnect()` is the escape hatch:
+    it always invokes `transport.disconnect()` and always clears
+    subscriptions, regardless of harness state.
+    """
+    from choreo import Harness
+
+    transport = _mock_transport(allowlist_yaml_path)
+
+    disconnect_called = False
+    original_disconnect = transport.disconnect
+
+    async def recorded_disconnect() -> None:
+        nonlocal disconnect_called
+        disconnect_called = True
+        await original_disconnect()
+
+    transport.disconnect = recorded_disconnect  # type: ignore[method-assign]
+
+    # Make connect raise AFTER opening resources, mirroring the failure
+    # mode the Stage rollback exists to clean up.
+    async def half_open_then_raise() -> None:
+        raise RuntimeError("simulated mid-connect failure")
+
+    transport.connect = half_open_then_raise  # type: ignore[method-assign]
+
+    harness = Harness(transport)
+    with pytest.raises(RuntimeError, match="simulated mid-connect failure"):
+        await harness.connect()
+
+    # _connected stayed False; disconnect() would short-circuit.
+    assert harness.is_connected() is False
+
+    await harness.force_disconnect()
+    assert disconnect_called is True
+
+
+async def test_force_disconnect_should_be_a_no_op_on_a_never_connected_harness(
+    allowlist_yaml_path: Path,
+) -> None:
+    """`force_disconnect()` must tolerate a harness whose transport never
+    even attempted connect — it is the cleanup primitive a coordinator
+    calls in `finally` blocks without state checks of its own.
+    """
+    from choreo import Harness
+
+    transport = _mock_transport(allowlist_yaml_path)
+    harness = Harness(transport)
+
+    # Must not raise; safe to call without any prior lifecycle.
+    await harness.force_disconnect()
+    assert harness.is_connected() is False
+
+
+async def test_force_disconnect_should_propagate_transport_disconnect_failures(
+    allowlist_yaml_path: Path,
+) -> None:
+    """`force_disconnect()` does NOT swallow transport failures — the
+    caller (Stage._rollback, etc.) wraps the call with its own
+    structured-log context. The harness still flips to disconnected
+    via `finally`, preserving the "after force_disconnect, harness is
+    no longer usable" invariant.
+    """
+    from choreo import Harness
+
+    transport = _mock_transport(allowlist_yaml_path)
+
+    async def boom_disconnect() -> None:
+        raise RuntimeError("transport disconnect blew up")
+
+    transport.disconnect = boom_disconnect  # type: ignore[method-assign]
+
+    harness = Harness(transport)
+
+    with pytest.raises(RuntimeError, match="transport disconnect blew up"):
+        await harness.force_disconnect()
+
+    # State still flipped to disconnected via finally.
+    assert harness.is_connected() is False
+
+
 async def test_disconnect_should_leave_harness_unusable_even_when_transport_raises(
     allowlist_yaml_path: Path,
 ) -> None:

@@ -19,7 +19,8 @@ class RunSummary(BaseModel):
     finished_at: datetime
     duration_ms: float
     environment: str | None
-    transport: str
+    transport: str | None
+    transports: list[str] | None = None
     branch: str | None
     git_sha: str | None
     project_name: str | None

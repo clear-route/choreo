@@ -17,6 +17,7 @@ function mockRun(overrides: Partial<RunSummary> = {}): RunSummary {
     duration_ms: 60000,
     environment: "staging",
     transport: "MockTransport",
+    transports: null,
     branch: "main",
     git_sha: "abc123",
     project_name: "test",

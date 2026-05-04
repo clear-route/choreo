@@ -108,13 +108,19 @@ class IngestService:
                 ]
                 db_scenarios = await self._run_repo.bulk_insert_scenarios(run, scenario_dicts)
 
-                # Build handle tuples keyed by scenario ID
+                # Build handle tuples keyed by scenario ID. Per PRD-012 §2.5
+                # the first slot in each tuple is the per-handle transport
+                # (falling back to the run-level value when the handle is
+                # single-Harness, i.e. h.transport is None). The repository
+                # interposes this into the COPY's `transport` column.
+                run_level_transport = normalised.transport
                 handles_by_scenario: dict[UUID, list[tuple]] = {}
                 for db_scenario, norm_scenario in zip(
                     db_scenarios, normalised.scenarios, strict=True
                 ):
                     handle_tuples = [
                         (
+                            h.transport or run_level_transport,
                             h.topic,
                             h.outcome,
                             h.latency_ms,

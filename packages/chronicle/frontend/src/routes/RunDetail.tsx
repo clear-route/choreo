@@ -97,7 +97,14 @@ export function RunDetail() {
             <Stat label="Started" value={new Date(run.started_at).toLocaleString("en-GB")} />
             <Stat label="Duration" value={formatDuration(run.duration_ms)} />
             <Stat label="Environment" value={run.environment || "not set"} />
-            <Stat label="Transport" value={run.transport} />
+            <Stat
+              label={run.transports && run.transports.length > 0 ? "Transports" : "Transport"}
+              value={
+                run.transports && run.transports.length > 0
+                  ? run.transports.join(", ")
+                  : (run.transport ?? "not set")
+              }
+            />
             <Stat label="Branch" value={run.branch ?? "not set"} isMono />
             <Stat label="Git SHA" value={run.git_sha?.slice(0, 8) ?? "not set"} isMono />
             <Stat label="Project" value={run.project_name ?? "not set"} />

@@ -86,6 +86,40 @@ s.on("fraud.check").publish(
 
 Want the real upstream in the test instead? Drop the reply, let the service run against the broker, and widen the expectation. The scenario does not care how many dancers are on the floor — it cares about the cues.
 
+### Multi-transport bridges (Stage)
+
+Some services exist to translate between transports: an HTTP listener that pushes events onto Kafka; a gateway that consumes NATS requests and republishes them as RabbitMQ messages; a router that bridges a low-latency NATS edge to a durable Kafka pipeline. The natural test boundary spans both transports.
+
+`Stage` is a coordinator that wraps a named registry of harnesses. One scenario can publish on transport A, register a reactive reply on transport B, and assert on transport A again — in a single deadline-bounded block.
+
+```python
+from choreo import Stage, Harness, MappedBridge
+from choreo.transports import NatsTransport, KafkaTransport
+from choreo.correlation import DictFieldPolicy
+
+stage = Stage(
+    harnesses={
+        "nats":  Harness(NatsTransport(...),  correlation=DictFieldPolicy()),
+        "kafka": Harness(KafkaTransport(...), correlation=DictFieldPolicy()),
+    },
+    bridge=MappedBridge(forwards={
+        "nats":  lambda logical: f"nats-{logical}",
+        "kafka": lambda logical: f"kafka-{logical}",
+    }),
+)
+
+async with stage.scenario("nats-kafka-round-trip") as s:
+    s.on("orders.new", on="kafka").publish(
+        "orders.processed", on="nats",
+        build=lambda trigger: {"forwarded": trigger["payload"]},
+    )
+    h = s.expect("results", field_equals("kind", "result"), on="nats")
+    s.publish("orders.new", {"payload": 42}, on="kafka")
+    result = await s.await_all(timeout_ms=100)
+```
+
+The full bridge round-trip in 13 lines of scenario body. Each transport keeps its own codec and correlation policy; a `CorrelationBridge` translates per-scope correlation across the wire. Cross-scope traffic between concurrent test scopes is filtered out by construction so 100 scopes can run against shared brokers without cross-talk. See [PRD-011](docs/prd/PRD-011-multi-transport-stage.md), [ADR-0027](docs/adr/0027-stage-multi-transport-coordinator.md), and the [Stage user guide](docs/guides/stage.md).
+
 ---
 
 ## When to use Choreo

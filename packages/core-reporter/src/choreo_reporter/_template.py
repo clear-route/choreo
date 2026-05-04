@@ -524,21 +524,60 @@ _CSS = """
    rendered between handles and the timeline. One row per reply;
    compact so a multi-reply cascade stays scannable. */
 .harness-report .hr-replies { margin-top: var(--hr-space-4); }
+.harness-report .hr-handles { margin-top: var(--hr-space-3); }
+/* Section headings (Expectations / Reply chains) — Pass-2 redesign
+   frames each block as a list of registered intent. Same visual
+   weight across both sections so the parallel between expectations
+   and reply chains is obvious. */
+.harness-report .hr-section-heading { font-size: 11px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 .harness-report .hr-replies h3 { font-size: 10px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-.harness-report .hr-reply-row { display: grid; grid-template-columns: auto 1fr 1fr auto; gap: var(--hr-space-3); align-items: baseline; padding: 4px var(--hr-space-2); border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); }
+/* Reply rows are grouped by state so a reader scanning for failures
+   sees them visually distinguished. PRD-012 / user-feedback redesign:
+   each row is a header (state + chain + one-line summary) plus an
+   expandable lifecycle body broken into four named stages. */
+.harness-report .hr-reply-row { border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); }
 .harness-report .hr-reply-row[data-state="replied"] { color: var(--hr-text); }
 .harness-report .hr-reply-row[data-state="reply_failed"] { color: var(--hr-text); background: var(--hr-fail-tint); }
 .harness-report .hr-reply-row[data-state="armed_no_match"],
 .harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { color: var(--hr-text-muted); background: var(--hr-slow-tint); }
-.harness-report .hr-reply-state { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; }
+.harness-report .hr-reply-row[aria-expanded="false"] .hr-reply-body { display: none; }
+.harness-report .hr-reply-row[aria-expanded="false"] .hr-caret { transform: rotate(-90deg); display: inline-block; }
+.harness-report .hr-reply-header { display: flex; align-items: baseline; gap: var(--hr-space-2); padding: 4px var(--hr-space-2); cursor: pointer; }
+.harness-report .hr-reply-header .hr-caret { color: var(--hr-text-subtle); width: 0.7rem; transition: transform 0.15s ease; }
+.harness-report .hr-reply-state { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; min-width: 7ch; }
 .harness-report .hr-reply-state[data-state="replied"] { color: var(--hr-pass); }
 .harness-report .hr-reply-state[data-state="reply_failed"] { color: var(--hr-fail); }
 .harness-report .hr-reply-state[data-state="armed_no_match"],
 .harness-report .hr-reply-state[data-state="armed_matcher_mismatched"] { color: var(--hr-slow); }
-.harness-report .hr-reply-topics { display: flex; gap: var(--hr-space-2); align-items: baseline; color: var(--hr-text); }
+.harness-report .hr-reply-chain { display: inline-flex; gap: var(--hr-space-2); align-items: baseline; color: var(--hr-text); flex-wrap: wrap; }
+.harness-report .hr-reply-topic { font-family: var(--hr-font-mono); }
 .harness-report .hr-reply-arrow { color: var(--hr-text-subtle); }
-.harness-report .hr-reply-counts { color: var(--hr-text-muted); font-variant-numeric: tabular-nums; text-align: right; }
-.harness-report .hr-reply-flags { color: var(--hr-fail); font-weight: 600; font-size: 10px; }
+.harness-report .hr-reply-summary { margin-left: auto; color: var(--hr-text-muted); font-style: italic; }
+.harness-report .hr-reply-row[data-state="reply_failed"] .hr-reply-summary { color: var(--hr-fail); font-style: normal; font-weight: 600; }
+
+/* Lifecycle body — four stage rows, one per lifecycle step. Each
+   stage's icon colour reflects status: ok = pass, no/failed = fail,
+   skipped = muted, na = subtle. Detail text is mono so wire-id-like
+   strings line up. */
+.harness-report .hr-reply-body { padding: 4px var(--hr-space-2) var(--hr-space-3) calc(var(--hr-space-2) + 1.6rem); }
+.harness-report .hr-reply-stage { display: grid; grid-template-columns: 1.2rem 13ch 1fr; gap: var(--hr-space-2); align-items: baseline; padding: 2px 0; }
+.harness-report .hr-reply-stage-icon { font-weight: 700; text-align: center; }
+.harness-report .hr-reply-stage[data-stage-status="ok"] .hr-reply-stage-icon { color: var(--hr-pass); }
+.harness-report .hr-reply-stage[data-stage-status="no"] .hr-reply-stage-icon,
+.harness-report .hr-reply-stage[data-stage-status="failed"] .hr-reply-stage-icon { color: var(--hr-fail); }
+.harness-report .hr-reply-stage[data-stage-status="skipped"] .hr-reply-stage-icon { color: var(--hr-text-muted); }
+.harness-report .hr-reply-stage[data-stage-status="na"] .hr-reply-stage-icon { color: var(--hr-text-subtle); }
+.harness-report .hr-reply-stage-label { color: var(--hr-text); font-weight: 500; }
+.harness-report .hr-reply-stage[data-stage-status="failed"] .hr-reply-stage-label { color: var(--hr-fail); font-weight: 600; }
+.harness-report .hr-reply-stage[data-stage-status="na"] .hr-reply-stage-label { color: var(--hr-text-muted); }
+.harness-report .hr-reply-stage-detail { color: var(--hr-text-muted); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); }
+.harness-report .hr-reply-note { padding: var(--hr-space-2) 0 0 1.2rem; color: var(--hr-text-muted); font-size: var(--hr-text-xs); font-style: italic; }
+
+/* Handle lifecycle (TIMEOUT/FAIL) — reuses .hr-reply-stage classes
+   for icon + colour treatment, scoped under .hr-handle-lifecycle so
+   the layout stays inline with the existing handle-body padding. */
+.harness-report .hr-handle-lifecycle { padding: var(--hr-space-2) 0; }
+.harness-report .hr-handle-lifecycle .hr-reply-stage { grid-template-columns: 1.2rem 18ch 1fr; }
 
 /* Captures (stdout/stderr/log) */
 .harness-report .hr-captures { margin-top: var(--hr-space-4); }
@@ -562,6 +601,145 @@ _CSS = """
 .harness-report .hr-json-number { color: oklch(0.58 0.16 45); }
 .harness-report .hr-json-bool { color: var(--hr-fail); font-weight: 600; }
 .harness-report .hr-json-null { color: var(--hr-text-subtle); font-style: italic; }
+
+/* ----------------------------------------------------------------- */
+/* PRD-012: Stage scenario surface (badges, breadcrumb, sub-badges).  */
+/* All selectors scoped under .harness-report.                        */
+/* ----------------------------------------------------------------- */
+
+/* Per-handle transport badge (PRD-012 §3.1). */
+.harness-report .hr-handle-transport-badge,
+.harness-report .hr-stage-transport-badge,
+.harness-report .hr-reply-transport-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0 0.4rem;
+  border-radius: 0.625rem;
+  background: var(--hr-surface-2);
+  color: var(--hr-text);
+  border: 1px solid var(--hr-border);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4rem;
+  white-space: nowrap;
+}
+
+/* Failed response-transport badge (PRD-012 §3.2 + US-2 AC3) — class
+   is the asserted contract; opacity is the visual rule. */
+.harness-report .hr-reply-transport-badge--failed {
+  opacity: 0.4;
+}
+
+/* Stage breadcrumb (PRD-012 §3.3 / Pass-2 redesign). Promoted to be
+   a hero-block under the scenario header — a Stage scenario IS a
+   Stage; the bridge class and registered transports are first-class
+   identity, not metadata. Bordered card with warm surface + a
+   prominent "STAGE" pill so the scenario type is unambiguous at a
+   glance. */
+.harness-report .hr-stage-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  background: var(--hr-info-tint);
+  border-left: 3px solid var(--hr-info);
+  border-bottom: 1px solid var(--hr-border);
+  font-size: 0.875rem;
+  color: var(--hr-text);
+}
+.harness-report .hr-stage-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.05rem 0.5rem;
+  background: var(--hr-info);
+  color: var(--hr-badge-fg);
+  font-weight: 700;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 0.25rem;
+  line-height: 1.2rem;
+}
+.harness-report .hr-stage-sep {
+  color: var(--hr-text-subtle);
+}
+.harness-report .hr-stage-bridge-label,
+.harness-report .hr-stage-transports-label {
+  font-size: 0.75rem;
+  color: var(--hr-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.harness-report .hr-stage-bridge-class {
+  font-family: var(--hr-mono);
+  font-weight: 600;
+  color: var(--hr-text);
+}
+/* Inline transport pills inside the breadcrumb get more weight than
+   handle/reply badges — they are the Stage's identity. */
+.harness-report .hr-stage-breadcrumb .hr-stage-transport-badge {
+  background: var(--hr-surface);
+  color: var(--hr-text);
+  border: 1px solid var(--hr-border-strong);
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.05rem 0.5rem;
+  line-height: 1.3rem;
+}
+/* Per-transport correlation id (in the breadcrumb's <details>
+   disclosure). Mono-font and bordered for readability against the
+   surrounding text. */
+.harness-report .hr-stage-correlation-ids {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+.harness-report .hr-stage-correlation-ids-summary {
+  font-size: 0.75rem;
+  color: var(--hr-text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.harness-report .hr-stage-correlation-ids-summary:hover {
+  color: var(--hr-text);
+}
+.harness-report .hr-stage-correlation-ids-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.4rem 0 0 1rem;
+}
+.harness-report .hr-stage-correlation-id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.harness-report .hr-stage-correlation-id {
+  font-family: var(--hr-mono);
+  font-size: 0.75rem;
+  color: var(--hr-text-muted);
+  background: var(--hr-surface);
+  border: 1px solid var(--hr-border);
+  border-radius: 0.25rem;
+  padding: 0 0.4rem;
+}
+
+/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5). */
+.harness-report .hr-scenario-failing-side,
+.harness-report .hr-scenario-failing-reply {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0 0.4rem;
+  border-radius: 0.25rem;
+  background: var(--hr-fail);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.4rem;
+}
 
 """
 
@@ -1243,14 +1421,65 @@ _JS = r"""
       meta.appendChild(el('span', { 'data-field': 'completed-flag' }, 'partial'));
     }
     header.appendChild(meta);
+    // PRD-012 §3.5 (US-5): failing-side sub-badge surfaces which
+    // transport (or transports) failed. Only present when the scenario
+    // is Stage AND has at least one non-passing handle. Space-separated
+    // tokens in data-failing-transports for CSS [~=] selector compat.
+    if (scenario.stage && (scenario.outcome === 'fail' || scenario.outcome === 'timeout')) {
+      var failingTransports = collectFailingTransports(scenario);
+      if (failingTransports.length > 0) {
+        header.appendChild(el('span', {
+          'class': 'hr-scenario-failing-side',
+          'data-failing-transports': failingTransports.join(' ')
+        }, 'FAIL → [' + failingTransports.join(', ') + ']'));
+      }
+    }
+    // PRD-012 §3.5 second sub-badge: surfaces a FIRED_BUILDER_ERROR
+    // reply's response transport (advisory tier per §3.6).
+    if (scenario.stage && scenario.replies && scenario.replies.length) {
+      var firstFailingReply = null;
+      for (var fri = 0; fri < scenario.replies.length; fri++) {
+        var fr = scenario.replies[fri];
+        if (fr.state === 'reply_failed' && fr.response_transport) {
+          firstFailingReply = fr;
+          break;
+        }
+      }
+      if (firstFailingReply) {
+        header.appendChild(el('span', {
+          'class': 'hr-scenario-failing-reply',
+          'data-failing-reply-response-transport': firstFailingReply.response_transport
+        }, 'REPLY FAILED → [' + firstFailingReply.response_transport + ']'));
+      }
+    }
     node.appendChild(header);
 
+    // PRD-012 §3.3: scope-level Stage breadcrumb. Renders only when the
+    // scenario carries a `stage` block (the canonical Stage signal).
+    if (scenario.stage) {
+      node.appendChild(renderStageBreadcrumb(scenario.stage));
+    }
+
     var body = el('div', { 'class': 'hr-scenario-body' });
-    (scenario.handles || []).forEach(function (h) {
-      body.appendChild(renderHandle(h));
-    });
-    // Reply reports (PRD-008) — one row per reply registered in the
-    // scope. Rendered between handles and the timeline so the reader
+    // PRD-012 Pass-2 redesign: handle rows ARE registered expectations
+    // (each `s.expect(topic, matcher, on=...)` becomes a row). Add a
+    // section heading so the framing reads as "what the test registered"
+    // rather than "what we observed", and a count for at-a-glance scan.
+    var handles = scenario.handles || [];
+    if (handles.length > 0) {
+      var handlesHost = el('div', { 'class': 'hr-handles', 'data-field': 'handles' });
+      var handlesHeading = el('h3', { 'class': 'hr-section-heading' });
+      handlesHeading.appendChild(document.createTextNode(
+        'Expectations (' + handles.length + ')'
+      ));
+      handlesHost.appendChild(handlesHeading);
+      handles.forEach(function (h) {
+        handlesHost.appendChild(renderHandle(h));
+      });
+      body.appendChild(handlesHost);
+    }
+    // Reply reports (PRD-008) — one row per reply chain registered in the
+    // scope. Rendered between expectations and the timeline so the reader
     // sees assertions, stand-ins, then the chronology.
     var repliesHost = renderReplies(scenario);
     if (repliesHost) {
@@ -1274,49 +1503,248 @@ _JS = r"""
     return node;
   }
 
-  // Render a compact reply-reports block for a scenario. Returns null
-  // when the scenario has no replies so the caller can skip adding an
-  // empty section. Structure: one row per reply with state badge,
-  // trigger → reply topics, count summary, and a flags column for
-  // `correlation_overridden` / `builder_error`.
+  // Render a reply-reports block for a scenario. Returns null when
+  // the scenario has no replies. Each reply renders as a header (state
+  // badge + chain + one-line summary) plus a body that breaks the
+  // reply lifecycle into four explicit stages: trigger received,
+  // matcher accepted, build callback, response published. The lifecycle
+  // is collapsed for `replied` (passing) and expanded for any other
+  // state so a QA reading a failure sees at a glance which stage went
+  // wrong.
   function renderReplies(scenario) {
     var replies = scenario.replies || [];
     if (replies.length === 0) { return null; }
     var host = el('div', { 'class': 'hr-replies', 'data-field': 'replies' });
-    var heading = el('h3', {});
+    var heading = el('h3', { 'class': 'hr-section-heading' });
     heading.appendChild(document.createTextNode(
-      'Replies (' + replies.length + ')'
+      'Reply chains (' + replies.length + ')'
     ));
     host.appendChild(heading);
     replies.forEach(function (r) {
-      var row = el('div', {
-        'class': 'hr-reply-row',
-        'data-state': r.state,
-        'data-trigger-topic': r.trigger_topic,
-        'data-reply-topic': r.reply_topic
-      });
-      row.appendChild(el('span', {
-        'class': 'hr-reply-state',
-        'data-state': r.state
-      }, replyStateLabel(r.state)));
-      var topics = el('span', { 'class': 'hr-reply-topics' });
-      topics.appendChild(document.createTextNode(r.trigger_topic));
-      topics.appendChild(el('span', { 'class': 'hr-reply-arrow' }, '\u2192'));
-      topics.appendChild(document.createTextNode(r.reply_topic));
-      row.appendChild(topics);
-      var counts = el('span', { 'class': 'hr-reply-counts' },
-        r.match_count + ' match / ' + r.candidate_count + ' candidate' +
-        (r.candidate_count === 1 ? '' : 's'));
-      row.appendChild(counts);
-      var flags = el('span', { 'class': 'hr-reply-flags' });
-      var flagParts = [];
-      if (r.builder_error) { flagParts.push(r.builder_error); }
-      if (r.correlation_overridden) { flagParts.push('correlation overridden'); }
-      flags.appendChild(document.createTextNode(flagParts.join(' · ')));
-      row.appendChild(flags);
-      host.appendChild(row);
+      host.appendChild(renderReplyRow(r));
     });
     return host;
+  }
+
+  // Reply-row container with header + lifecycle body. Header is
+  // tab-focusable and toggles the body open/closed; the body is
+  // expanded by default for any non-`replied` state so a failing
+  // reply surfaces its lifecycle breakdown immediately.
+  function renderReplyRow(r) {
+    var expandInitial = r.state !== 'replied';
+    var rowAttrs = {
+      'class': 'hr-reply-row',
+      'data-state': r.state,
+      'data-trigger-topic': r.trigger_topic,
+      'data-reply-topic': r.reply_topic,
+      'aria-expanded': expandInitial ? 'true' : 'false'
+    };
+    var isStageReply = !!(r.trigger_transport || r.response_transport);
+    if (isStageReply) {
+      rowAttrs['data-reply-publish-failed'] = (r.state === 'reply_failed') ? 'true' : 'false';
+    }
+    var row = el('div', rowAttrs);
+    var header = renderReplyHeader(r);
+    row.appendChild(header);
+    row.appendChild(renderReplyLifecycle(r));
+    header.addEventListener('click', function () {
+      var expanded = row.getAttribute('aria-expanded') === 'true';
+      row.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+    });
+    return row;
+  }
+
+  function renderReplyHeader(r) {
+    var header = el('div', { 'class': 'hr-reply-header', tabindex: '0' });
+    header.appendChild(el('span', { 'class': 'hr-caret', 'aria-hidden': 'true' }, '\u25BC'));
+    header.appendChild(el('span', {
+      'class': 'hr-reply-state',
+      'data-state': r.state
+    }, replyStateLabel(r.state)));
+    var chain = el('span', { 'class': 'hr-reply-chain' });
+    if (r.trigger_transport) {
+      chain.appendChild(el('span', {
+        'class': 'hr-reply-transport-badge',
+        'data-reply-trigger-transport': r.trigger_transport,
+        'aria-label': 'trigger transport: ' + r.trigger_transport
+      }, r.trigger_transport));
+    }
+    chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.trigger_topic));
+    chain.appendChild(el('span', { 'class': 'hr-reply-arrow' }, '\u2192'));
+    if (r.response_transport) {
+      var responseClass = 'hr-reply-transport-badge';
+      if (r.state === 'reply_failed') {
+        responseClass += ' hr-reply-transport-badge--failed';
+      }
+      chain.appendChild(el('span', {
+        'class': responseClass,
+        'data-reply-response-transport': r.response_transport,
+        'aria-label': 'response transport: ' + r.response_transport
+      }, r.response_transport));
+    }
+    chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.reply_topic));
+    header.appendChild(chain);
+    header.appendChild(el('span', { 'class': 'hr-reply-summary' }, replyOneLineSummary(r)));
+    return header;
+  }
+
+  // One-line outcome summary for the collapsed reply row.
+  function replyOneLineSummary(r) {
+    if (r.state === 'replied') {
+      return 'fired \u2014 trigger matched, build ok, response published';
+    }
+    if (r.state === 'reply_failed') {
+      var err = r.builder_error || 'unknown error';
+      return 'failed at build/publish \u2014 ' + err;
+    }
+    if (r.state === 'armed_no_match') {
+      return 'no candidates received on the trigger topic for this scope';
+    }
+    if (r.state === 'armed_matcher_mismatched') {
+      var n = r.candidate_count || 0;
+      return 'matcher rejected ' + n + ' candidate' + (n === 1 ? '' : 's');
+    }
+    return r.state;
+  }
+
+  // Lifecycle: four stages run in order on every reply chain. Each
+  // stage's status (ok / no / failed / skipped / na) drives the icon
+  // and colour. All four stages render for every reply so a reader
+  // can see precisely where things went wrong (or that everything
+  // ran cleanly).
+  function renderReplyLifecycle(r) {
+    var body = el('div', { 'class': 'hr-reply-body' });
+    var triggerLabel = (r.trigger_transport ? r.trigger_transport + ':' : '') + r.trigger_topic;
+    var responseLabel = (r.response_transport ? r.response_transport + ':' : '') + r.reply_topic;
+
+    var triggerStatus = r.candidate_count > 0 ? 'ok' : 'no';
+    var triggerDetail = r.candidate_count > 0
+      ? r.candidate_count + ' candidate' + (r.candidate_count === 1 ? '' : 's') +
+        ' on ' + triggerLabel
+      : 'no message arrived on ' + triggerLabel + ' (correlation-matched) for this scope';
+
+    var matcherStatus, matcherDetail;
+    if (r.candidate_count === 0) {
+      matcherStatus = 'na';
+      matcherDetail = 'n/a \u2014 nothing to match';
+    } else if (r.match_count > 0) {
+      matcherStatus = 'ok';
+      matcherDetail = r.match_count + ' / ' + r.candidate_count + ' candidate' +
+        (r.candidate_count === 1 ? '' : 's') + ' passed';
+    } else {
+      matcherStatus = 'no';
+      matcherDetail = '0 / ' + r.candidate_count + ' passed \u2014 matcher rejected every candidate';
+    }
+
+    var buildStatus, buildDetail;
+    if (r.match_count === 0) {
+      buildStatus = 'na';
+      buildDetail = 'n/a \u2014 no candidates matched';
+    } else if (r.builder_error) {
+      buildStatus = 'failed';
+      buildDetail = r.builder_error + ' raised while constructing the response payload';
+    } else {
+      buildStatus = 'ok';
+      buildDetail = 'response payload built';
+    }
+
+    var publishStatus, publishDetail;
+    if (r.reply_published) {
+      publishStatus = 'ok';
+      publishDetail = 'sent on ' + responseLabel;
+    } else if (r.builder_error) {
+      publishStatus = 'skipped';
+      publishDetail = 'skipped \u2014 build raised, no message sent';
+    } else if (r.match_count === 0) {
+      publishStatus = 'na';
+      publishDetail = 'n/a \u2014 nothing to publish';
+    } else {
+      publishStatus = 'no';
+      publishDetail = 'publish on ' + responseLabel + ' did not complete';
+    }
+
+    body.appendChild(renderReplyStage('trigger received', triggerStatus, triggerDetail));
+    body.appendChild(renderReplyStage('matcher accepted', matcherStatus, matcherDetail));
+    body.appendChild(renderReplyStage('build callback', buildStatus, buildDetail));
+    body.appendChild(renderReplyStage('response published', publishStatus, publishDetail));
+
+    if (r.correlation_overridden) {
+      var note = el('div', { 'class': 'hr-reply-note' });
+      note.appendChild(document.createTextNode(
+        'note: correlation id was overridden by the scope (consumer-set; not the bridge default).'
+      ));
+      body.appendChild(note);
+    }
+    return body;
+  }
+
+  function renderReplyStage(label, status, detail) {
+    var line = el('div', { 'class': 'hr-reply-stage', 'data-stage-status': status });
+    var glyph = '\u00b7';
+    if (status === 'ok') { glyph = '\u2713'; }
+    else if (status === 'no' || status === 'failed') { glyph = '\u2717'; }
+    else if (status === 'skipped') { glyph = '\u2298'; }
+    line.appendChild(el('span', { 'class': 'hr-reply-stage-icon', 'aria-hidden': 'true' }, glyph));
+    line.appendChild(el('span', { 'class': 'hr-reply-stage-label' }, label));
+    line.appendChild(el('span', { 'class': 'hr-reply-stage-detail' }, detail));
+    return line;
+  }
+
+  // Handle-side lifecycle for TIMEOUT / FAIL outcomes. Mirrors the
+  // reply lifecycle so a QA reading a failure has the same diagnostic
+  // vocabulary on both sides. Two stages we can answer reliably from
+  // current data (handle.attempts, handle.outcome); the publish-fired
+  // and inbound-arrived stages land when the timeline ships for
+  // Stage scopes (Pass-2 deferred work).
+  //
+  // Stage taxonomy:
+  //   - correlation-matched message received: handle.attempts > 0
+  //     means at least one inbound message survived correlation
+  //     filtering on this topic for this scope. attempts == 0 on
+  //     TIMEOUT means nothing reached the matcher.
+  //   - matcher accepted: handle.outcome in (pass, slow). For
+  //     FAIL/TIMEOUT this stage is failed/skipped/na depending on
+  //     whether candidates arrived to be rejected.
+  function renderHandleLifecycle(handle) {
+    var body = el('div', { 'class': 'hr-handle-lifecycle' });
+    var attempts = handle.attempts || 0;
+    var transportLabel = handle.transport ? handle.transport + ':' : '';
+    var topicLabel = transportLabel + handle.topic;
+    var deadlineMs = (typeof handle.latency_ms === 'number')
+      ? handle.latency_ms.toFixed(0) + 'ms'
+      : 'the timeout';
+
+    var triggerStatus = attempts > 0 ? 'ok' : 'no';
+    var triggerDetail = attempts > 0
+      ? attempts + ' candidate' + (attempts === 1 ? '' : 's') +
+        ' on ' + topicLabel + ' (correlation-matched)'
+      : 'no message arrived on ' + topicLabel +
+        ' (correlation-matched) within ' + deadlineMs;
+
+    var matcherStatus, matcherDetail;
+    if (attempts === 0) {
+      matcherStatus = 'na';
+      matcherDetail = 'n/a \u2014 nothing to match';
+    } else if (handle.outcome === 'pass' || handle.outcome === 'slow') {
+      matcherStatus = 'ok';
+      matcherDetail = '1 / ' + attempts + ' candidate' +
+        (attempts === 1 ? '' : 's') + ' passed';
+    } else {
+      matcherStatus = 'no';
+      matcherDetail = '0 / ' + attempts + ' passed \u2014 matcher rejected every candidate';
+    }
+
+    body.appendChild(renderReplyStage(
+      'correlation-matched message received',
+      triggerStatus,
+      triggerDetail
+    ));
+    body.appendChild(renderReplyStage(
+      'matcher accepted',
+      matcherStatus,
+      matcherDetail
+    ));
+    return body;
   }
 
   // Short user-facing label for a reply report state. The enum values
@@ -1328,6 +1756,92 @@ _JS = r"""
     if (state === 'armed_no_match') { return 'no match'; }
     if (state === 'armed_matcher_mismatched') { return 'mismatched'; }
     return state;
+  }
+
+  // PRD-012 §3.3: scope-level Stage breadcrumb. Renders the bridge
+  // class name, the registered transports as pills, and a collapsed
+  // detail panel with per-transport correlation ids. Stable-tier
+  // `data-*` attributes (PRD-012 §3.6) are:
+  //   - data-stage-bridge-class (advisory tier)
+  //   - data-stage-transports (space-separated, stable)
+  //   - data-stage-transport on individual pills (stable; distinct
+  //     from handle-row data-handle-transport so the US-1 selector
+  //     contract holds).
+  function renderStageBreadcrumb(stage) {
+    var transports = stage.transports || [];
+    var crumbAttrs = { 'class': 'hr-stage-breadcrumb' };
+    if (stage.bridge_class) {
+      crumbAttrs['data-stage-bridge-class'] = stage.bridge_class;
+    }
+    if (transports.length) {
+      crumbAttrs['data-stage-transports'] = transports.join(' ');
+    }
+    var crumb = el('div', crumbAttrs);
+    crumb.appendChild(el('span', { 'class': 'hr-stage-label' }, 'Stage'));
+    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
+    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-label' }, 'bridge:'));
+    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-class' }, stage.bridge_class || ''));
+    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
+    crumb.appendChild(el('span', { 'class': 'hr-stage-transports-label' }, 'transports:'));
+    transports.forEach(function (t) {
+      crumb.appendChild(el('span', {
+        'class': 'hr-stage-transport-badge',
+        'data-stage-transport': t
+      }, t));
+    });
+    // Per-transport correlation ids — moved into a collapsed
+    // disclosure (`<details>`) so the breadcrumb stays scannable.
+    // Consumers querying the `data-stage-transport` selector still
+    // find the pills inside the disclosure.
+    var correlationIds = stage.correlation_ids || {};
+    var correlationKeys = [];
+    for (var k in correlationIds) {
+      if (Object.prototype.hasOwnProperty.call(correlationIds, k)) {
+        correlationKeys.push(k);
+      }
+    }
+    if (correlationKeys.length) {
+      var detail = el('details', { 'class': 'hr-stage-correlation-ids' });
+      var summary = el('summary', { 'class': 'hr-stage-correlation-ids-summary' });
+      summary.appendChild(document.createTextNode('correlation ids (' + correlationKeys.length + ')'));
+      detail.appendChild(summary);
+      var idsList = el('div', { 'class': 'hr-stage-correlation-ids-list' });
+      correlationKeys.sort();
+      correlationKeys.forEach(function (t) {
+        var row = el('div', { 'class': 'hr-stage-correlation-id-row' });
+        row.appendChild(el('span', {
+          'class': 'hr-stage-transport-badge',
+          'data-stage-transport': t
+        }, t));
+        row.appendChild(el('span', {
+          'class': 'hr-stage-correlation-id',
+          'data-stage-transport': t
+        }, correlationIds[t]));
+        idsList.appendChild(row);
+      });
+      detail.appendChild(idsList);
+      crumb.appendChild(detail);
+    }
+    return crumb;
+  }
+
+  // PRD-012 §3.5: collect deduplicated, sorted transport names of
+  // every non-passing handle in a Stage scenario. The result is the
+  // value of the failing-side sub-badge's data-failing-transports
+  // attribute (space-separated, [~=] selector compat).
+  function collectFailingTransports(scenario) {
+    var seen = {};
+    var out = [];
+    (scenario.handles || []).forEach(function (h) {
+      if (!h.transport) { return; }
+      if (h.outcome === 'pass' || h.outcome === 'slow') { return; }
+      if (!seen[h.transport]) {
+        seen[h.transport] = true;
+        out.push(h.transport);
+      }
+    });
+    out.sort();
+    return out;
   }
 
   function mountTimeline(host, scenario) {
@@ -1823,18 +2337,38 @@ _JS = r"""
     // fail gets a structural diff; timeout shows the absent-message
     // state plus what the matcher was looking for.
     var expanded = handle.outcome !== 'pass';
-    var node = el('div', {
+    var nodeAttrs = {
       'class': 'hr-handle',
       'data-topic': handle.topic,
       'data-outcome': handle.outcome,
       'aria-expanded': expanded ? 'true' : 'false'
-    });
+    };
+    // PRD-012 §3.1 + §3.4: Stage handles carry data-handle-transport
+    // on the row so a follow-up by-transport grouping toggle can
+    // re-flow them via CSS [data-grouping-mode="by-transport"]
+    // selectors. The badge below uses the same value.
+    if (handle.transport) {
+      nodeAttrs['data-handle-transport'] = handle.transport;
+    }
+    var node = el('div', nodeAttrs);
     var header = el('div', { 'class': 'hr-handle-header', tabindex: '0' });
     header.appendChild(el('span', { 'class': 'hr-caret', 'aria-hidden': 'true' }, '\u25BC'));
     header.appendChild(el('span', { 'class': 'hr-badge', 'data-outcome': handle.outcome }, outcomeLetter(handle.outcome)));
     // Row layout: chevron + badge + topic + latency. No card, no kind
     // label — the scenario section above establishes context.
     header.appendChild(el('span', { 'class': 'hr-topic' }, handle.topic));
+    // PRD-012 §3.1 (US-1): per-handle transport badge on Stage handles.
+    // The badge carries class `hr-handle-transport-badge` (CSS hook)
+    // and aria-label (US-1 AC4) but NOT `data-handle-transport` —
+    // that attribute lives on the row only, so the selector
+    // `[data-handle-transport]` returns one element per Stage handle
+    // rather than two (row + badge).
+    if (handle.transport) {
+      header.appendChild(el('span', {
+        'class': 'hr-handle-transport-badge',
+        'aria-label': 'transport: ' + handle.transport
+      }, handle.transport));
+    }
     if (typeof handle.latency_ms === 'number') {
       var latText = handle.latency_ms.toFixed(1) + 'ms';
       if (typeof handle.budget_ms === 'number') {
@@ -1861,20 +2395,25 @@ _JS = r"""
       // numbers; the UI now renders only structured fields.
       body.appendChild(renderBudgetBar(handle));
     } else if (outcome === 'timeout') {
-      body.appendChild(el('div', { 'class': 'hr-timeout-note' },
-        'no message arrived on ' + handle.topic + ' within ' +
-        (typeof handle.latency_ms === 'number'
-          ? handle.latency_ms.toFixed(0) + 'ms' : 'the timeout')));
-      // Show the expected shape so the author knows what would have
-      // satisfied the matcher.
+      // PRD-012 Pass-2 redesign: instead of a single "no message
+      // arrived" note, render the same lifecycle pattern the reply
+      // body uses — the QA gets the same diagnostic vocabulary on
+      // expectations and replies. Without timeline data we can answer
+      // two of the four questions reliably (correlation-matched and
+      // matcher-accepted); the publish-fired and inbound-arrived
+      // questions land when the timeline ships for Stage scopes.
+      body.appendChild(renderHandleLifecycle(handle));
+      // Expected shape so the author knows what WOULD have satisfied
+      // the matcher.
       if (handle.expected !== null && handle.expected !== undefined) {
         body.appendChild(renderExpectedOnly(handle.expected));
       }
     } else if (outcome === 'fail') {
-      // No reason pill for FAIL — the structural diff below already
-      // communicates which path differed and with which value. Keeping
-      // the pill was a double-render of the same information (see
-      // design-engineer notes 2026-04-17).
+      // FAIL = at least one candidate arrived but the matcher rejected
+      // every one. Prepend the lifecycle so the reader sees "matcher
+      // rejected N candidates" before drilling into the structural
+      // diff for the last mismatch.
+      body.appendChild(renderHandleLifecycle(handle));
       body.appendChild(renderStructuralDiff(handle.expected, handle.actual));
     } else {
       // Fallback: show side-by-side for any unexpected state.
@@ -2419,11 +2958,11 @@ _HTML_TEMPLATE = (
     "<head>\n"
     '<meta charset="utf-8">\n'
     "<title>Harness Test Report</title>\n"
-    '<meta name="harness-schema-version" content="1">\n'
+    '<meta name="harness-schema-version" content="1.1">\n'
     "<style>" + _CSS + "</style>\n"
     "</head>\n"
     "<body>\n"
-    '<div class="harness-report" data-schema-version="1">\n'
+    '<div class="harness-report" data-schema-version="1.1" data-grouping-mode="by-scenario">\n'
     '  <header class="hr-header">\n'
     '    <div class="hr-hero-meta">\n'
     '      <div class="hr-hero-project" data-field="project_name" hidden></div>\n'

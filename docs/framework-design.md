@@ -25,9 +25,10 @@ Related documents:
 9. [Deadlines and timeouts](#9-deadlines-and-timeouts)
 10. [Error handling and failure recovery](#10-error-handling-and-failure-recovery)
 11. [Observability hooks](#11-observability-hooks)
-12. [Related ADRs](#12-related-adrs)
-13. [Writing style](#13-writing-style)
-14. [Appendix — Architecture diagrams](#14-appendix--architecture-diagrams)
+12. [Multi-transport scenarios (Stage)](#12-multi-transport-scenarios-stage)
+13. [Related ADRs](#13-related-adrs)
+14. [Writing style](#14-writing-style)
+15. [Appendix — Architecture diagrams](#15-appendix--architecture-diagrams)
 
 ---
 
@@ -714,7 +715,60 @@ register_redactor(mask_tokens)
 
 ---
 
-## 12. Related ADRs
+## 12. Multi-transport scenarios (Stage)
+
+`Stage` is a coordinator that wraps a named registry of `Harness` instances so a single scenario can publish, expect, and reply across multiple message transports under one global deadline. The motivating case is a bridge AUT — a service that translates between transports (e.g. low-latency NATS request → durable Kafka pipeline → response on NATS). The natural test boundary spans both transports; a single-`Harness` scenario cannot.
+
+See [PRD-011](prd/PRD-011-multi-transport-stage.md) and [ADR-0027](adr/0027-stage-multi-transport-coordinator.md) for the design discussion. This section is a fast architectural read-out.
+
+### What Stage owns
+
+- **Registry of harnesses.** `Stage(harnesses={"nats": Harness(...), "kafka": Harness(...)}, bridge=...)`. Each harness keeps its own transport, codec, and `CorrelationPolicy`. The Stage drives the harnesses through their public surface.
+- **Bridge.** A `CorrelationBridge` translates a per-scope logical id into per-transport wire ids. Two bridges ship: `IdentityBridge` (single-transport tests of the framework itself) and `MappedBridge` (per-transport forward functions). Consumers writing protocol bridges with non-trivial id translation (FIX ↔ LBM, NATS UUID ↔ Kafka structured event id) implement the small `CorrelationBridge` Protocol.
+- **Lifecycle state machine.** NEW → CONNECTED via `connect()` (sequential, fail-fast with rollback); CONNECTED → DISCONNECTED via `disconnect()` (best-effort across transports, surfaces any failures as a PEP 654 `ExceptionGroup`); re-use is not supported (construct a new Stage). The harness registry is fixed at construction.
+
+### Trust boundary: the bridge
+
+The bridge is consumer code executed inside the Stage's async path on every scope entry. The library defends itself by:
+
+- **Wrapping every bridge call.** `BridgeTranslationError` carries the bridge class, method, transport, and the original exception (mirrors ADR-0019's `CorrelationPolicyError` shape). The async event loop is never poisoned.
+- **Validating bridge return shape.** Every `to_wire` return value is checked to be a non-empty `str` of length ≤ `_MAX_WIRE_ID_LEN` (1024).
+- **Two-pass distinctness.** A startup smoke test against a synthetic logical id (`Stage.__init__`) plus a per-scope re-validation against the actual `bridge.fresh()` value (`__aenter__`). Both raise `BridgeAmbiguityError` on collision; the second pass catches bridges that pass the smoke test but collide on real input.
+- **Transport-set mismatch detection.** Bridges advertising a `configured_transports` attribute (e.g. `MappedBridge`) are checked against the registered harness set at construction; mismatch raises `BridgeTransportMismatchError`.
+
+### Per-scope correlation flow
+
+For each `stage.scenario(name)` block:
+
+1. `__aenter__` calls `bridge.fresh()` once to mint a logical scope id, then iterates the registered transports calling `bridge.to_wire(logical, transport)` for each. The per-transport wire ids are stored on `_StageChild` records — each child holds its harness reference, the wire id, and lists for subscriber refs, expectations, and replies.
+2. DSL methods (`expect`, `publish`, `on`) take an `on=<transport>` selector. The selector is required (omitting it raises `MissingTransportError`); an unknown name raises `UnknownTransportError`. Both errors carry the transport name and (for the unknown case) the registered set so consumers can spot typos.
+3. `expect()` registers an inbound callback on the named harness. The callback uses the shared `_decode_and_correlation_check` helper: decode payload via the harness's codec, read the wire id via the harness's `CorrelationPolicy`, and drop the message if the id does not match the child's wire id. This is the parallel-isolation defence: 100 concurrent scopes sharing brokers see only their own messages.
+4. `publish()` stamps the per-child wire id via the harness's policy before delegating to `harness.publish()`. The default `NoCorrelationPolicy` is a no-op stamp; consumers wanting per-scope isolation across multiple Stages on shared infrastructure configure each harness with `DictFieldPolicy` (or a header-based policy).
+
+### Reply chain semantics
+
+`s.on(trigger_topic, on=A).publish(response_topic, on=B, build=...)` registers a cross-transport reactive reply:
+
+- The reply record (`_StageReply`) lives on the **trigger** child only — single-writer per [ADR-0016](adr/0016-reply-lifecycle.md). The response child has no record. `_StageScenarioResult.replies` reflects this with one `StageReplyReport` per registration.
+- Fire-once is preserved across the cross-transport boundary: the trigger callback flips `_StageReply.state` from `ARMED` to `FIRED` BEFORE invoking the build callback. A nested re-entrant publish that re-fires the trigger callback short-circuits at the post-FIRED bypass.
+- On match, `build(payload)` produces the response payload; the response is encoded via the response child's codec, stamped via the response child's `CorrelationPolicy.write` with the **response** child's wire id (the bridge's `to_wire(logical, response_transport)` value), and published via the response harness. Any exception in build/encode/stamp/publish flips the state to `FIRED_BUILDER_ERROR`; `builder_error` is the exception class name only, never `str(exc)`.
+
+### Result shape
+
+`_StageScenarioResult` carries:
+
+- `handles: tuple[Handle, ...]` — every expectation's resolved handle in registration order across all transports. Each handle's `transport` field reflects the `on=` selector at construction (read-only via property; consumer-side mutation raises `AttributeError`).
+- `passed: bool` — handles-only; `result.passed` is True iff every handle resolved as PASS.
+- `replies: tuple[StageReplyReport, ...]` — one report per `on().publish()` registration.
+- `by_transport: Mapping[str, tuple[Handle, ...]]` — per-transport view of handles. Stage scenarios populate this with one entry per touched transport; single-Harness scenarios bypass it (the mapping is empty).
+
+### Diagrams
+
+The Stage architecture diagram and bridge round-trip flow live in [§15.5 Stage component overview](#155-stage-component-overview) and [§15.6 Cross-transport reply flow](#156-cross-transport-reply-flow).
+
+---
+
+## 13. Related ADRs
 
 The ADRs are the authoritative source of truth for each decision. This section is a reading guide.
 
@@ -741,7 +795,7 @@ Recommended reading order for a new contributor: 0005 → 0001 → 0003 → 0002
 
 ---
 
-## 13. Writing style
+## 14. Writing style
 
 These rules apply to all ADRs, PRDs, and this document. Violation is a code-review block.
 
@@ -753,7 +807,7 @@ These rules apply to all ADRs, PRDs, and this document. Violation is a code-revi
 
 ---
 
-## 14. Appendix — Architecture diagrams
+## 15. Appendix — Architecture diagrams
 
 ### Component overview
 

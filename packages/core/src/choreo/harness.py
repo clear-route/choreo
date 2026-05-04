@@ -132,8 +132,46 @@ class Harness:
                 pass
             self._connected = False
 
+    async def force_disconnect(self) -> None:
+        """Bypass the `is_connected()` short-circuit and run the full
+        teardown unconditionally.
+
+        Multi-transport coordinators (`Stage`, ADR-0027) need this when a
+        harness's `connect()` raised partway: the transport may have
+        opened resources before raising, and the regular `disconnect()`
+        skips them because `_connected` stayed False. This method is the
+        explicit escape hatch.
+
+        Like `disconnect()`, it always clears subscriptions and flips
+        the harness to disconnected (via `finally`), and propagates any
+        exception from `transport.disconnect()` so the caller can wrap
+        with its own structured-log context. Idempotent on a never-
+        connected harness whose transport's disconnect is a no-op.
+        """
+        try:
+            await self._transport.disconnect()
+        finally:
+            try:
+                self._transport.clear_subscriptions()
+            except Exception:
+                pass
+            self._connected = False
+
     def is_connected(self) -> bool:
         return self._connected
+
+    @property
+    def transport_name(self) -> str:
+        """Read-only accessor for the transport's class name (PRD-012
+        §2.5, §2.8).
+
+        The choreo-reporter reads this to populate `run.transport` for
+        single-`Harness` runs without reaching into the private
+        `_transport` attribute. The value is whatever
+        `type(transport).__name__` resolves to (e.g. `"MockTransport"`,
+        `"NatsTransport"`).
+        """
+        return type(self._transport).__name__
 
     @property
     def codec(self) -> Codec:

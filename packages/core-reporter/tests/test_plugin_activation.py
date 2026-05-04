@@ -86,12 +86,13 @@ def test_the_env_var_should_be_used_when_the_cli_flag_is_absent(
     assert (env_path / "results.json").is_file()
 
 
-def test_the_json_output_should_declare_schema_version_1(
+def test_the_json_output_should_declare_schema_version_1_1(
     pytester: pytest.Pytester,
 ) -> None:
+    """PRD-012 bumped schema_version from '1' to '1.1' (additive minor)."""
     _, report_dir = _run_inner(pytester, args=[])
     doc = json.loads((report_dir / "results.json").read_text())
-    assert doc["schema_version"] == "1"
+    assert doc["schema_version"] == "1.1"
 
 
 def test_the_json_output_should_record_one_test_record_per_nodeid(

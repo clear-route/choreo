@@ -29,7 +29,7 @@ from sqlalchemy import (
     Text,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -108,7 +108,10 @@ class Run(Base):
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
     environment: Mapped[str | None] = mapped_column(Text)
-    transport: Mapped[str] = mapped_column(Text, nullable=False)
+    # PRD-012: relaxed to nullable. Stage-only and mixed-mode runs
+    # emit transport=null + transports=union (sorted alphabetically).
+    transport: Mapped[str | None] = mapped_column(Text, nullable=True)
+    transports: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
     branch: Mapped[str | None] = mapped_column(Text)
     git_sha: Mapped[str | None] = mapped_column(Text)
     hostname: Mapped[str | None] = mapped_column(Text)
@@ -200,7 +203,11 @@ class HandleMeasurement(Base):
     run_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     scenario_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     environment: Mapped[str | None] = mapped_column(Text)
-    transport: Mapped[str] = mapped_column(Text, nullable=False)
+    # PRD-012 (migration 004): relaxed to nullable. Mixed-mode runs
+    # (single-Harness + Stage in the same pytest session) carry
+    # single-Harness handles with no per-handle transport AND a
+    # null run-level transport.
+    transport: Mapped[str | None] = mapped_column(Text, nullable=True)
     branch: Mapped[str | None] = mapped_column(Text)
 
     topic: Mapped[str] = mapped_column(Text, nullable=False)

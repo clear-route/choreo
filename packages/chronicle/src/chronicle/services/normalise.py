@@ -25,6 +25,10 @@ class NormalisedHandle:
     matcher_description: str
     diagnosis_kind: str | None
     over_budget: bool
+    # PRD-012: per-handle transport for Stage scenarios. None for
+    # single-Harness handles. Flowed through to
+    # `handle_measurements.transport` by the repository.
+    transport: str | None = None
 
 
 @dataclass(frozen=True)
@@ -53,7 +57,12 @@ class NormalisedReport:
     finished_at: datetime
     duration_ms: float
     environment: str | None
-    transport: str
+    # PRD-012: `transport` is now nullable (Stage-only or mixed runs);
+    # `transports` carries the sorted union when populated. Repository
+    # writes `transport` to `runs.transport` (column relaxed to nullable
+    # by migration `003_prd012_stage_transports.py`); `transports` to
+    # `runs.transports`.
+    transport: str | None
     branch: str | None
     git_sha: str | None
     hostname: str | None
@@ -72,6 +81,10 @@ class NormalisedReport:
 
     # Exploded data
     scenarios: list[NormalisedScenario]
+
+    # PRD-012: optional with default to keep backward compatibility
+    # with test fixtures constructing NormalisedReport directly.
+    transports: list[str] | None = None
 
     @property
     def handle_count(self) -> int:
@@ -123,10 +136,24 @@ def normalise_report(report: object) -> NormalisedReport:
     scenarios: list[NormalisedScenario] = []
     for test in tests:
         for scenario_dict in test.get("scenarios", []):
+            # PRD-012 contract: a Stage scenario (signalled by the
+            # `stage` block) carries per-handle `transport` on every
+            # handle. Validate the invariant up-front so the COPY
+            # protocol does not later attempt to write NULL into the
+            # NOT-NULL `handle_measurements.transport` column with an
+            # opaque IntegrityError.
+            is_stage_scenario = scenario_dict.get("stage") is not None
             handles: list[NormalisedHandle] = []
             for h in scenario_dict.get("handles", []):
                 diagnosis = h.get("diagnosis") or {}
                 diagnosis_kind = diagnosis.get("kind")
+                handle_transport = h.get("transport")
+                if is_stage_scenario and handle_transport is None:
+                    raise ValueError(
+                        f"Stage handle on topic {h.get('topic')!r} in scenario "
+                        f"{scenario_dict.get('name')!r} has no `transport` field; "
+                        "PRD-012 §1.1 requires every Stage handle to carry one."
+                    )
                 handles.append(
                     NormalisedHandle(
                         topic=h["topic"],
@@ -137,6 +164,7 @@ def normalise_report(report: object) -> NormalisedReport:
                         matcher_description=h.get("matcher_description", ""),
                         diagnosis_kind=diagnosis_kind,
                         over_budget=diagnosis_kind == "over_budget",
+                        transport=handle_transport,
                     )
                 )
             scenarios.append(
@@ -156,7 +184,8 @@ def normalise_report(report: object) -> NormalisedReport:
         finished_at=datetime.fromisoformat(run["finished_at"]),
         duration_ms=run["duration_ms"],
         environment=run.get("environment"),
-        transport=run["transport"],
+        transport=run.get("transport"),
+        transports=run.get("transports"),
         branch=run.get("git_branch"),
         git_sha=run.get("git_sha"),
         hostname=run.get("hostname"),

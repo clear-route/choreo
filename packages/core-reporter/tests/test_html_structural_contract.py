@@ -43,7 +43,7 @@ def test_the_html_should_contain_the_harness_report_root_and_schema_version(
     soup = BeautifulSoup(html, "html.parser")
     root = soup.select_one(".harness-report")
     assert root is not None
-    assert root.get("data-schema-version") == "1"
+    assert root.get("data-schema-version") == "1.1"
 
 
 def test_the_html_should_inline_the_json_in_a_script_tag(run_with) -> None:

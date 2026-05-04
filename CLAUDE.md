@@ -199,6 +199,67 @@ the canonical consumer example above).
 
 ---
 
+## Multi-transport scenarios (Stage)
+
+For tests that span multiple transports — typically a bridge / protocol
+translator AUT — use `Stage` (ADR-0027 / PRD-011). One scenario can
+publish on transport A, register a reactive reply on transport B, and
+assert on transport A again, in a single deadline-bounded block.
+
+```python
+from choreo import Harness, MappedBridge, Stage
+from choreo.correlation import DictFieldPolicy
+from choreo.transports import NatsTransport, KafkaTransport
+
+stage = Stage(
+    harnesses={
+        "nats":  Harness(NatsTransport(...),  correlation=DictFieldPolicy()),
+        "kafka": Harness(KafkaTransport(...), correlation=DictFieldPolicy()),
+    },
+    bridge=MappedBridge(forwards={
+        "nats":  lambda logical: f"nats-{logical}",
+        "kafka": lambda logical: f"kafka-{logical}",
+    }),
+)
+
+await stage.connect()
+async with stage.scenario("bridge") as s:
+    s.on("orders.new", on="kafka").publish(
+        "orders.processed", on="nats",
+        build=lambda trigger: build_response(trigger),
+    )
+    h = s.expect("results", field_equals("kind", "result"), on="nats")
+    s.publish("orders.new", request_payload, on="kafka")
+    result = await s.await_all(timeout_ms=5000)
+```
+
+Conventions specific to Stage:
+
+- **`on=` is required** on every DSL method (`expect`, `publish`, `on`).
+  Omitting it raises `MissingTransportError` (a framework error, not the
+  generic Python `TypeError`); an unknown name raises
+  `UnknownTransportError` listing the registered transports.
+- **`Handle.transport` is read-only.** Set inside the constructor, never
+  via post-hoc mutation. Consumer-side mutation raises `AttributeError`.
+- **Stage scenarios use `_StageScenarioResult`**, distinct from
+  single-`Harness` `ScenarioResult`. It carries `handles`, `passed`,
+  `replies` (every `on().publish()` registration), and `by_transport`
+  (per-transport view).
+- **Per-harness `CorrelationPolicy` matters.** The default
+  `NoCorrelationPolicy` is a no-op stamp — fine for tests where one
+  Stage runs alone. Tests on shared infrastructure or with concurrent
+  Stages configure each harness with a `DictFieldPolicy` so the wire
+  id round-trips and the inbound filter routes per-scope.
+- **One transport per harness.** Sharing a `MockTransport` instance
+  across two harnesses produces cross-talk (documented as a misuse
+  canary in the integration suite).
+
+See [docs/guides/stage.md](docs/guides/stage.md) for the user-facing
+guide and [docs/framework-design.md §12](docs/framework-design.md) for
+the architectural read-out.
+
+---
+
 ## End-to-end tests (real broker)
 
 The unit suite runs entirely in-memory via `MockTransport`. A separate e2e

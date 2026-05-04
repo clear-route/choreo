@@ -98,6 +98,7 @@ class RunRepository:
             duration_ms=normalised.duration_ms,
             environment=normalised.environment,
             transport=normalised.transport,
+            transports=normalised.transports,
             branch=normalised.branch,
             git_sha=normalised.git_sha,
             hostname=normalised.hostname,
@@ -152,10 +153,16 @@ class RunRepository:
     ) -> int:
         """Bulk-insert handle measurement rows via asyncpg's COPY protocol.
 
-        ``handles_by_scenario`` maps ``scenario.id`` to a list of tuples,
-        where each tuple contains the handle-level fields in the order
-        defined by ``HANDLE_COPY_COLUMNS`` (excluding the run/scenario
-        context fields which are prepended here).
+        ``handles_by_scenario`` maps ``scenario.id`` to a list of tuples
+        where each tuple's first field is the per-handle transport
+        (PRD-012 §2.5). The remaining fields follow the per-handle
+        portion of ``HANDLE_COPY_COLUMNS``. Run/scenario context fields
+        (time/tenant/run/scenario/environment/branch) are prepended
+        here.
+
+        For single-`Harness` ingests, the caller passes the run-level
+        transport in the per-handle slot (Stage handles supply their
+        own per-handle value).
 
         Returns the number of rows inserted.
         """
@@ -164,11 +171,14 @@ class RunRepository:
         run_tenant = run.tenant_id
         run_id = run.id
         run_env = run.environment
-        run_transport = run.transport
         run_branch = run.branch
 
         for scenario in scenarios:
             for handle_fields in handles_by_scenario.get(scenario.id, []):
+                # First handle field is the per-handle transport;
+                # interpose it at the schema's `transport` column slot.
+                transport = handle_fields[0]
+                rest = handle_fields[1:]
                 records.append(
                     (
                         run_time,
@@ -176,9 +186,9 @@ class RunRepository:
                         run_id,
                         scenario.id,
                         run_env,
-                        run_transport,
+                        transport,
                         run_branch,
-                        *handle_fields,
+                        *rest,
                     )
                 )
 
