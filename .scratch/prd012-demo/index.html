@@ -487,28 +487,34 @@
    and reply chains is obvious. */
 .harness-report .hr-section-heading { font-size: 11px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 .harness-report .hr-replies h3 { font-size: 10px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-/* Reply rows are grouped by state so a reader scanning for failures
-   sees them visually distinguished. PRD-012 / user-feedback redesign:
-   each row is a header (state + chain + one-line summary) plus an
-   expandable lifecycle body broken into four named stages. */
-.harness-report .hr-reply-row { border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); }
-.harness-report .hr-reply-row[data-state="replied"] { color: var(--hr-text); }
-.harness-report .hr-reply-row[data-state="reply_failed"] { color: var(--hr-text); background: var(--hr-fail-tint); }
+/* Reply chain row (system.md §3 Reply chain row). Header is a single
+   flex line: badge + chain + latency + summary; the four-stage
+   lifecycle body expands beneath. Failing rows take the failure trio
+   (left rule + tint + default text) per §3 Failure treatment. */
+.harness-report .hr-reply-row { border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); padding-left: 0; }
+.harness-report .hr-reply-row[data-state="reply_failed"] { background: var(--hr-fail-tint); border-left: 3px solid var(--hr-fail-border); padding-left: var(--hr-space-2); }
 .harness-report .hr-reply-row[data-state="armed_no_match"],
-.harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { color: var(--hr-text-muted); background: var(--hr-slow-tint); }
+.harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { background: var(--hr-slow-tint); border-left: 3px solid var(--hr-slow-border); padding-left: var(--hr-space-2); color: var(--hr-text-muted); }
 .harness-report .hr-reply-row[aria-expanded="false"] .hr-reply-body { display: none; }
-.harness-report .hr-reply-row[aria-expanded="false"] .hr-caret { transform: rotate(-90deg); display: inline-block; }
-.harness-report .hr-reply-header { display: flex; align-items: baseline; gap: var(--hr-space-2); padding: 4px var(--hr-space-2); cursor: pointer; }
-.harness-report .hr-reply-header .hr-caret { color: var(--hr-text-subtle); width: 0.7rem; transition: transform 0.15s ease; }
-.harness-report .hr-reply-state { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; min-width: 7ch; }
-.harness-report .hr-reply-state[data-state="replied"] { color: var(--hr-pass); }
-.harness-report .hr-reply-state[data-state="reply_failed"] { color: var(--hr-fail); }
-.harness-report .hr-reply-state[data-state="armed_no_match"],
-.harness-report .hr-reply-state[data-state="armed_matcher_mismatched"] { color: var(--hr-slow); }
+.harness-report .hr-reply-row[aria-expanded="false"] .hr-caret { transform: rotate(-90deg); }
+.harness-report .hr-reply-header { display: flex; align-items: center; gap: var(--hr-space-2); padding: 4px var(--hr-space-2); cursor: pointer; }
+.harness-report .hr-reply-header:hover .hr-caret { color: var(--hr-text); background: var(--hr-bg); border-color: var(--hr-border-strong); }
 .harness-report .hr-reply-chain { display: inline-flex; gap: var(--hr-space-2); align-items: baseline; color: var(--hr-text); flex-wrap: wrap; }
-.harness-report .hr-reply-topic { font-family: var(--hr-font-mono); }
+.harness-report .hr-reply-topic { font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); background: var(--hr-surface-2); color: var(--hr-text); padding: 1px var(--hr-space-2); border-radius: var(--hr-radius-sm); border: 1px solid var(--hr-border); white-space: nowrap; }
 .harness-report .hr-reply-arrow { color: var(--hr-text-subtle); }
-.harness-report .hr-reply-summary { margin-left: auto; color: var(--hr-text-muted); font-style: italic; }
+.harness-report .hr-reply-latency { color: var(--hr-text-subtle); font-family: var(--hr-font-mono); font-variant-numeric: tabular-nums; margin-left: var(--hr-space-3); }
+/* `on` and `publish` keywords mirror the test-author API. Italic +
+   muted so they read as syntax, not part of the topic name. */
+.harness-report .hr-reply-api-keyword { font-family: var(--hr-font-mono); color: var(--hr-text-muted); font-style: italic; font-weight: 600; }
+
+/* Matcher line — what the trigger inbound message had to satisfy.
+   Sits at the top of the lifecycle body. Mono code chip for the
+   matcher description. */
+.harness-report .hr-reply-matcher { display: grid; grid-template-columns: 13ch 1fr; gap: var(--hr-space-2); align-items: baseline; padding: 0 0 var(--hr-space-2) 0; font-size: var(--hr-text-xs); }
+.harness-report .hr-reply-matcher-label { color: var(--hr-text); font-weight: 500; }
+.harness-report .hr-reply-matcher-value { color: var(--hr-text-muted); }
+.harness-report .hr-reply-matcher code { font-family: var(--hr-font-mono); color: var(--hr-text); background: var(--hr-surface-2); padding: 0 0.4rem; border-radius: 0.25rem; }
+.harness-report .hr-reply-summary { color: var(--hr-text-muted); font-style: italic; }
 .harness-report .hr-reply-row[data-state="reply_failed"] .hr-reply-summary { color: var(--hr-fail); font-style: normal; font-weight: 600; }
 
 /* Lifecycle body — four stage rows, one per lifecycle step. Each
@@ -559,140 +565,129 @@
 .harness-report .hr-json-null { color: var(--hr-text-subtle); font-style: italic; }
 
 /* ----------------------------------------------------------------- */
-/* PRD-012: Stage scenario surface (badges, breadcrumb, sub-badges).  */
-/* All selectors scoped under .harness-report.                        */
+/* PRD-012: Stage scenario surface — flat strip per system.md §3      */
+/* Stage strip. Class names below are the stable selector contract    */
+/* (test_design_system_contract.py + PRD-012 §3.6); the styling is    */
+/* the topic-chip / strip primitive.                                  */
 /* ----------------------------------------------------------------- */
 
-/* Per-handle transport badge (PRD-012 §3.1). */
+/* Per-handle / per-stage / per-reply transport chip — all three reuse
+   the topic-chip primitive (system.md §3 Topic chip) so a transport
+   reads as the same kind of object as a topic. The class selectors
+   are kept as PRD-012 hooks; the visual is the chip. */
 .harness-report .hr-handle-transport-badge,
 .harness-report .hr-stage-transport-badge,
 .harness-report .hr-reply-transport-badge {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.5rem;
-  padding: 0 0.4rem;
-  border-radius: 0.625rem;
+  display: inline-block;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   background: var(--hr-surface-2);
   color: var(--hr-text);
+  padding: 1px var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
   border: 1px solid var(--hr-border);
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.4rem;
   white-space: nowrap;
 }
+/* US-2 AC3: failed response-transport visual is reduced opacity. */
+.harness-report .hr-reply-transport-badge--failed { opacity: 0.4; }
+/* The handle row leaves space between the topic chip and the transport
+   chip; the stage strip and reply chain manage their own gap via flex. */
+.harness-report .hr-handle-transport-badge { margin-left: var(--hr-space-2); }
 
-/* Failed response-transport badge (PRD-012 §3.2 + US-2 AC3) — class
-   is the asserted contract; opacity is the visual rule. */
-.harness-report .hr-reply-transport-badge--failed {
-  opacity: 0.4;
-}
-
-/* Stage breadcrumb (PRD-012 §3.3 / Pass-2 redesign). Promoted to be
-   a hero-block under the scenario header — a Stage scenario IS a
-   Stage; the bridge class and registered transports are first-class
-   identity, not metadata. Bordered card with warm surface + a
-   prominent "STAGE" pill so the scenario type is unambiguous at a
-   glance. */
+/* Stage strip (system.md §3) — single-line metadata row directly under
+   the scenario header. No card chrome, no info-tint. */
 .harness-report .hr-stage-breadcrumb {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 1rem;
-  background: var(--hr-info-tint);
-  border-left: 3px solid var(--hr-info);
-  border-bottom: 1px solid var(--hr-border);
-  font-size: 0.875rem;
-  color: var(--hr-text);
-}
-.harness-report .hr-stage-label {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05rem 0.5rem;
-  background: var(--hr-info);
-  color: var(--hr-badge-fg);
-  font-weight: 700;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border-radius: 0.25rem;
-  line-height: 1.2rem;
-}
-.harness-report .hr-stage-sep {
-  color: var(--hr-text-subtle);
-}
-.harness-report .hr-stage-bridge-label,
-.harness-report .hr-stage-transports-label {
-  font-size: 0.75rem;
+  align-items: baseline;
+  gap: var(--hr-space-3);
+  padding: 0 0 var(--hr-space-3) 0;
+  margin-top: calc(-1 * var(--hr-space-2));
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+}
+/* The lowercase [stage] tag — same chip footprint as .hr-topic, weight
+   600. Distinct class so consumers can target the tag without matching
+   every topic chip. */
+.harness-report .hr-stage-tag {
+  display: inline-block;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
+  background: var(--hr-surface-2);
+  color: var(--hr-text);
+  padding: 1px var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
+  border: 1px solid var(--hr-border);
   font-weight: 600;
 }
 .harness-report .hr-stage-bridge-class {
-  font-family: var(--hr-mono);
-  font-weight: 600;
+  font-family: var(--hr-font-mono);
   color: var(--hr-text);
 }
-/* Inline transport pills inside the breadcrumb get more weight than
-   handle/reply badges — they are the Stage's identity. */
-.harness-report .hr-stage-breadcrumb .hr-stage-transport-badge {
-  background: var(--hr-surface);
-  color: var(--hr-text);
-  border: 1px solid var(--hr-border-strong);
-  font-weight: 600;
-  font-size: 0.8125rem;
-  padding: 0.05rem 0.5rem;
-  line-height: 1.3rem;
+.harness-report .hr-stage-transports-list {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--hr-space-2);
 }
-/* Per-transport correlation id (in the breadcrumb's <details>
-   disclosure). Mono-font and bordered for readability against the
-   surrounding text. */
-.harness-report .hr-stage-correlation-ids {
-  width: 100%;
-  margin-top: 0.4rem;
-}
+.harness-report .hr-stage-transports-glyph { color: var(--hr-text-subtle); }
+
+/* Correlation ids disclosure — quiet, mono. Lives inside the strip. */
+.harness-report .hr-stage-correlation-ids { display: inline-block; }
 .harness-report .hr-stage-correlation-ids-summary {
-  font-size: 0.75rem;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
   cursor: pointer;
   user-select: none;
+  list-style: none;
 }
-.harness-report .hr-stage-correlation-ids-summary:hover {
-  color: var(--hr-text);
+.harness-report .hr-stage-correlation-ids-summary::-webkit-details-marker { display: none; }
+.harness-report .hr-stage-correlation-ids-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--hr-text-subtle);
+  transition: transform var(--hr-dur-fast) var(--hr-ease);
 }
+.harness-report .hr-stage-correlation-ids[open] > .hr-stage-correlation-ids-summary::before {
+  transform: rotate(90deg);
+}
+.harness-report .hr-stage-correlation-ids-summary:hover { color: var(--hr-text); }
 .harness-report .hr-stage-correlation-ids-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.4rem 0 0 1rem;
+  gap: var(--hr-space-1);
+  padding: var(--hr-space-2) 0 0 var(--hr-space-3);
 }
 .harness-report .hr-stage-correlation-id-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--hr-space-2);
 }
 .harness-report .hr-stage-correlation-id {
-  font-family: var(--hr-mono);
-  font-size: 0.75rem;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
-  background: var(--hr-surface);
+  background: var(--hr-surface-2);
   border: 1px solid var(--hr-border);
-  border-radius: 0.25rem;
-  padding: 0 0.4rem;
+  border-radius: var(--hr-radius-sm);
+  padding: 0 var(--hr-space-2);
 }
 
-/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5). */
+/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5).
+   The header keeps the bold red tag — failure-first signalling lives
+   here, not in the strip. */
 .harness-report .hr-scenario-failing-side,
 .harness-report .hr-scenario-failing-reply {
   display: inline-flex;
   align-items: center;
-  margin-left: 0.5rem;
-  padding: 0 0.4rem;
-  border-radius: 0.25rem;
+  margin-left: var(--hr-space-2);
+  padding: 0 var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
   background: var(--hr-fail);
-  color: white;
-  font-size: 0.75rem;
+  color: var(--hr-badge-fg);
+  font-size: var(--hr-text-xs);
   font-weight: 600;
   line-height: 1.4rem;
 }
@@ -788,24 +783,24 @@
 <script type="application/json" id="harness-results">{
   "schema_version": "1.1",
   "run": {
-    "started_at": "2026-05-04T12:34:36.809549+00:00",
-    "finished_at": "2026-05-04T12:34:38.842408+00:00",
-    "duration_ms": 2032.896584016271,
+    "started_at": "2026-05-04T12:53:44.331282+00:00",
+    "finished_at": "2026-05-04T12:53:45.902928+00:00",
+    "duration_ms": 1571.6819579829462,
     "totals": {
-      "passed": 14,
+      "passed": 8,
       "failed": 0,
       "errored": 0,
       "skipped": 0,
       "slow": 0,
-      "total": 14
+      "total": 8
     },
     "project_name": "core",
     "allowlist_path": null,
     "python_version": "3.13.11",
     "harness_version": "unknown",
     "reporter_version": "0.0.1.dev18+g27819d15d.d20260419",
-    "git_sha": "318265419bfeca43ec8debade7faacac2a789e29",
-    "git_branch": "main",
+    "git_sha": "95eb334683345c85ed160e533d44538eaeab91d7",
+    "git_branch": "feat/stage",
     "environment": null,
     "hostname": "Matt's-MacBook-Pro",
     "xdist": {
@@ -836,7 +831,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 127.06429196987301,
+      "duration_ms": 81.39133400982246,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -846,7 +841,7 @@
       "scenarios": [
         {
           "name": "i1",
-          "correlation_id": "e5884db302378ecb1239d5d8dc18bf3a",
+          "correlation_id": "7a18e3cff9a92b86595a4d7e1b0f34b4",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -854,7 +849,7 @@
             {
               "topic": "orders.processed",
               "outcome": "pass",
-              "latency_ms": 0.13766600750386715,
+              "latency_ms": 0.050166971050202847,
               "budget_ms": null,
               "matcher_description": "status = 'ok'",
               "expected": null,
@@ -872,7 +867,7 @@
                 "kind": "matched"
               },
               "transport": "nats",
-              "correlation_id": "sha256:a7080d5463edf45f"
+              "correlation_id": "sha256:360638569c565d0a"
             }
           ],
           "timeline": [],
@@ -900,71 +895,7 @@
               "nats"
             ],
             "correlation_ids": {
-              "nats": "sha256:a7080d5463edf45f"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_handle_repr_should_include_transport_name",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_handle_repr_should_include_transport_name",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 12.729334004689008,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw0",
-      "scenarios": [
-        {
-          "name": "k4",
-          "correlation_id": "eb0031a38f62adef748f90e91c74934f",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 11.10058301128447,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic' (transport 'only') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 11.10058301128447
-              },
-              "transport": "only",
-              "correlation_id": "sha256:4431a403668e22ff"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "only"
-            ],
-            "correlation_ids": {
-              "only": "sha256:4431a403668e22ff"
+              "nats": "sha256:360638569c565d0a"
             }
           }
         }
@@ -980,7 +911,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 125.98816701211035,
+      "duration_ms": 90.35024995682761,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -990,7 +921,7 @@
       "scenarios": [
         {
           "name": "i2",
-          "correlation_id": "43c61fca38d2f266b73f0485215875a2",
+          "correlation_id": "89ff6ff918304b5b2eb5dc115bffde33",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1025,214 +956,6 @@
       ]
     },
     {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_a_stage_scenario_result_should_expose_the_scope_logical_id_as_correlation_id",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_a_stage_scenario_result_should_expose_the_scope_logical_id_as_correlation_id",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 16.22412499273196,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw1",
-      "scenarios": [
-        {
-          "name": "k5",
-          "correlation_id": "e8c9bece7be5636c0fa74d4deb024474",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 11.828333023004234,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic' (transport 'nats') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 11.828333023004234
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:a08dfea23a6c7d8b"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "nats": "sha256:a08dfea23a6c7d8b"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_handle_transport_should_match_the_on_selector",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_handle_transport_should_match_the_on_selector",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 126.93695805501193,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw10",
-      "scenarios": [
-        {
-          "name": "k2",
-          "correlation_id": "b3ba839ebbdea4233aedd8e0a230d73b",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic.n",
-              "outcome": "timeout",
-              "latency_ms": 11.142583971377462,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.n' (transport 'nats') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.n",
-                "deadline_ms": 11.142583971377462
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:f1518e1dab55d85e"
-            },
-            {
-              "topic": "topic.k",
-              "outcome": "timeout",
-              "latency_ms": 11.102583957836032,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.k' (transport 'kafka') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.k",
-                "deadline_ms": 11.102583957836032
-              },
-              "transport": "kafka",
-              "correlation_id": "sha256:4964deac7628609f"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "kafka": "sha256:4964deac7628609f",
-              "nats": "sha256:f1518e1dab55d85e"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_single_harness_handle_transport_should_be_none",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_single_harness_handle_transport_should_be_none",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 108.39025001041591,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "WARNING  choreo.scenario:scenario.py:1369 scope 'k3' exited cleanly without calling await_all(); expectations and replies registered but never resolvedWARNING  choreo.scenario:scenario.py:1369 scope 'k3' exited cleanly without calling await_all(); expectations and replies registered but never resolved",
-      "skip_reason": null,
-      "worker_id": "gw11",
-      "scenarios": [
-        {
-          "name": "k3",
-          "correlation_id": null,
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": false,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 0.0,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": {
-                "status": "ok"
-              },
-              "actual": null,
-              "attempts": 0,
-              "reason": "aborted: scope exited without await_all",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 0.0
-              }
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "scenario 'k3' failed \u2014 1 of 1 expectations did not pass\ncorrelation: None\n\n  [TIMEOUT] topic\n      matcher : status = 'ok'\n      why     : no matching message arrived on topic 'topic' within 0ms\n      latency : 0.0ms"
-        }
-      ]
-    },
-    {
       "nodeid": "tests/integration/test_stage_replies.py::test_stage_cross_transport_reply_should_record_failed_when_response_transport_dropped",
       "file": "tests/integration/test_stage_replies.py",
       "name": "test_stage_cross_transport_reply_should_record_failed_when_response_transport_dropped",
@@ -1242,7 +965,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 132.15362501796335,
+      "duration_ms": 85.57425002800301,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1252,7 +975,7 @@
       "scenarios": [
         {
           "name": "i3",
-          "correlation_id": "8561ebe0a2ddfb74ccb60d81b03f2457",
+          "correlation_id": "6df6d500e3126c370b155490347beeac",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1296,7 +1019,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 125.98125002114102,
+      "duration_ms": 83.55304202996194,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1306,7 +1029,7 @@
       "scenarios": [
         {
           "name": "i4",
-          "correlation_id": "a7a4c1f55c41e45db083f9be68b63466",
+          "correlation_id": "3942171d1aeb7a71491dcd248172fc19",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1350,7 +1073,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 131.60462497035041,
+      "duration_ms": 87.4644999857992,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1360,7 +1083,7 @@
       "scenarios": [
         {
           "name": "i5",
-          "correlation_id": "306712b739915b82463d77bcee7878ab",
+          "correlation_id": "ddf6bc8e66fc6cea20c1fd48c04d33a1",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1404,7 +1127,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 110.06562499096617,
+      "duration_ms": 86.02841600077227,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1414,7 +1137,7 @@
       "scenarios": [
         {
           "name": "i6",
-          "correlation_id": "d7448ba5e555e977cf43e90d07be3b87",
+          "correlation_id": "508f031e909fd5706653342834273912",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1422,7 +1145,7 @@
             {
               "topic": "orders.processed",
               "outcome": "pass",
-              "latency_ms": 0.051875016652047634,
+              "latency_ms": 0.04916702164337039,
               "budget_ms": null,
               "matcher_description": "status = 'ok'",
               "expected": null,
@@ -1440,7 +1163,7 @@
                 "kind": "matched"
               },
               "transport": "only",
-              "correlation_id": "sha256:a3c1cb520e5902cd"
+              "correlation_id": "sha256:7866c21330998607"
             }
           ],
           "timeline": [],
@@ -1467,7 +1190,7 @@
               "only"
             ],
             "correlation_ids": {
-              "only": "sha256:a3c1cb520e5902cd"
+              "only": "sha256:7866c21330998607"
             }
           }
         }
@@ -1483,7 +1206,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 127.67499999608845,
+      "duration_ms": 82.3884999845177,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1493,7 +1216,7 @@
       "scenarios": [
         {
           "name": "i7",
-          "correlation_id": "f7daf1a94ea1dc00939f9fce8a881d3d",
+          "correlation_id": "56f693e884d0c74900396f228cd30198",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1537,7 +1260,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 129.97566600097343,
+      "duration_ms": 87.42195804370567,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -1547,7 +1270,7 @@
       "scenarios": [
         {
           "name": "i8",
-          "correlation_id": "57042d6a718096040d2d6ea741148190",
+          "correlation_id": "ad5971666cb320f91e818aa5a820c86e",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -1577,175 +1300,6 @@
               "nats"
             ],
             "correlation_ids": {}
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_canonical_round_trip.py::test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines",
-      "file": "tests/integration/test_stage_canonical_round_trip.py",
-      "name": "test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 95.80145799554884,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw8",
-      "scenarios": [
-        {
-          "name": "bridge_round_trip",
-          "correlation_id": "0d35276af7b9fc34af705ad1bdf144e8",
-          "outcome": "pass",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "results",
-              "outcome": "pass",
-              "latency_ms": 0.052499992307275534,
-              "budget_ms": null,
-              "matcher_description": "kind = 'result'",
-              "expected": null,
-              "actual": {
-                "kind": "result",
-                "echo": 42,
-                "correlation_id": "nats-0d35276af7b9fc34af705ad1bdf144e8"
-              },
-              "attempts": 0,
-              "reason": "kind = 'result'",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "matched"
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:221964ad2d7de10c"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [
-            {
-              "trigger_topic": "orders.new",
-              "reply_topic": "orders.processed",
-              "state": "replied",
-              "matcher_description": "(any)",
-              "candidate_count": 1,
-              "match_count": 1,
-              "reply_published": true,
-              "builder_error": null,
-              "correlation_overridden": false,
-              "trigger_transport": "kafka",
-              "response_transport": "kafka"
-            }
-          ],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "nats": "sha256:221964ad2d7de10c"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_scenario_result_by_transport_should_contain_only_real_transport_names",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_scenario_result_by_transport_should_contain_only_real_transport_names",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 143.60845898045227,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw9",
-      "scenarios": [
-        {
-          "name": "k1",
-          "correlation_id": "f7e7b7d229306e62f6368c82147a54d6",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic.n",
-              "outcome": "timeout",
-              "latency_ms": 25.219666014891118,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.n' (transport 'nats') within 20ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.n",
-                "deadline_ms": 25.219666014891118
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:973c57b1ffceaada"
-            },
-            {
-              "topic": "topic.k",
-              "outcome": "timeout",
-              "latency_ms": 25.202165998052806,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.k' (transport 'kafka') within 20ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.k",
-                "deadline_ms": 25.202165998052806
-              },
-              "transport": "kafka",
-              "correlation_id": "sha256:7236595aeee61f8d"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "kafka": "sha256:7236595aeee61f8d",
-              "nats": "sha256:973c57b1ffceaada"
-            }
           }
         }
       ]
@@ -2308,7 +1862,7 @@
       case 'slow': return '\u26A0';                  // warning triangle
       case 'skipped': return '\u2013';               // en-dash
       case 'errored': return '\u2298';               // circled slash
-      case 'timeout': return '\u29D6';               // hourglass/crossed diamond
+      case 'timeout': return '\u29D7';               // black hourglass (filled \u2014 reads at badge size)
       default: return '\u2022';                       // bullet
     }
   }
@@ -2562,14 +2116,29 @@
     return row;
   }
 
+  // Chain rendering mirrors the test-author API:
+  //   s.on("orders.new", on="kafka")
+  //    .publish("orders.processed", on="kafka", matcher=..., build=...)
+  // The header reads: `on [kafka] orders.new \u2192 publish [kafka] orders.processed`
+  // so a reader can match the report row to the test source line.
   function renderReplyHeader(r) {
+    // Reply chain row header (system.md \u00A73 Reply chain row).
+    //   \u25B8  \u2713  on  \uFF62kafka\uFF63 orders.new   \u2192   publish  \uFF62nats\uFF63 orders.processed     trigger matched, response published
+    // Outcome badge replaces the loud REPLIED pill: the system's badge
+    // primitive carries the signal. Transport + topic on each side both
+    // render as `.hr-topic` chips so a transport reads as the same kind
+    // of object as a topic (system.md \u00A73 Topic chip).
     var header = el('div', { 'class': 'hr-reply-header', tabindex: '0' });
     header.appendChild(el('span', { 'class': 'hr-caret', 'aria-hidden': 'true' }, '\u25BC'));
+    var badgeOutcome = replyStateOutcome(r.state);
     header.appendChild(el('span', {
-      'class': 'hr-reply-state',
-      'data-state': r.state
-    }, replyStateLabel(r.state)));
+      'class': 'hr-badge',
+      'data-outcome': badgeOutcome,
+      'data-state': r.state,
+      'aria-label': replyStateLabel(r.state)
+    }, outcomeLetter(badgeOutcome)));
     var chain = el('span', { 'class': 'hr-reply-chain' });
+    chain.appendChild(el('span', { 'class': 'hr-reply-api-keyword' }, 'on'));
     if (r.trigger_transport) {
       chain.appendChild(el('span', {
         'class': 'hr-reply-transport-badge',
@@ -2579,6 +2148,7 @@
     }
     chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.trigger_topic));
     chain.appendChild(el('span', { 'class': 'hr-reply-arrow' }, '\u2192'));
+    chain.appendChild(el('span', { 'class': 'hr-reply-api-keyword' }, 'publish'));
     if (r.response_transport) {
       var responseClass = 'hr-reply-transport-badge';
       if (r.state === 'reply_failed') {
@@ -2592,18 +2162,33 @@
     }
     chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.reply_topic));
     header.appendChild(chain);
-    header.appendChild(el('span', { 'class': 'hr-reply-summary' }, replyOneLineSummary(r)));
+    var summary = replyOneLineSummary(r);
+    if (summary) {
+      header.appendChild(el('span', { 'class': 'hr-reply-summary' }, summary));
+    }
     return header;
   }
 
-  // One-line outcome summary for the collapsed reply row.
+  // Maps a reply state to the outcome enum used by the .hr-badge primitive
+  // (system.md \u00A73 Badge). `replied` is a pass; `reply_failed` is a fail;
+  // the two `armed_*` diagnostic states use `slow` for visual continuity
+  // with the existing slow-tint failure-trio treatment on the row.
+  function replyStateOutcome(state) {
+    if (state === 'replied') { return 'pass'; }
+    if (state === 'reply_failed') { return 'fail'; }
+    return 'slow';
+  }
+
+  // One-line outcome summary for the collapsed reply row. The badge
+  // already signals pass/fail/slow; the summary is the short clause
+  // (system.md \u00A73 Reply chain row).
   function replyOneLineSummary(r) {
     if (r.state === 'replied') {
-      return 'fired \u2014 trigger matched, build ok, response published';
+      return 'trigger matched, response published';
     }
     if (r.state === 'reply_failed') {
       var err = r.builder_error || 'unknown error';
-      return 'failed at build/publish \u2014 ' + err;
+      return 'build callback failed \u2014 ' + err;
     }
     if (r.state === 'armed_no_match') {
       return 'no candidates received on the trigger topic for this scope';
@@ -2622,6 +2207,19 @@
   // ran cleanly).
   function renderReplyLifecycle(r) {
     var body = el('div', { 'class': 'hr-reply-body' });
+    // Matcher line: shows what the trigger inbound message had to
+    // satisfy. Lives at the top of the body so the reader sees the
+    // assertion intent before reading the lifecycle outcome. Mirrors
+    // the API's `matcher=` argument to `s.on().publish(...)`.
+    if (r.matcher_description) {
+      var matcherLine = el('div', { 'class': 'hr-reply-matcher' });
+      matcherLine.appendChild(el('span', { 'class': 'hr-reply-matcher-label' }, 'matcher:'));
+      var matcherValue = el('span', { 'class': 'hr-reply-matcher-value' });
+      matcherValue.appendChild(document.createTextNode('matches when message '));
+      matcherValue.appendChild(el('code', {}, r.matcher_description));
+      matcherLine.appendChild(matcherValue);
+      body.appendChild(matcherLine);
+    }
     var triggerLabel = (r.trigger_transport ? r.trigger_transport + ':' : '') + r.trigger_topic;
     var responseLabel = (r.response_transport ? r.response_transport + ':' : '') + r.reply_topic;
 
@@ -2776,6 +2374,11 @@
   //     from handle-row data-handle-transport so the US-1 selector
   //     contract holds).
   function renderStageBreadcrumb(stage) {
+    // Stage strip (system.md §3 Stage strip). Single-line metadata row
+    // emitting the [stage] tag, the bridge class, the transport set, and
+    // a correlation-ids disclosure. Class names and data-* attrs are
+    // the stable selector contract (PRD-012 §3.6) — preserved across
+    // the visual redesign so consumer queries keep working.
     var transports = stage.transports || [];
     var crumbAttrs = { 'class': 'hr-stage-breadcrumb' };
     if (stage.bridge_class) {
@@ -2785,22 +2388,25 @@
       crumbAttrs['data-stage-transports'] = transports.join(' ');
     }
     var crumb = el('div', crumbAttrs);
-    crumb.appendChild(el('span', { 'class': 'hr-stage-label' }, 'Stage'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-label' }, 'bridge:'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-class' }, stage.bridge_class || ''));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-transports-label' }, 'transports:'));
-    transports.forEach(function (t) {
-      crumb.appendChild(el('span', {
-        'class': 'hr-stage-transport-badge',
-        'data-stage-transport': t
-      }, t));
-    });
-    // Per-transport correlation ids — moved into a collapsed
-    // disclosure (`<details>`) so the breadcrumb stays scannable.
-    // Consumers querying the `data-stage-transport` selector still
-    // find the pills inside the disclosure.
+    crumb.appendChild(el('span', { 'class': 'hr-stage-tag' }, 'stage'));
+    if (stage.bridge_class) {
+      crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-class' }, stage.bridge_class));
+    }
+    if (transports.length) {
+      var pills = el('span', { 'class': 'hr-stage-transports-list' });
+      transports.forEach(function (t, i) {
+        if (i > 0) {
+          // ⇄ between two transports; comma for three or more (system.md §3).
+          var sep = (transports.length === 2) ? '⇄' : ',';
+          pills.appendChild(el('span', { 'class': 'hr-stage-transports-glyph', 'aria-hidden': 'true' }, sep));
+        }
+        pills.appendChild(el('span', {
+          'class': 'hr-stage-transport-badge',
+          'data-stage-transport': t
+        }, t));
+      });
+      crumb.appendChild(pills);
+    }
     var correlationIds = stage.correlation_ids || {};
     var correlationKeys = [];
     for (var k in correlationIds) {
@@ -2811,7 +2417,9 @@
     if (correlationKeys.length) {
       var detail = el('details', { 'class': 'hr-stage-correlation-ids' });
       var summary = el('summary', { 'class': 'hr-stage-correlation-ids-summary' });
-      summary.appendChild(document.createTextNode('correlation ids (' + correlationKeys.length + ')'));
+      summary.appendChild(document.createTextNode(
+        correlationKeys.length + ' correlation id' + (correlationKeys.length === 1 ? '' : 's')
+      ));
       detail.appendChild(summary);
       var idsList = el('div', { 'class': 'hr-stage-correlation-ids-list' });
       correlationKeys.sort();

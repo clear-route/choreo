@@ -1,24 +1,24 @@
 {
   "schema_version": "1.1",
   "run": {
-    "started_at": "2026-05-04T12:34:36.809549+00:00",
-    "finished_at": "2026-05-04T12:34:38.842408+00:00",
-    "duration_ms": 2032.896584016271,
+    "started_at": "2026-05-04T12:53:44.331282+00:00",
+    "finished_at": "2026-05-04T12:53:45.902928+00:00",
+    "duration_ms": 1571.6819579829462,
     "totals": {
-      "passed": 14,
+      "passed": 8,
       "failed": 0,
       "errored": 0,
       "skipped": 0,
       "slow": 0,
-      "total": 14
+      "total": 8
     },
     "project_name": "core",
     "allowlist_path": null,
     "python_version": "3.13.11",
     "harness_version": "unknown",
     "reporter_version": "0.0.1.dev18+g27819d15d.d20260419",
-    "git_sha": "318265419bfeca43ec8debade7faacac2a789e29",
-    "git_branch": "main",
+    "git_sha": "95eb334683345c85ed160e533d44538eaeab91d7",
+    "git_branch": "feat/stage",
     "environment": null,
     "hostname": "Matt's-MacBook-Pro",
     "xdist": {
@@ -49,7 +49,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 127.06429196987301,
+      "duration_ms": 81.39133400982246,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -59,7 +59,7 @@
       "scenarios": [
         {
           "name": "i1",
-          "correlation_id": "e5884db302378ecb1239d5d8dc18bf3a",
+          "correlation_id": "7a18e3cff9a92b86595a4d7e1b0f34b4",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -67,7 +67,7 @@
             {
               "topic": "orders.processed",
               "outcome": "pass",
-              "latency_ms": 0.13766600750386715,
+              "latency_ms": 0.050166971050202847,
               "budget_ms": null,
               "matcher_description": "status = 'ok'",
               "expected": null,
@@ -85,7 +85,7 @@
                 "kind": "matched"
               },
               "transport": "nats",
-              "correlation_id": "sha256:a7080d5463edf45f"
+              "correlation_id": "sha256:360638569c565d0a"
             }
           ],
           "timeline": [],
@@ -113,71 +113,7 @@
               "nats"
             ],
             "correlation_ids": {
-              "nats": "sha256:a7080d5463edf45f"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_handle_repr_should_include_transport_name",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_handle_repr_should_include_transport_name",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 12.729334004689008,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw0",
-      "scenarios": [
-        {
-          "name": "k4",
-          "correlation_id": "eb0031a38f62adef748f90e91c74934f",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 11.10058301128447,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic' (transport 'only') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 11.10058301128447
-              },
-              "transport": "only",
-              "correlation_id": "sha256:4431a403668e22ff"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "only"
-            ],
-            "correlation_ids": {
-              "only": "sha256:4431a403668e22ff"
+              "nats": "sha256:360638569c565d0a"
             }
           }
         }
@@ -193,7 +129,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 125.98816701211035,
+      "duration_ms": 90.35024995682761,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -203,7 +139,7 @@
       "scenarios": [
         {
           "name": "i2",
-          "correlation_id": "43c61fca38d2f266b73f0485215875a2",
+          "correlation_id": "89ff6ff918304b5b2eb5dc115bffde33",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -238,214 +174,6 @@
       ]
     },
     {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_a_stage_scenario_result_should_expose_the_scope_logical_id_as_correlation_id",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_a_stage_scenario_result_should_expose_the_scope_logical_id_as_correlation_id",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 16.22412499273196,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw1",
-      "scenarios": [
-        {
-          "name": "k5",
-          "correlation_id": "e8c9bece7be5636c0fa74d4deb024474",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 11.828333023004234,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic' (transport 'nats') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 11.828333023004234
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:a08dfea23a6c7d8b"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "nats": "sha256:a08dfea23a6c7d8b"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_handle_transport_should_match_the_on_selector",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_handle_transport_should_match_the_on_selector",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 126.93695805501193,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw10",
-      "scenarios": [
-        {
-          "name": "k2",
-          "correlation_id": "b3ba839ebbdea4233aedd8e0a230d73b",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic.n",
-              "outcome": "timeout",
-              "latency_ms": 11.142583971377462,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.n' (transport 'nats') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.n",
-                "deadline_ms": 11.142583971377462
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:f1518e1dab55d85e"
-            },
-            {
-              "topic": "topic.k",
-              "outcome": "timeout",
-              "latency_ms": 11.102583957836032,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.k' (transport 'kafka') within 10ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.k",
-                "deadline_ms": 11.102583957836032
-              },
-              "transport": "kafka",
-              "correlation_id": "sha256:4964deac7628609f"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "kafka": "sha256:4964deac7628609f",
-              "nats": "sha256:f1518e1dab55d85e"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_single_harness_handle_transport_should_be_none",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_single_harness_handle_transport_should_be_none",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 108.39025001041591,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "WARNING  choreo.scenario:scenario.py:1369 scope 'k3' exited cleanly without calling await_all(); expectations and replies registered but never resolvedWARNING  choreo.scenario:scenario.py:1369 scope 'k3' exited cleanly without calling await_all(); expectations and replies registered but never resolved",
-      "skip_reason": null,
-      "worker_id": "gw11",
-      "scenarios": [
-        {
-          "name": "k3",
-          "correlation_id": null,
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": false,
-          "handles": [
-            {
-              "topic": "topic",
-              "outcome": "timeout",
-              "latency_ms": 0.0,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": {
-                "status": "ok"
-              },
-              "actual": null,
-              "attempts": 0,
-              "reason": "aborted: scope exited without await_all",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic",
-                "deadline_ms": 0.0
-              }
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "scenario 'k3' failed \u2014 1 of 1 expectations did not pass\ncorrelation: None\n\n  [TIMEOUT] topic\n      matcher : status = 'ok'\n      why     : no matching message arrived on topic 'topic' within 0ms\n      latency : 0.0ms"
-        }
-      ]
-    },
-    {
       "nodeid": "tests/integration/test_stage_replies.py::test_stage_cross_transport_reply_should_record_failed_when_response_transport_dropped",
       "file": "tests/integration/test_stage_replies.py",
       "name": "test_stage_cross_transport_reply_should_record_failed_when_response_transport_dropped",
@@ -455,7 +183,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 132.15362501796335,
+      "duration_ms": 85.57425002800301,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -465,7 +193,7 @@
       "scenarios": [
         {
           "name": "i3",
-          "correlation_id": "8561ebe0a2ddfb74ccb60d81b03f2457",
+          "correlation_id": "6df6d500e3126c370b155490347beeac",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -509,7 +237,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 125.98125002114102,
+      "duration_ms": 83.55304202996194,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -519,7 +247,7 @@
       "scenarios": [
         {
           "name": "i4",
-          "correlation_id": "a7a4c1f55c41e45db083f9be68b63466",
+          "correlation_id": "3942171d1aeb7a71491dcd248172fc19",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -563,7 +291,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 131.60462497035041,
+      "duration_ms": 87.4644999857992,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -573,7 +301,7 @@
       "scenarios": [
         {
           "name": "i5",
-          "correlation_id": "306712b739915b82463d77bcee7878ab",
+          "correlation_id": "ddf6bc8e66fc6cea20c1fd48c04d33a1",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -617,7 +345,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 110.06562499096617,
+      "duration_ms": 86.02841600077227,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -627,7 +355,7 @@
       "scenarios": [
         {
           "name": "i6",
-          "correlation_id": "d7448ba5e555e977cf43e90d07be3b87",
+          "correlation_id": "508f031e909fd5706653342834273912",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -635,7 +363,7 @@
             {
               "topic": "orders.processed",
               "outcome": "pass",
-              "latency_ms": 0.051875016652047634,
+              "latency_ms": 0.04916702164337039,
               "budget_ms": null,
               "matcher_description": "status = 'ok'",
               "expected": null,
@@ -653,7 +381,7 @@
                 "kind": "matched"
               },
               "transport": "only",
-              "correlation_id": "sha256:a3c1cb520e5902cd"
+              "correlation_id": "sha256:7866c21330998607"
             }
           ],
           "timeline": [],
@@ -680,7 +408,7 @@
               "only"
             ],
             "correlation_ids": {
-              "only": "sha256:a3c1cb520e5902cd"
+              "only": "sha256:7866c21330998607"
             }
           }
         }
@@ -696,7 +424,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 127.67499999608845,
+      "duration_ms": 82.3884999845177,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -706,7 +434,7 @@
       "scenarios": [
         {
           "name": "i7",
-          "correlation_id": "f7daf1a94ea1dc00939f9fce8a881d3d",
+          "correlation_id": "56f693e884d0c74900396f228cd30198",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -750,7 +478,7 @@
       ],
       "choreo_meta": null,
       "outcome": "passed",
-      "duration_ms": 129.97566600097343,
+      "duration_ms": 87.42195804370567,
       "traceback": null,
       "stdout": "",
       "stderr": "",
@@ -760,7 +488,7 @@
       "scenarios": [
         {
           "name": "i8",
-          "correlation_id": "57042d6a718096040d2d6ea741148190",
+          "correlation_id": "ad5971666cb320f91e818aa5a820c86e",
           "outcome": "pass",
           "duration_ms": 0.0,
           "completed_normally": true,
@@ -790,175 +518,6 @@
               "nats"
             ],
             "correlation_ids": {}
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_canonical_round_trip.py::test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines",
-      "file": "tests/integration/test_stage_canonical_round_trip.py",
-      "name": "test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 95.80145799554884,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw8",
-      "scenarios": [
-        {
-          "name": "bridge_round_trip",
-          "correlation_id": "0d35276af7b9fc34af705ad1bdf144e8",
-          "outcome": "pass",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "results",
-              "outcome": "pass",
-              "latency_ms": 0.052499992307275534,
-              "budget_ms": null,
-              "matcher_description": "kind = 'result'",
-              "expected": null,
-              "actual": {
-                "kind": "result",
-                "echo": 42,
-                "correlation_id": "nats-0d35276af7b9fc34af705ad1bdf144e8"
-              },
-              "attempts": 0,
-              "reason": "kind = 'result'",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "matched"
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:221964ad2d7de10c"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [
-            {
-              "trigger_topic": "orders.new",
-              "reply_topic": "orders.processed",
-              "state": "replied",
-              "matcher_description": "(any)",
-              "candidate_count": 1,
-              "match_count": 1,
-              "reply_published": true,
-              "builder_error": null,
-              "correlation_overridden": false,
-              "trigger_transport": "kafka",
-              "response_transport": "kafka"
-            }
-          ],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "nats": "sha256:221964ad2d7de10c"
-            }
-          }
-        }
-      ]
-    },
-    {
-      "nodeid": "tests/integration/test_stage_result_shape.py::test_stage_scenario_result_by_transport_should_contain_only_real_transport_names",
-      "file": "tests/integration/test_stage_result_shape.py",
-      "name": "test_stage_scenario_result_by_transport_should_contain_only_real_transport_names",
-      "class": null,
-      "markers": [
-        "asyncio"
-      ],
-      "choreo_meta": null,
-      "outcome": "passed",
-      "duration_ms": 143.60845898045227,
-      "traceback": null,
-      "stdout": "",
-      "stderr": "",
-      "log": "",
-      "skip_reason": null,
-      "worker_id": "gw9",
-      "scenarios": [
-        {
-          "name": "k1",
-          "correlation_id": "f7e7b7d229306e62f6368c82147a54d6",
-          "outcome": "timeout",
-          "duration_ms": 0.0,
-          "completed_normally": true,
-          "handles": [
-            {
-              "topic": "topic.n",
-              "outcome": "timeout",
-              "latency_ms": 25.219666014891118,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.n' (transport 'nats') within 20ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.n",
-                "deadline_ms": 25.219666014891118
-              },
-              "transport": "nats",
-              "correlation_id": "sha256:973c57b1ffceaada"
-            },
-            {
-              "topic": "topic.k",
-              "outcome": "timeout",
-              "latency_ms": 25.202165998052806,
-              "budget_ms": null,
-              "matcher_description": "status = 'ok'",
-              "expected": null,
-              "actual": null,
-              "attempts": 0,
-              "reason": "no matching message arrived on topic 'topic.k' (transport 'kafka') within 20ms",
-              "truncated": false,
-              "failure": null,
-              "failures": [],
-              "failures_dropped": 0,
-              "diagnosis": {
-                "kind": "silent_timeout",
-                "topic": "topic.k",
-                "deadline_ms": 25.202165998052806
-              },
-              "transport": "kafka",
-              "correlation_id": "sha256:7236595aeee61f8d"
-            }
-          ],
-          "timeline": [],
-          "timeline_dropped": 0,
-          "replies": [],
-          "summary_text": "",
-          "stage": {
-            "bridge_class": "MappedBridge",
-            "transports": [
-              "kafka",
-              "nats"
-            ],
-            "correlation_ids": {
-              "kafka": "sha256:7236595aeee61f8d",
-              "nats": "sha256:973c57b1ffceaada"
-            }
           }
         }
       ]

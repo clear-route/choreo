@@ -531,28 +531,34 @@ _CSS = """
    and reply chains is obvious. */
 .harness-report .hr-section-heading { font-size: 11px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
 .harness-report .hr-replies h3 { font-size: 10px; margin: 0 0 var(--hr-space-2) 0; color: var(--hr-text-muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-/* Reply rows are grouped by state so a reader scanning for failures
-   sees them visually distinguished. PRD-012 / user-feedback redesign:
-   each row is a header (state + chain + one-line summary) plus an
-   expandable lifecycle body broken into four named stages. */
-.harness-report .hr-reply-row { border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); }
-.harness-report .hr-reply-row[data-state="replied"] { color: var(--hr-text); }
-.harness-report .hr-reply-row[data-state="reply_failed"] { color: var(--hr-text); background: var(--hr-fail-tint); }
+/* Reply chain row (system.md §3 Reply chain row). Header is a single
+   flex line: badge + chain + latency + summary; the four-stage
+   lifecycle body expands beneath. Failing rows take the failure trio
+   (left rule + tint + default text) per §3 Failure treatment. */
+.harness-report .hr-reply-row { border-bottom: 1px solid var(--hr-surface-2); font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); padding-left: 0; }
+.harness-report .hr-reply-row[data-state="reply_failed"] { background: var(--hr-fail-tint); border-left: 3px solid var(--hr-fail-border); padding-left: var(--hr-space-2); }
 .harness-report .hr-reply-row[data-state="armed_no_match"],
-.harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { color: var(--hr-text-muted); background: var(--hr-slow-tint); }
+.harness-report .hr-reply-row[data-state="armed_matcher_mismatched"] { background: var(--hr-slow-tint); border-left: 3px solid var(--hr-slow-border); padding-left: var(--hr-space-2); color: var(--hr-text-muted); }
 .harness-report .hr-reply-row[aria-expanded="false"] .hr-reply-body { display: none; }
-.harness-report .hr-reply-row[aria-expanded="false"] .hr-caret { transform: rotate(-90deg); display: inline-block; }
-.harness-report .hr-reply-header { display: flex; align-items: baseline; gap: var(--hr-space-2); padding: 4px var(--hr-space-2); cursor: pointer; }
-.harness-report .hr-reply-header .hr-caret { color: var(--hr-text-subtle); width: 0.7rem; transition: transform 0.15s ease; }
-.harness-report .hr-reply-state { font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 10px; min-width: 7ch; }
-.harness-report .hr-reply-state[data-state="replied"] { color: var(--hr-pass); }
-.harness-report .hr-reply-state[data-state="reply_failed"] { color: var(--hr-fail); }
-.harness-report .hr-reply-state[data-state="armed_no_match"],
-.harness-report .hr-reply-state[data-state="armed_matcher_mismatched"] { color: var(--hr-slow); }
+.harness-report .hr-reply-row[aria-expanded="false"] .hr-caret { transform: rotate(-90deg); }
+.harness-report .hr-reply-header { display: flex; align-items: center; gap: var(--hr-space-2); padding: 4px var(--hr-space-2); cursor: pointer; }
+.harness-report .hr-reply-header:hover .hr-caret { color: var(--hr-text); background: var(--hr-bg); border-color: var(--hr-border-strong); }
 .harness-report .hr-reply-chain { display: inline-flex; gap: var(--hr-space-2); align-items: baseline; color: var(--hr-text); flex-wrap: wrap; }
-.harness-report .hr-reply-topic { font-family: var(--hr-font-mono); }
+.harness-report .hr-reply-topic { font-family: var(--hr-font-mono); font-size: var(--hr-text-xs); background: var(--hr-surface-2); color: var(--hr-text); padding: 1px var(--hr-space-2); border-radius: var(--hr-radius-sm); border: 1px solid var(--hr-border); white-space: nowrap; }
 .harness-report .hr-reply-arrow { color: var(--hr-text-subtle); }
-.harness-report .hr-reply-summary { margin-left: auto; color: var(--hr-text-muted); font-style: italic; }
+.harness-report .hr-reply-latency { color: var(--hr-text-subtle); font-family: var(--hr-font-mono); font-variant-numeric: tabular-nums; margin-left: var(--hr-space-3); }
+/* `on` and `publish` keywords mirror the test-author API. Italic +
+   muted so they read as syntax, not part of the topic name. */
+.harness-report .hr-reply-api-keyword { font-family: var(--hr-font-mono); color: var(--hr-text-muted); font-style: italic; font-weight: 600; }
+
+/* Matcher line — what the trigger inbound message had to satisfy.
+   Sits at the top of the lifecycle body. Mono code chip for the
+   matcher description. */
+.harness-report .hr-reply-matcher { display: grid; grid-template-columns: 13ch 1fr; gap: var(--hr-space-2); align-items: baseline; padding: 0 0 var(--hr-space-2) 0; font-size: var(--hr-text-xs); }
+.harness-report .hr-reply-matcher-label { color: var(--hr-text); font-weight: 500; }
+.harness-report .hr-reply-matcher-value { color: var(--hr-text-muted); }
+.harness-report .hr-reply-matcher code { font-family: var(--hr-font-mono); color: var(--hr-text); background: var(--hr-surface-2); padding: 0 0.4rem; border-radius: 0.25rem; }
+.harness-report .hr-reply-summary { color: var(--hr-text-muted); font-style: italic; }
 .harness-report .hr-reply-row[data-state="reply_failed"] .hr-reply-summary { color: var(--hr-fail); font-style: normal; font-weight: 600; }
 
 /* Lifecycle body — four stage rows, one per lifecycle step. Each
@@ -603,140 +609,129 @@ _CSS = """
 .harness-report .hr-json-null { color: var(--hr-text-subtle); font-style: italic; }
 
 /* ----------------------------------------------------------------- */
-/* PRD-012: Stage scenario surface (badges, breadcrumb, sub-badges).  */
-/* All selectors scoped under .harness-report.                        */
+/* PRD-012: Stage scenario surface — flat strip per system.md §3      */
+/* Stage strip. Class names below are the stable selector contract    */
+/* (test_design_system_contract.py + PRD-012 §3.6); the styling is    */
+/* the topic-chip / strip primitive.                                  */
 /* ----------------------------------------------------------------- */
 
-/* Per-handle transport badge (PRD-012 §3.1). */
+/* Per-handle / per-stage / per-reply transport chip — all three reuse
+   the topic-chip primitive (system.md §3 Topic chip) so a transport
+   reads as the same kind of object as a topic. The class selectors
+   are kept as PRD-012 hooks; the visual is the chip. */
 .harness-report .hr-handle-transport-badge,
 .harness-report .hr-stage-transport-badge,
 .harness-report .hr-reply-transport-badge {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 0.5rem;
-  padding: 0 0.4rem;
-  border-radius: 0.625rem;
+  display: inline-block;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   background: var(--hr-surface-2);
   color: var(--hr-text);
+  padding: 1px var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
   border: 1px solid var(--hr-border);
-  font-size: 0.75rem;
-  font-weight: 500;
-  line-height: 1.4rem;
   white-space: nowrap;
 }
+/* US-2 AC3: failed response-transport visual is reduced opacity. */
+.harness-report .hr-reply-transport-badge--failed { opacity: 0.4; }
+/* The handle row leaves space between the topic chip and the transport
+   chip; the stage strip and reply chain manage their own gap via flex. */
+.harness-report .hr-handle-transport-badge { margin-left: var(--hr-space-2); }
 
-/* Failed response-transport badge (PRD-012 §3.2 + US-2 AC3) — class
-   is the asserted contract; opacity is the visual rule. */
-.harness-report .hr-reply-transport-badge--failed {
-  opacity: 0.4;
-}
-
-/* Stage breadcrumb (PRD-012 §3.3 / Pass-2 redesign). Promoted to be
-   a hero-block under the scenario header — a Stage scenario IS a
-   Stage; the bridge class and registered transports are first-class
-   identity, not metadata. Bordered card with warm surface + a
-   prominent "STAGE" pill so the scenario type is unambiguous at a
-   glance. */
+/* Stage strip (system.md §3) — single-line metadata row directly under
+   the scenario header. No card chrome, no info-tint. */
 .harness-report .hr-stage-breadcrumb {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 1rem;
-  background: var(--hr-info-tint);
-  border-left: 3px solid var(--hr-info);
-  border-bottom: 1px solid var(--hr-border);
-  font-size: 0.875rem;
-  color: var(--hr-text);
-}
-.harness-report .hr-stage-label {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.05rem 0.5rem;
-  background: var(--hr-info);
-  color: var(--hr-badge-fg);
-  font-weight: 700;
-  font-size: 0.6875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border-radius: 0.25rem;
-  line-height: 1.2rem;
-}
-.harness-report .hr-stage-sep {
-  color: var(--hr-text-subtle);
-}
-.harness-report .hr-stage-bridge-label,
-.harness-report .hr-stage-transports-label {
-  font-size: 0.75rem;
+  align-items: baseline;
+  gap: var(--hr-space-3);
+  padding: 0 0 var(--hr-space-3) 0;
+  margin-top: calc(-1 * var(--hr-space-2));
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+}
+/* The lowercase [stage] tag — same chip footprint as .hr-topic, weight
+   600. Distinct class so consumers can target the tag without matching
+   every topic chip. */
+.harness-report .hr-stage-tag {
+  display: inline-block;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
+  background: var(--hr-surface-2);
+  color: var(--hr-text);
+  padding: 1px var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
+  border: 1px solid var(--hr-border);
   font-weight: 600;
 }
 .harness-report .hr-stage-bridge-class {
-  font-family: var(--hr-mono);
-  font-weight: 600;
+  font-family: var(--hr-font-mono);
   color: var(--hr-text);
 }
-/* Inline transport pills inside the breadcrumb get more weight than
-   handle/reply badges — they are the Stage's identity. */
-.harness-report .hr-stage-breadcrumb .hr-stage-transport-badge {
-  background: var(--hr-surface);
-  color: var(--hr-text);
-  border: 1px solid var(--hr-border-strong);
-  font-weight: 600;
-  font-size: 0.8125rem;
-  padding: 0.05rem 0.5rem;
-  line-height: 1.3rem;
+.harness-report .hr-stage-transports-list {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--hr-space-2);
 }
-/* Per-transport correlation id (in the breadcrumb's <details>
-   disclosure). Mono-font and bordered for readability against the
-   surrounding text. */
-.harness-report .hr-stage-correlation-ids {
-  width: 100%;
-  margin-top: 0.4rem;
-}
+.harness-report .hr-stage-transports-glyph { color: var(--hr-text-subtle); }
+
+/* Correlation ids disclosure — quiet, mono. Lives inside the strip. */
+.harness-report .hr-stage-correlation-ids { display: inline-block; }
 .harness-report .hr-stage-correlation-ids-summary {
-  font-size: 0.75rem;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
   cursor: pointer;
   user-select: none;
+  list-style: none;
 }
-.harness-report .hr-stage-correlation-ids-summary:hover {
-  color: var(--hr-text);
+.harness-report .hr-stage-correlation-ids-summary::-webkit-details-marker { display: none; }
+.harness-report .hr-stage-correlation-ids-summary::before {
+  content: "▸";
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--hr-text-subtle);
+  transition: transform var(--hr-dur-fast) var(--hr-ease);
 }
+.harness-report .hr-stage-correlation-ids[open] > .hr-stage-correlation-ids-summary::before {
+  transform: rotate(90deg);
+}
+.harness-report .hr-stage-correlation-ids-summary:hover { color: var(--hr-text); }
 .harness-report .hr-stage-correlation-ids-list {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.4rem 0 0 1rem;
+  gap: var(--hr-space-1);
+  padding: var(--hr-space-2) 0 0 var(--hr-space-3);
 }
 .harness-report .hr-stage-correlation-id-row {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--hr-space-2);
 }
 .harness-report .hr-stage-correlation-id {
-  font-family: var(--hr-mono);
-  font-size: 0.75rem;
+  font-family: var(--hr-font-mono);
+  font-size: var(--hr-text-xs);
   color: var(--hr-text-muted);
-  background: var(--hr-surface);
+  background: var(--hr-surface-2);
   border: 1px solid var(--hr-border);
-  border-radius: 0.25rem;
-  padding: 0 0.4rem;
+  border-radius: var(--hr-radius-sm);
+  padding: 0 var(--hr-space-2);
 }
 
-/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5). */
+/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5).
+   The header keeps the bold red tag — failure-first signalling lives
+   here, not in the strip. */
 .harness-report .hr-scenario-failing-side,
 .harness-report .hr-scenario-failing-reply {
   display: inline-flex;
   align-items: center;
-  margin-left: 0.5rem;
-  padding: 0 0.4rem;
-  border-radius: 0.25rem;
+  margin-left: var(--hr-space-2);
+  padding: 0 var(--hr-space-2);
+  border-radius: var(--hr-radius-sm);
   background: var(--hr-fail);
-  color: white;
-  font-size: 0.75rem;
+  color: var(--hr-badge-fg);
+  font-size: var(--hr-text-xs);
   font-weight: 600;
   line-height: 1.4rem;
 }
@@ -1300,7 +1295,7 @@ _JS = r"""
       case 'slow': return '\u26A0';                  // warning triangle
       case 'skipped': return '\u2013';               // en-dash
       case 'errored': return '\u2298';               // circled slash
-      case 'timeout': return '\u29D6';               // hourglass/crossed diamond
+      case 'timeout': return '\u29D7';               // black hourglass (filled \u2014 reads at badge size)
       default: return '\u2022';                       // bullet
     }
   }
@@ -1554,14 +1549,29 @@ _JS = r"""
     return row;
   }
 
+  // Chain rendering mirrors the test-author API:
+  //   s.on("orders.new", on="kafka")
+  //    .publish("orders.processed", on="kafka", matcher=..., build=...)
+  // The header reads: `on [kafka] orders.new \u2192 publish [kafka] orders.processed`
+  // so a reader can match the report row to the test source line.
   function renderReplyHeader(r) {
+    // Reply chain row header (system.md \u00A73 Reply chain row).
+    //   \u25B8  \u2713  on  \uFF62kafka\uFF63 orders.new   \u2192   publish  \uFF62nats\uFF63 orders.processed     trigger matched, response published
+    // Outcome badge replaces the loud REPLIED pill: the system's badge
+    // primitive carries the signal. Transport + topic on each side both
+    // render as `.hr-topic` chips so a transport reads as the same kind
+    // of object as a topic (system.md \u00A73 Topic chip).
     var header = el('div', { 'class': 'hr-reply-header', tabindex: '0' });
     header.appendChild(el('span', { 'class': 'hr-caret', 'aria-hidden': 'true' }, '\u25BC'));
+    var badgeOutcome = replyStateOutcome(r.state);
     header.appendChild(el('span', {
-      'class': 'hr-reply-state',
-      'data-state': r.state
-    }, replyStateLabel(r.state)));
+      'class': 'hr-badge',
+      'data-outcome': badgeOutcome,
+      'data-state': r.state,
+      'aria-label': replyStateLabel(r.state)
+    }, outcomeLetter(badgeOutcome)));
     var chain = el('span', { 'class': 'hr-reply-chain' });
+    chain.appendChild(el('span', { 'class': 'hr-reply-api-keyword' }, 'on'));
     if (r.trigger_transport) {
       chain.appendChild(el('span', {
         'class': 'hr-reply-transport-badge',
@@ -1571,6 +1581,7 @@ _JS = r"""
     }
     chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.trigger_topic));
     chain.appendChild(el('span', { 'class': 'hr-reply-arrow' }, '\u2192'));
+    chain.appendChild(el('span', { 'class': 'hr-reply-api-keyword' }, 'publish'));
     if (r.response_transport) {
       var responseClass = 'hr-reply-transport-badge';
       if (r.state === 'reply_failed') {
@@ -1584,18 +1595,33 @@ _JS = r"""
     }
     chain.appendChild(el('span', { 'class': 'hr-reply-topic' }, r.reply_topic));
     header.appendChild(chain);
-    header.appendChild(el('span', { 'class': 'hr-reply-summary' }, replyOneLineSummary(r)));
+    var summary = replyOneLineSummary(r);
+    if (summary) {
+      header.appendChild(el('span', { 'class': 'hr-reply-summary' }, summary));
+    }
     return header;
   }
 
-  // One-line outcome summary for the collapsed reply row.
+  // Maps a reply state to the outcome enum used by the .hr-badge primitive
+  // (system.md \u00A73 Badge). `replied` is a pass; `reply_failed` is a fail;
+  // the two `armed_*` diagnostic states use `slow` for visual continuity
+  // with the existing slow-tint failure-trio treatment on the row.
+  function replyStateOutcome(state) {
+    if (state === 'replied') { return 'pass'; }
+    if (state === 'reply_failed') { return 'fail'; }
+    return 'slow';
+  }
+
+  // One-line outcome summary for the collapsed reply row. The badge
+  // already signals pass/fail/slow; the summary is the short clause
+  // (system.md \u00A73 Reply chain row).
   function replyOneLineSummary(r) {
     if (r.state === 'replied') {
-      return 'fired \u2014 trigger matched, build ok, response published';
+      return 'trigger matched, response published';
     }
     if (r.state === 'reply_failed') {
       var err = r.builder_error || 'unknown error';
-      return 'failed at build/publish \u2014 ' + err;
+      return 'build callback failed \u2014 ' + err;
     }
     if (r.state === 'armed_no_match') {
       return 'no candidates received on the trigger topic for this scope';
@@ -1614,6 +1640,19 @@ _JS = r"""
   // ran cleanly).
   function renderReplyLifecycle(r) {
     var body = el('div', { 'class': 'hr-reply-body' });
+    // Matcher line: shows what the trigger inbound message had to
+    // satisfy. Lives at the top of the body so the reader sees the
+    // assertion intent before reading the lifecycle outcome. Mirrors
+    // the API's `matcher=` argument to `s.on().publish(...)`.
+    if (r.matcher_description) {
+      var matcherLine = el('div', { 'class': 'hr-reply-matcher' });
+      matcherLine.appendChild(el('span', { 'class': 'hr-reply-matcher-label' }, 'matcher:'));
+      var matcherValue = el('span', { 'class': 'hr-reply-matcher-value' });
+      matcherValue.appendChild(document.createTextNode('matches when message '));
+      matcherValue.appendChild(el('code', {}, r.matcher_description));
+      matcherLine.appendChild(matcherValue);
+      body.appendChild(matcherLine);
+    }
     var triggerLabel = (r.trigger_transport ? r.trigger_transport + ':' : '') + r.trigger_topic;
     var responseLabel = (r.response_transport ? r.response_transport + ':' : '') + r.reply_topic;
 
@@ -1768,6 +1807,11 @@ _JS = r"""
   //     from handle-row data-handle-transport so the US-1 selector
   //     contract holds).
   function renderStageBreadcrumb(stage) {
+    // Stage strip (system.md §3 Stage strip). Single-line metadata row
+    // emitting the [stage] tag, the bridge class, the transport set, and
+    // a correlation-ids disclosure. Class names and data-* attrs are
+    // the stable selector contract (PRD-012 §3.6) — preserved across
+    // the visual redesign so consumer queries keep working.
     var transports = stage.transports || [];
     var crumbAttrs = { 'class': 'hr-stage-breadcrumb' };
     if (stage.bridge_class) {
@@ -1777,22 +1821,25 @@ _JS = r"""
       crumbAttrs['data-stage-transports'] = transports.join(' ');
     }
     var crumb = el('div', crumbAttrs);
-    crumb.appendChild(el('span', { 'class': 'hr-stage-label' }, 'Stage'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-label' }, 'bridge:'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-class' }, stage.bridge_class || ''));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-sep' }, '·'));
-    crumb.appendChild(el('span', { 'class': 'hr-stage-transports-label' }, 'transports:'));
-    transports.forEach(function (t) {
-      crumb.appendChild(el('span', {
-        'class': 'hr-stage-transport-badge',
-        'data-stage-transport': t
-      }, t));
-    });
-    // Per-transport correlation ids — moved into a collapsed
-    // disclosure (`<details>`) so the breadcrumb stays scannable.
-    // Consumers querying the `data-stage-transport` selector still
-    // find the pills inside the disclosure.
+    crumb.appendChild(el('span', { 'class': 'hr-stage-tag' }, 'stage'));
+    if (stage.bridge_class) {
+      crumb.appendChild(el('span', { 'class': 'hr-stage-bridge-class' }, stage.bridge_class));
+    }
+    if (transports.length) {
+      var pills = el('span', { 'class': 'hr-stage-transports-list' });
+      transports.forEach(function (t, i) {
+        if (i > 0) {
+          // ⇄ between two transports; comma for three or more (system.md §3).
+          var sep = (transports.length === 2) ? '⇄' : ',';
+          pills.appendChild(el('span', { 'class': 'hr-stage-transports-glyph', 'aria-hidden': 'true' }, sep));
+        }
+        pills.appendChild(el('span', {
+          'class': 'hr-stage-transport-badge',
+          'data-stage-transport': t
+        }, t));
+      });
+      crumb.appendChild(pills);
+    }
     var correlationIds = stage.correlation_ids || {};
     var correlationKeys = [];
     for (var k in correlationIds) {
@@ -1803,7 +1850,9 @@ _JS = r"""
     if (correlationKeys.length) {
       var detail = el('details', { 'class': 'hr-stage-correlation-ids' });
       var summary = el('summary', { 'class': 'hr-stage-correlation-ids-summary' });
-      summary.appendChild(document.createTextNode('correlation ids (' + correlationKeys.length + ')'));
+      summary.appendChild(document.createTextNode(
+        correlationKeys.length + ' correlation id' + (correlationKeys.length === 1 ? '' : 's')
+      ));
       detail.appendChild(summary);
       var idsList = el('div', { 'class': 'hr-stage-correlation-ids-list' });
       correlationKeys.sort();
