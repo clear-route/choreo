@@ -290,3 +290,112 @@ class TestPRD013TimelineIngest:
 
         events = asyncio.run(_query_timeline_events(run_id))
         assert events == []
+
+
+@skip_no_db
+class TestPRD013TimelineReadAPI:
+    """End-to-end: GET /api/v1/runs/{run_id}/timeline returns
+    persisted timeline events with optional filters."""
+
+    def _ingest_canonical(self, db_client: TestClient) -> str:
+        response = db_client.post(
+            "/api/v1/runs",
+            json=_v1_3_stage_report(),
+            headers={"X-Chronicle-Tenant": "prd013-timeline-read"},
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["run_id"]
+
+    def test_get_timeline_should_return_all_events_in_observation_order(
+        self, db_client: TestClient
+    ) -> None:
+        run_id = self._ingest_canonical(db_client)
+        response = db_client.get(f"/api/v1/runs/{run_id}/timeline")
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["total"] == 6
+        actions = [e["action"] for e in body["items"]]
+        assert actions == [
+            "published",
+            "received",
+            "replied",
+            "received",
+            "matched",
+            "deadline",
+        ]
+
+    def test_get_timeline_should_filter_by_transport(
+        self, db_client: TestClient
+    ) -> None:
+        run_id = self._ingest_canonical(db_client)
+        response = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?transport=kafka"
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 2
+        assert all(e["transport"] == "kafka" for e in body["items"])
+
+    def test_get_timeline_should_filter_by_action(
+        self, db_client: TestClient
+    ) -> None:
+        run_id = self._ingest_canonical(db_client)
+        response = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?action=replied"
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 1
+        assert body["items"][0]["action"] == "replied"
+        assert body["items"][0]["topic"] == "nats-orders.processed"
+
+    def test_get_timeline_should_filter_by_source(
+        self, db_client: TestClient
+    ) -> None:
+        run_id = self._ingest_canonical(db_client)
+        response = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?source=reply"
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total"] == 2
+        assert all(e["source"] == "reply" for e in body["items"])
+
+    def test_get_timeline_should_paginate_via_limit_and_offset(
+        self, db_client: TestClient
+    ) -> None:
+        run_id = self._ingest_canonical(db_client)
+        # First page of 2
+        page1 = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?limit=2&offset=0"
+        )
+        assert page1.status_code == 200
+        assert page1.json()["total"] == 6
+        assert len(page1.json()["items"]) == 2
+        # Second page of 2
+        page2 = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?limit=2&offset=2"
+        )
+        assert page2.status_code == 200
+        assert page2.json()["total"] == 6
+        assert len(page2.json()["items"]) == 2
+        # Third page of 2
+        page3 = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?limit=2&offset=4"
+        )
+        assert page3.status_code == 200
+        assert len(page3.json()["items"]) == 2
+        # Page beyond total
+        page4 = db_client.get(
+            f"/api/v1/runs/{run_id}/timeline?limit=2&offset=6"
+        )
+        assert page4.status_code == 200
+        assert page4.json()["items"] == []
+
+    def test_get_timeline_should_404_for_unknown_run_id(
+        self, db_client: TestClient
+    ) -> None:
+        response = db_client.get(
+            "/api/v1/runs/00000000-0000-0000-0000-000000000000/timeline"
+        )
+        assert response.status_code == 404

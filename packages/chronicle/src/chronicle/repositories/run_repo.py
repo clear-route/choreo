@@ -7,7 +7,7 @@ The COPY-protocol bulk insert for handle measurements bypasses the ORM.
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -358,6 +358,58 @@ class RunRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_timeline_events(
+        self,
+        run_id: UUID,
+        *,
+        transport: str | None = None,
+        action: str | None = None,
+        source: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """Return a page of timeline events for a run, in observation
+        order (PRD-013 §5).
+
+        `timeline_events` is a hypertable with no ORM model — uses raw
+        SQL via the SQLAlchemy session. Filters are SQL-parameter
+        bound (no string interpolation; safe against injection).
+
+        Returns ``(events, total_count)``. Each event is a dict with
+        the v1.3 schema fields plus `scenario_id`.
+        """
+        clauses = ["run_id = :run_id"]
+        params: dict[str, object] = {"run_id": run_id}
+        if transport is not None:
+            clauses.append("transport = :transport")
+            params["transport"] = transport
+        if action is not None:
+            clauses.append("action = :action")
+            params["action"] = action
+        if source is not None:
+            clauses.append("source = :source")
+            params["source"] = source
+        where = " AND ".join(clauses)
+
+        count_sql = text(f"SELECT COUNT(*) FROM timeline_events WHERE {where}")
+        count_result = await self.session.execute(count_sql, params)
+        total = count_result.scalar_one()
+
+        page_sql = text(
+            f"""
+            SELECT scenario_id, time, offset_ms, action, detail,
+                   topic, transport, logical_topic, source
+            FROM timeline_events
+            WHERE {where}
+            ORDER BY offset_ms ASC
+            LIMIT :limit OFFSET :offset
+            """
+        )
+        page_params = {**params, "limit": limit, "offset": offset}
+        rows_result = await self.session.execute(page_sql, page_params)
+        events = [dict(row._mapping) for row in rows_result.all()]
+        return events, total
 
     async def get_run_raw_report(self, run_id: UUID) -> dict | None:
         """Fetch only the ``raw_report`` JSONB for a run.  Returns ``None``

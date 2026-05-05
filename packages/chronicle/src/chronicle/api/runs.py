@@ -19,7 +19,14 @@ from chronicle.dependencies import get_ingest_service, get_run_repo, get_tenant_
 from chronicle.models.tables import Tenant
 from chronicle.repositories.run_repo import RunRepository
 from chronicle.schemas.ingest import IngestRequest, IngestResponse
-from chronicle.schemas.runs import RunDetail, RunListResponse, RunSummary, ScenarioSummary
+from chronicle.schemas.runs import (
+    RunDetail,
+    RunListResponse,
+    RunSummary,
+    ScenarioSummary,
+    TimelineEventListResponse,
+    TimelineEventResponse,
+)
 from chronicle.services.ingest_service import IngestService
 
 router = APIRouter(tags=["runs"])
@@ -155,3 +162,46 @@ async def get_run_raw(
         raise HTTPException(status_code=404, detail="Run not found.")
 
     return JSONResponse(content=raw)
+
+
+@router.get(
+    "/runs/{run_id}/timeline", response_model=TimelineEventListResponse
+)
+async def list_run_timeline(
+    run_id: UUID,
+    run_repo: Annotated[RunRepository, Depends(get_run_repo)],
+    transport: Annotated[str | None, Query(max_length=64)] = None,
+    action: Annotated[str | None, Query(max_length=64)] = None,
+    source: Annotated[str | None, Query(max_length=16)] = None,
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0, le=50000)] = 0,
+) -> TimelineEventListResponse:
+    """Return a paginated list of timeline events for a run (PRD-013
+    §5). Events are ordered by `offset_ms ASC` (observation order).
+
+    Query parameters:
+      - `transport`: filter to events on a single transport (e.g. `kafka`)
+      - `action`: filter to a single TimelineAction (e.g. `replied`)
+      - `source`: filter to a single DSL surface (e.g. `reply`)
+      - `limit`: page size (default 100, max 1000)
+      - `offset`: skip count (default 0, max 50000 — matches the
+        per-run aggregate cap from PRD-013 §D-4)
+
+    Returns 404 if the run does not exist; an empty list when the
+    run exists but has no timeline (single-Harness or empty Stage
+    timeline)."""
+    run = await run_repo.get_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Run not found.")
+    events, total = await run_repo.list_timeline_events(
+        run_id,
+        transport=transport,
+        action=action,
+        source=source,
+        limit=limit,
+        offset=offset,
+    )
+    return TimelineEventListResponse(
+        items=[TimelineEventResponse(**e) for e in events],
+        total=total,
+    )
