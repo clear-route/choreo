@@ -204,4 +204,6 @@ async def list_run_timeline(
     return TimelineEventListResponse(
         items=[TimelineEventResponse(**e) for e in events],
         total=total,
+        limit=limit,
+        offset=offset,
     )
