@@ -17,7 +17,6 @@ import os
 from pathlib import Path
 
 import pytest
-
 from choreo import Harness
 from choreo.matchers import contains_fields
 from choreo.transports import MockTransport, TransportError

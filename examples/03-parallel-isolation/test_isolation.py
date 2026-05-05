@@ -25,7 +25,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from choreo import DictFieldPolicy, Harness, NoCorrelationPolicy
 from choreo.matchers import field_equals
 from choreo.transports import MockTransport
