@@ -75,8 +75,25 @@ jobs:
           npm audit --omit=dev
           npm run build
 
-      - name: Build wheels + sdists
+      - name: Resolve release version from tag
+        id: version
         run: |
+          # Strip leading `v` from the tag (e.g. `v1.0.0` -> `1.0.0`).
+          # SETUPTOOLS_SCM_PRETEND_VERSION pins hatch-vcs to this value, so
+          # any working-tree dirtiness from earlier test/install/build steps
+          # cannot produce a local-version identifier (which PyPI rejects
+          # with 400). hatch-vcs uses setuptools-scm under the hood, so this
+          # env var applies to all three packages.
+          version="${GITHUB_REF_NAME#v}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build wheels + sdists
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Diagnose any tree dirtiness so failures here are obvious.
+          git status --porcelain
+          git describe --tags --long --dirty || true
           python -m build packages/core --outdir dist/
           python -m build packages/core-reporter --outdir dist/
           python -m build packages/chronicle --outdir dist/
