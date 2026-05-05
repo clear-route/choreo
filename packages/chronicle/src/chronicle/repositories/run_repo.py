@@ -35,6 +35,22 @@ HANDLE_COPY_COLUMNS: list[str] = [
     "over_budget",
 ]
 
+# Column list for asyncpg COPY into `timeline_events` (migration 005,
+# PRD-013 §5). Order matches the create_table column declarations.
+TIMELINE_COPY_COLUMNS: list[str] = [
+    "time",
+    "tenant_id",
+    "run_id",
+    "scenario_id",
+    "action",
+    "detail",
+    "offset_ms",
+    "topic",
+    "transport",
+    "logical_topic",
+    "source",
+]
+
 
 class RunRepository:
     """Database access for runs, scenarios, and handle measurements."""
@@ -203,6 +219,61 @@ class RunRepository:
             "handle_measurements",
             records=records,
             columns=HANDLE_COPY_COLUMNS,
+        )
+        return len(records)
+
+    async def copy_timeline_events(
+        self,
+        run: Run,
+        scenarios: list[Scenario],
+        events_by_scenario: dict[UUID, list[tuple]],
+    ) -> int:
+        """Bulk-insert timeline event rows via asyncpg's COPY protocol
+        (PRD-013 §5).
+
+        ``events_by_scenario`` maps ``scenario.id`` to a list of tuples
+        with the per-event payload following ``TIMELINE_COPY_COLUMNS``
+        from index 4 onwards (action, detail, offset_ms, topic,
+        transport, logical_topic, source). Run/scenario context fields
+        (time/tenant/run/scenario) are prepended here so callers don't
+        repeat them per row.
+
+        Mirrors the `copy_handle_measurements` pattern. Returns the
+        number of rows inserted.
+        """
+        records: list[tuple] = []
+        run_tenant = run.tenant_id
+        run_id = run.id
+
+        for scenario in scenarios:
+            for event_fields in events_by_scenario.get(scenario.id, []):
+                # First slot is the per-event `time` (parsed from
+                # `wall_clock`); remaining slots are the per-event
+                # payload. Run-level context (tenant/run/scenario) is
+                # constant across all events in a scenario.
+                event_time = event_fields[0]
+                rest = event_fields[1:]
+                records.append(
+                    (
+                        event_time,
+                        run_tenant,
+                        run_id,
+                        scenario.id,
+                        *rest,
+                    )
+                )
+
+        if not records:
+            return 0
+
+        sa_connection = await self.session.connection()
+        raw_connection = await sa_connection.get_raw_connection()
+        asyncpg_conn = raw_connection.driver_connection
+
+        await asyncpg_conn.copy_records_to_table(
+            "timeline_events",
+            records=records,
+            columns=TIMELINE_COPY_COLUMNS,
         )
         return len(records)
 

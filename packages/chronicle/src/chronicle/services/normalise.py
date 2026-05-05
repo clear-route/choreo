@@ -32,6 +32,27 @@ class NormalisedHandle:
 
 
 @dataclass(frozen=True)
+class NormalisedTimelineEvent:
+    """A single timeline event extracted and normalised from
+    `scenario.timeline[]` (PRD-013, schema v1.3).
+
+    Mirrors the v1.3 JSON shape: mandatory `time` (parsed from
+    `wall_clock`), `action`, `detail`, `offset_ms` plus optional
+    `topic` / `transport` / `logical_topic` / `source`. Flowed through
+    to `timeline_events.{column}` by `RunRepository.copy_timeline_events`.
+    """
+
+    time: datetime
+    offset_ms: float
+    action: str
+    detail: str
+    topic: str | None = None
+    transport: str | None = None
+    logical_topic: str | None = None
+    source: str | None = None
+
+
+@dataclass(frozen=True)
 class NormalisedScenario:
     """A single scenario extracted from the raw report."""
 
@@ -42,6 +63,11 @@ class NormalisedScenario:
     duration_ms: float
     completed_normally: bool
     handles: tuple[NormalisedHandle, ...]
+    # PRD-013 §1.6: optional with default to keep backward-compat with
+    # test fixtures constructing NormalisedScenario directly. v1.0/v1.1
+    # reports populate an empty tuple; v1.2/v1.3 Stage reports carry
+    # captured events.
+    timeline: tuple[NormalisedTimelineEvent, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -167,6 +193,25 @@ def normalise_report(report: object) -> NormalisedReport:
                         transport=handle_transport,
                     )
                 )
+            # PRD-013 §1.6: extract timeline events. v1.0/v1.1 reports
+            # have an empty list (deferral marker); v1.2/v1.3 reports
+            # carry the captured events. The normaliser parses
+            # `wall_clock` into a tz-aware datetime; the v1.3 schema
+            # validates the ISO format upstream.
+            timeline_events: list[NormalisedTimelineEvent] = []
+            for entry in scenario_dict.get("timeline", []):
+                timeline_events.append(
+                    NormalisedTimelineEvent(
+                        time=datetime.fromisoformat(entry["wall_clock"]),
+                        offset_ms=entry["offset_ms"],
+                        action=entry["action"],
+                        detail=entry["detail"],
+                        topic=entry.get("topic"),
+                        transport=entry.get("transport"),
+                        logical_topic=entry.get("logical_topic"),
+                        source=entry.get("source"),
+                    )
+                )
             scenarios.append(
                 NormalisedScenario(
                     test_nodeid=test["nodeid"],
@@ -176,6 +221,7 @@ def normalise_report(report: object) -> NormalisedReport:
                     duration_ms=scenario_dict["duration_ms"],
                     completed_normally=scenario_dict["completed_normally"],
                     handles=tuple(handles),
+                    timeline=tuple(timeline_events),
                 )
             )
 

@@ -244,10 +244,9 @@ def test_a_v1_3_timeline_entry_omitting_optional_source_should_validate(
 
 
 def test_a_v1_3_stage_report_should_normalise_without_errors():
-    """The current normaliser ignores `scenario.timeline`; v1.3
-    additions must not regress this. Per-handle transport still
-    flows through (PRD-012 contract). Timeline persistence lands in
-    PR 3.3."""
+    """v1.3 additions must not regress the PRD-012 per-handle
+    transport flow. Per-handle transport still lands on
+    `NormalisedHandle.transport`."""
     report = _v1_3_stage_report()
     req = IngestRequest(**report)
     norm = normalise_report(req)
@@ -255,6 +254,75 @@ def test_a_v1_3_stage_report_should_normalise_without_errors():
     assert norm.transports == ["kafka", "nats"]
     assert len(norm.scenarios) == 1
     assert norm.scenarios[0].handles[0].transport == "nats"
+
+
+def test_a_v1_3_stage_report_should_extract_timeline_events_into_normalised_scenarios():
+    """PRD-013 PR 3.3: `normalise_report` extracts every entry in
+    `scenario.timeline[]` into a `NormalisedTimelineEvent`. Optional
+    fields (topic / transport / logical_topic / source) flow through
+    as None when omitted in the source JSON."""
+    report = _v1_3_stage_report()
+    req = IngestRequest(**report)
+    norm = normalise_report(req)
+    timeline = norm.scenarios[0].timeline
+    assert len(timeline) == 6
+    actions = [e.action for e in timeline]
+    assert actions == [
+        "published",
+        "received",
+        "replied",
+        "received",
+        "matched",
+        "deadline",
+    ]
+
+
+def test_a_v1_3_stage_report_should_extract_source_attribution_per_event():
+    """PRD-013 §1.6: each timeline event's `source` flows through
+    as the corresponding NormalisedTimelineEvent's source."""
+    report = _v1_3_stage_report()
+    req = IngestRequest(**report)
+    norm = normalise_report(req)
+    timeline = norm.scenarios[0].timeline
+    sources = [e.source for e in timeline]
+    assert sources == ["publish", "reply", "reply", "expect", "expect", "scope"]
+
+
+def test_a_v1_3_deadline_event_should_normalise_with_topic_and_transport_as_none():
+    """PRD-013 §D-3: scope-level events (DEADLINE) omit `topic` and
+    `transport` in the JSON; the normaliser carries the absence
+    through as `None`."""
+    report = _v1_3_stage_report()
+    req = IngestRequest(**report)
+    norm = normalise_report(req)
+    timeline = norm.scenarios[0].timeline
+    deadlines = [e for e in timeline if e.action == "deadline"]
+    assert len(deadlines) == 1
+    assert deadlines[0].topic is None
+    assert deadlines[0].transport is None
+
+
+def test_a_v1_3_logical_topic_should_flow_through_when_set():
+    """PRD-013 §1.3: `logical_topic` is the cross-transport identity
+    for translating bridges; the normaliser preserves it."""
+    report = _v1_3_stage_report()
+    req = IngestRequest(**report)
+    norm = normalise_report(req)
+    timeline = norm.scenarios[0].timeline
+    replied = next(e for e in timeline if e.action == "replied")
+    assert replied.topic == "nats-orders.processed"
+    assert replied.logical_topic == "orders.processed"
+
+
+def test_a_v1_1_report_with_empty_timeline_should_normalise_with_empty_tuple():
+    """Backward-compat: v1.0/v1.1 reports emit `timeline: []` for
+    scenarios; the normaliser produces an empty tuple, never None."""
+    report = _v1_3_stage_report()
+    report["schema_version"] = "1.1"  # Pydantic only checks startswith
+    report["tests"][0]["scenarios"][0]["timeline"] = []
+    req = IngestRequest(**report)
+    norm = normalise_report(req)
+    assert norm.scenarios[0].timeline == ()
 
 
 # ---------------------------------------------------------------------------
