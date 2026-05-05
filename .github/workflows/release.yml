@@ -126,6 +126,10 @@ jobs:
         uses: pypa/gh-action-pypi-publish@v1.12.4
         with:
           packages-dir: dist/
+          verbose: true
+          # Idempotent on retry: if a wheel for this version is already on
+          # PyPI (e.g. from a partial earlier run), skip rather than 400.
+          skip-existing: true
 
   github-release:
     name: create GitHub release
