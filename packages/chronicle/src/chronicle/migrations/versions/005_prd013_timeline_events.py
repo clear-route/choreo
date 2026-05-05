@@ -58,7 +58,7 @@ def upgrade() -> None:
     )
 
     # Default chunk interval (7 days). At cap-saturated workload
-    # (50k events/run × ~100 runs/day = 5M rows/day), 7-day chunks
+    # (50k events/run x ~100 runs/day = 5M rows/day), 7-day chunks
     # produce ~35M rows/chunk — comfortably within Timescale's
     # planner sweet spot (target <100M rows/chunk). Smaller intervals
     # generate more chunks for typical workloads (~100k rows/day),

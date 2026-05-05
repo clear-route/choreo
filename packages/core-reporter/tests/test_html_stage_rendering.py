@@ -24,7 +24,6 @@ import json
 from typing import Any
 
 from bs4 import BeautifulSoup
-
 from choreo_reporter._template import render_html
 
 

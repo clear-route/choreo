@@ -23,8 +23,6 @@ import asyncio
 import logging
 import re
 import secrets
-
-_LOG = logging.getLogger("choreo.stage")
 from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
@@ -40,6 +38,8 @@ from choreo.scenario import (
     TimelineEntry,
     _Timeline,
 )
+
+_LOG = logging.getLogger("choreo.stage")
 
 log = logging.getLogger("choreo.stage")
 

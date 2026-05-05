@@ -15,9 +15,7 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-
 from choreo.scenario import TimelineAction, TimelineEntry, _Timeline
-
 
 # ---------------------------------------------------------------------------
 # TimelineEntry: additive `transport` field

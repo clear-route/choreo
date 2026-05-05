@@ -17,7 +17,6 @@ import re
 from typing import Any
 
 import pytest
-
 from choreo.scenario import (
     Handle,
     Outcome,
@@ -32,7 +31,6 @@ from choreo.stage import (
     StageReplyState,
     StageScenarioResult,
 )
-
 from choreo_reporter._collect import Collector
 from choreo_reporter._redact import RedactionStats
 from choreo_reporter._serialise import (
@@ -40,7 +38,6 @@ from choreo_reporter._serialise import (
     serialise_reply_report,
     serialise_scenario,
 )
-
 
 _REDACTED_PATTERN = re.compile(r"^sha256:[0-9a-f]{16}$")
 
@@ -799,7 +796,6 @@ def test_a_stage_timeline_should_round_trip_through_the_full_reporter_to_rendere
     import json as _json
 
     from bs4 import BeautifulSoup
-
     from choreo.stage import StageScenarioResult
     from choreo_reporter._template import render_html
 

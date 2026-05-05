@@ -21,9 +21,8 @@ from __future__ import annotations
 
 from typing import Any
 
-import pytest
 import jsonschema
-
+import pytest
 from chronicle.schemas.ingest import IngestRequest
 from chronicle.services.normalise import normalise_report
 

@@ -117,9 +117,21 @@ class TestAnomalyDetectionFires:
         tenant = "detect-team"
         topic = "spike.topic"
 
-        # Build baseline: 10 runs at ~10ms
-        for _ in range(10):
-            _ingest(db_client, tenant=tenant, topic=topic, latency_ms=10.0)
+        # Build baseline: 10 runs at ~10ms with slight per-run variance.
+        # All 11 reports share `started_at`, so the baseline query's
+        # `ORDER BY max(time) DESC LIMIT 10` tie-breaks non-deterministically
+        # — when the spike happens to fall outside the window, identical
+        # baseline values give stddev=0 and detection is suppressed
+        # (`_check_rolling_baseline` short-circuits on stddev==0). Adding
+        # ±0.5ms jitter keeps stddev > 0 so the test exercises the spike
+        # comparison either way.
+        for i in range(10):
+            _ingest(
+                db_client,
+                tenant=tenant,
+                topic=topic,
+                latency_ms=10.0 + (i % 2) * 0.5,
+            )
 
         # Spike: 200ms — well beyond 2 sigma
         _ingest(db_client, tenant=tenant, topic=topic, latency_ms=200.0)

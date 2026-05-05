@@ -17,14 +17,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from choreo import (
     Harness,
     StageScenarioResult,
 )
 from choreo.scenario import ScenarioResult
 from choreo.transports import MockTransport
-
 
 # ---------------------------------------------------------------------------
 # kind discriminator on ScenarioResult and StageScenarioResult

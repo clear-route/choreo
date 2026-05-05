@@ -14,9 +14,9 @@ column).
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
-import asyncio
 import asyncpg
 import pytest
 from conftest import skip_no_db

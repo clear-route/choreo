@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 from choreo import Harness
 from choreo import test_namespace as _test_namespace
 from choreo.correlation import DictFieldPolicy
@@ -45,7 +44,6 @@ from choreo.stage import InvalidTransportNameError, Stage, StageScenarioResult
 from choreo.transports import MockTransport
 
 from .conftest import mapped_bridge_for
-
 
 # ---------------------------------------------------------------------------
 # StageScenarioResult.timeline field shape

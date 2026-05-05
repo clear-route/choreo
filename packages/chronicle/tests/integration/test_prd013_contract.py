@@ -24,7 +24,6 @@ from typing import Any
 
 import jsonschema
 import pytest
-
 from chronicle.schemas.ingest import IngestRequest
 from chronicle.services.normalise import normalise_report
 

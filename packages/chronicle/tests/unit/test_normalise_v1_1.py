@@ -12,11 +12,9 @@ KeyError / type errors:
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
 
 import pytest
-
 from chronicle.schemas.ingest import IngestRequest
 from chronicle.services.normalise import normalise_report
 
