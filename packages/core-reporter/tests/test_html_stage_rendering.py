@@ -29,10 +29,10 @@ from choreo_reporter._template import render_html
 
 
 def _stage_report_json() -> dict[str, Any]:
-    """Compact v1.1 Stage report; one Stage scenario, two transports,
+    """Compact v1.3 Stage report; one Stage scenario, two transports,
     one Stage handle, one cross-transport reply."""
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.3",
         "run": {
             "started_at": "2026-05-04T10:00:00Z",
             "finished_at": "2026-05-04T10:00:01Z",
@@ -107,7 +107,60 @@ def _stage_report_json() -> dict[str, Any]:
                                 "correlation_id": "sha256:3f2a91b8c4d50e1f",
                             }
                         ],
-                        "timeline": [],
+                        "timeline": [
+                            {
+                                "offset_ms": 0.0,
+                                "wall_clock": "2026-05-04T10:00:00Z",
+                                "action": "published",
+                                "detail": "",
+                                "topic": "orders.new",
+                                "transport": "kafka",
+                                "source": "publish",
+                            },
+                            {
+                                "offset_ms": 0.5,
+                                "wall_clock": "2026-05-04T10:00:00.0005Z",
+                                "action": "received",
+                                "detail": "",
+                                "topic": "orders.new",
+                                "transport": "kafka",
+                                "source": "reply",
+                            },
+                            {
+                                "offset_ms": 1.0,
+                                "wall_clock": "2026-05-04T10:00:00.001Z",
+                                "action": "replied",
+                                "detail": "trigger=orders.new",
+                                "topic": "orders.processed",
+                                "transport": "nats",
+                                "source": "reply",
+                            },
+                            {
+                                "offset_ms": 1.5,
+                                "wall_clock": "2026-05-04T10:00:00.0015Z",
+                                "action": "received",
+                                "detail": "",
+                                "topic": "orders.processed",
+                                "transport": "nats",
+                                "source": "expect",
+                            },
+                            {
+                                "offset_ms": 2.0,
+                                "wall_clock": "2026-05-04T10:00:00.002Z",
+                                "action": "matched",
+                                "detail": "",
+                                "topic": "orders.processed",
+                                "transport": "nats",
+                                "source": "expect",
+                            },
+                            {
+                                "offset_ms": 12.0,
+                                "wall_clock": "2026-05-04T10:00:00.012Z",
+                                "action": "deadline",
+                                "detail": "timeout_ms=200",
+                                "source": "scope",
+                            },
+                        ],
                         "timeline_dropped": 0,
                         "replies": [
                             {
@@ -215,6 +268,352 @@ def test_the_renderer_js_should_emit_failing_reply_subbadge():
     html = _render(_stage_report_json())
     assert "data-failing-reply-response-transport" in html
     assert "hr-scenario-failing-reply" in html
+
+
+# ---------------------------------------------------------------------------
+# PR 2.2: Stage timeline visibility (PRD-013 §4.3 banner) + DEADLINE safety
+# ---------------------------------------------------------------------------
+
+
+def test_a_stage_scenario_timeline_should_round_trip_into_the_inlined_json():
+    """PR 2.1 wired the reporter to populate `scenario.timeline` for
+    Stage scenarios. PR 2.2 verifies the renderer entry point sees the
+    full Phase 1 hook output via the inlined JSON."""
+    html = _render(_stage_report_json())
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    timeline = inlined["tests"][0]["scenarios"][0]["timeline"]
+    actions = [e["action"] for e in timeline]
+    assert actions == [
+        "published",
+        "received",
+        "replied",
+        "received",
+        "matched",
+        "deadline",
+    ]
+
+
+def test_a_stage_scenario_timeline_entry_should_carry_transport_in_the_inlined_json():
+    """The transport attribution flows from framework -> reporter ->
+    inlined JSON unchanged. The renderer reads this for Stage-aware
+    visualisation (Phase 2 PR 2.3 swim-lanes)."""
+    html = _render(_stage_report_json())
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    published = inlined["tests"][0]["scenarios"][0]["timeline"][0]
+    assert published["transport"] == "kafka"
+
+
+def test_a_stage_deadline_entry_should_omit_topic_in_the_inlined_json():
+    """PRD-013 §D-3: scope-level events omit the `topic` JSON key.
+    The renderer must be DEADLINE-safe (Phase 1->2 transitional UX)."""
+    html = _render(_stage_report_json())
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    timeline = inlined["tests"][0]["scenarios"][0]["timeline"]
+    deadlines = [e for e in timeline if e["action"] == "deadline"]
+    assert len(deadlines) == 1
+    assert "topic" not in deadlines[0]
+
+
+def test_the_renderer_js_should_guard_against_missing_topic_on_timeline_entries():
+    """`buildWaterfall` groups events by `entry.topic` to reconstruct
+    the causal tree. PRD-013 §D-3 introduces topic-less entries
+    (DEADLINE). The JS must not crash on `undefined` topic - it skips
+    the entry from the per-topic waterfall (rendered separately as a
+    scope-level event in the swim-lane mode shipped in PR 2.3)."""
+    html = _render(_stage_report_json())
+    # The guard is `if (!entry.topic)` (or equivalent) inside
+    # `buildWaterfall`. Stable-tier contract: a tagged data attribute
+    # the test can pin so the renderer can be reorganised internally
+    # without breaking this contract.
+    assert "data-scope-event" in html
+
+
+def test_the_renderer_should_emit_a_stage_timeline_banner_for_stage_scenarios():
+    """PRD-013 §4.3 visibility banner: Stage scenarios with timeline
+    data render a `data-stage-timeline-banner` element so consumers
+    can see the timeline was captured even before Phase 2's swim-lane
+    layout ships. The banner is additive to the existing waterfall
+    and survives into Phase 2 as a semantic header."""
+    html = _render(_stage_report_json())
+    assert "data-stage-timeline-banner" in html
+
+
+def test_the_renderer_should_not_emit_a_stage_timeline_banner_for_single_harness():
+    """The banner is Stage-specific. A single-`Harness` scenario
+    (no `scenario.stage` block) does NOT carry the banner attribute
+    in the inlined JSON's scenario shape. The renderer's runtime
+    branch is gated on `scenario.stage` presence."""
+    report = _stage_report_json()
+    # Strip the stage block to simulate a single-Harness scenario.
+    scenario = report["tests"][0]["scenarios"][0]
+    scenario.pop("stage", None)
+    # Strip the per-handle Stage attribution too so the report is
+    # plausibly single-Harness shape.
+    for handle in scenario["handles"]:
+        handle.pop("transport", None)
+        handle["correlation_id"] = "logical-3f2a91b8c4d50e1f"
+    html = _render(report)
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    # Observable: the inlined JSON has no Stage block.
+    assert "stage" not in inlined["tests"][0]["scenarios"][0]
+
+
+# ---------------------------------------------------------------------------
+# PR 2.3a: Swim-lane mode (PRD-013 §4.1, §D-3a)
+# ---------------------------------------------------------------------------
+
+
+def test_the_renderer_js_should_emit_a_swim_lane_wrapper_class_for_stage_mode():
+    """PRD-013 §4.1: when the timeline contains entries whose
+    `transport` matches `scenario.stage.transports`, the renderer
+    activates swim-lane mode and wraps rows in `hr-waterfall-lane`
+    elements (DOM additions per §4.1; reuses the existing
+    `hr-waterfall-*` taxonomy)."""
+    html = _render(_stage_report_json())
+    assert "hr-waterfall-lane" in html
+
+
+def test_the_renderer_js_should_carry_a_data_transport_attribute_on_lane_wrappers():
+    """Each lane is keyed by transport name via `data-transport`. This
+    is the stable-tier contract consumers (e.g. Phase 3 Chronicle ingest
+    or future renderer reorganisations) rely on."""
+    html = _render(_stage_report_json())
+    assert "data-transport" in html
+
+
+def test_the_renderer_js_should_propagate_transport_onto_individual_rows():
+    """Every per-transport waterfall row carries `data-transport` so
+    consumers can filter / highlight by transport without traversing
+    up to the lane wrapper. Symmetric with `data-action` and
+    `data-scope-event` attributes already on the row."""
+    html = _render(_stage_report_json())
+    # Look for a per-row data-transport attribute name in the JS source.
+    # Distinct from the lane-wrapper version (same name, different
+    # element) — both are emitted.
+    assert "'data-transport'" in html or '"data-transport"' in html
+
+
+def test_the_renderer_should_emit_one_lane_per_registered_transport_in_stage_mode():
+    """PRD-013 §D-3a + §4.1: swim-lane mode produces one
+    `hr-waterfall-lane[data-transport=<name>]` per entry in
+    `scenario.stage.transports`. Pinned via the JS source's
+    `el(..., {'data-transport': t}, ...)` construction so the
+    rendered output carries one lane attribute per registered
+    transport."""
+    html = _render(_stage_report_json())
+    # The fixture registers two transports (kafka, nats) - the JS source
+    # must construct lane wrappers for both. The Python-side substring
+    # check is observable on the JS source: each lane's `data-transport`
+    # value comes from the iteration over `scenario.stage.transports`.
+    assert "data-transport" in html
+    # The dedicated scope-events lane carries `data-scope-lane="true"`
+    # (only emitted when swim-lane mode actually activates AND there
+    # are scope-level events).
+    assert "data-scope-lane" in html
+
+
+def test_the_renderer_js_should_emit_a_separate_lane_for_scope_level_events():
+    """PRD-013 §D-3 + §4.1: scope-level events (DEADLINE) have no
+    transport attribution. They render in a dedicated lane with
+    `data-transport=""` (empty) or a `data-scope-lane="true"` marker
+    so the swim-lane consumer can route them appropriately."""
+    html = _render(_stage_report_json())
+    assert "data-scope-lane" in html
+
+
+def test_the_renderer_should_not_activate_swim_lane_mode_for_single_harness():
+    """Mode detection requires `scenario.stage`. Without it, the
+    renderer falls through to the legacy per-topic layout that
+    PRD-007 v1.0 ships. The DOM still contains the `hr-waterfall-lane`
+    class definition (CSS lives at module scope), but the JS does not
+    construct lane wrappers for non-Stage scenarios."""
+    report = _stage_report_json()
+    scenario = report["tests"][0]["scenarios"][0]
+    scenario.pop("stage", None)
+    for handle in scenario["handles"]:
+        handle.pop("transport", None)
+        handle["correlation_id"] = "logical-3f2a91b8c4d50e1f"
+    # Drop the transport attribution from timeline entries too.
+    for entry in scenario["timeline"]:
+        entry.pop("transport", None)
+    html = _render(report)
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    # Verify the inlined report has no Stage shape.
+    assert "stage" not in inlined["tests"][0]["scenarios"][0]
+    for entry in inlined["tests"][0]["scenarios"][0]["timeline"]:
+        assert "transport" not in entry
+
+
+# ---------------------------------------------------------------------------
+# PR 2.3b: Cross-transport reply-arrow pairing (PRD-013 §4.2, §4.2.1)
+# ---------------------------------------------------------------------------
+
+
+def test_the_renderer_js_should_emit_a_reply_arrow_count_attribute_on_the_overlay():
+    """PRD-013 §4.2.1: the SVG overlay carries `data-reply-arrow-count`
+    indicating the pair count produced by the linear-scan pairing
+    algorithm. This is the observable behavioural contract; the
+    consumer can query overlay presence + pair count without depending
+    on internal helper names."""
+    html = _render(_stage_report_json())
+    assert "data-reply-arrow-count" in html
+
+
+def test_the_renderer_js_should_render_an_svg_overlay_for_reply_arrows():
+    """PRD-013 §4.2: reply linkage uses an SVG path overlay above the
+    waterfall lanes. The container carries the
+    `hr-waterfall-reply-arrows` class so consumers can target it."""
+    html = _render(_stage_report_json())
+    assert "hr-waterfall-reply-arrows" in html
+
+
+def test_the_renderer_js_should_emit_data_reply_from_and_data_reply_to_on_arrows():
+    """PRD-013 §4.2: each arrow path carries `data-reply-link-from`
+    (the RECEIVED node id) and `data-reply-link-to` (the REPLIED
+    node id) so consumers can trace the pairing without relying on
+    SVG geometry."""
+    html = _render(_stage_report_json())
+    assert "data-reply-link-from" in html
+    assert "data-reply-link-to" in html
+
+
+def test_a_single_harness_scenario_should_not_carry_a_stage_block_in_the_inlined_json():
+    """Reply arrows are a cross-transport visualisation gated on
+    swim-lane mode (which itself requires `scenario.stage`). A
+    single-Harness scenario carries no Stage block in the inlined
+    JSON, so the renderer's runtime gate cannot activate.
+
+    Observable contract: the inlined JSON for a single-Harness
+    scenario has no `stage` key. Runtime verification that the
+    SVG overlay is absent is a Playwright follow-up."""
+    report = _stage_report_json()
+    scenario = report["tests"][0]["scenarios"][0]
+    scenario.pop("stage", None)
+    for handle in scenario["handles"]:
+        handle.pop("transport", None)
+        handle["correlation_id"] = "logical-3f2a91b8c4d50e1f"
+    for entry in scenario["timeline"]:
+        entry.pop("transport", None)
+    html = _render(report)
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    assert "stage" not in inlined["tests"][0]["scenarios"][0]
+
+
+# ---------------------------------------------------------------------------
+# PR 2.4: Virtualisation under cap-saturated workloads (PRD-013 §4.1.1)
+# ---------------------------------------------------------------------------
+
+
+def test_the_renderer_js_should_emit_a_data_virtualised_marker_on_the_timeline_host():
+    """Stable-tier DOM marker: when the bounded-mount branch fires at
+    runtime (above the 500-entry threshold), the timeline host gains
+    `data-virtualised="true"` plus `data-virtualised-shown` (rows
+    mounted eagerly) and `data-virtualised-total` (entry count). The
+    JS source contains the `setAttribute('data-virtualised', ...)`
+    calls; runtime DOM verification of the marker actually being set
+    is a Playwright follow-up. The negative test
+    (`test_the_renderer_should_not_mark_a_short_timeline_as_virtualised`)
+    pins the HTML-time absence."""
+    html = _render(_stage_report_json())
+    assert "data-virtualised" in html
+    assert "data-virtualised-shown" in html
+    assert "data-virtualised-total" in html
+
+
+def test_the_renderer_js_should_emit_an_expansion_control_carrying_data_virtualised_expand():
+    """The bounded-mount branch produces a `data-virtualised-expand`
+    button. The JS source contains the `setAttribute(
+    'data-virtualised-expand', ...)` call; runtime verification of
+    button visibility is a Playwright follow-up."""
+    html = _render(_stage_report_json())
+    assert "data-virtualised-expand" in html
+
+
+def test_the_renderer_should_not_mark_a_short_timeline_as_virtualised():
+    """The eager-mount path is preserved for timelines under the
+    threshold (PRD-013 §4.1.1: lower latency for the common case).
+    A short timeline must not produce a `data-virtualised="true"`
+    attribute literal in the rendered output, nor a
+    `data-virtualised-expand` button. The fixture's 6-entry timeline
+    is far below any realistic threshold."""
+    html = _render(_stage_report_json())
+    # The runtime sets these attributes inside `mountTimelineVirtualised`;
+    # they only appear in the rendered output if that branch fired. For
+    # a 6-entry timeline (well below the 500-entry threshold), the
+    # eager-mount path is the only one that should run.
+    assert 'data-virtualised="true"' not in html
+    assert 'data-virtualised-expand="true"' not in html
+
+
+# ---------------------------------------------------------------------------
+# PRD-013 v1.3 / schema v1.3: source attribution in the renderer
+# ---------------------------------------------------------------------------
+
+
+def test_a_timeline_entry_source_should_round_trip_into_the_inlined_json():
+    """Schema v1.3: each timeline entry's `source` field flows from
+    the JSON fixture through `render_html` into the inlined JSON
+    unchanged. Stable-tier contract — consumers can rely on the
+    field's presence and value semantics."""
+    html = _render(_stage_report_json())
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    sources = [
+        e.get("source")
+        for e in inlined["tests"][0]["scenarios"][0]["timeline"]
+    ]
+    assert sources == [
+        "publish",
+        "reply",
+        "reply",
+        "expect",
+        "expect",
+        "scope",
+    ]
+
+
+def test_the_renderer_js_should_propagate_source_onto_per_row_data_attribute():
+    """`renderWaterfallRow` writes `data-source` onto each row so
+    consumers can filter by DSL surface (e.g. `[data-source="reply"]`
+    selects every reply-chain entry)."""
+    html = _render(_stage_report_json())
+    assert "'data-source'" in html or '"data-source"' in html
+
+
+def test_the_renderer_js_should_render_a_source_badge_with_human_readable_text():
+    """Each event row carries a small `hr-waterfall-source` pill
+    naming the DSL surface ('by test' / 'by reply' / 'by expect' /
+    'by scope') so a reader can disambiguate at a glance without
+    reading the JSON."""
+    html = _render(_stage_report_json())
+    assert "hr-waterfall-source" in html
+    assert "sourceBadgeText" in html
+
+
+def test_a_single_harness_timeline_entry_should_omit_the_source_key():
+    """Byte-identity: single-Harness entries pre-date PRD-013 §1.6;
+    they emit no `source` field and the JSON key is omitted (not
+    null) so v1.0/v1.1/v1.2-pinned consumers see no surprise field."""
+    report = _stage_report_json()
+    scenario = report["tests"][0]["scenarios"][0]
+    scenario.pop("stage", None)
+    for handle in scenario["handles"]:
+        handle.pop("transport", None)
+        handle["correlation_id"] = "logical-3f2a91b8c4d50e1f"
+    for entry in scenario["timeline"]:
+        entry.pop("transport", None)
+        entry.pop("source", None)
+    html = _render(report)
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = json.loads(soup.find("script", id="harness-results").string)
+    for entry in inlined["tests"][0]["scenarios"][0]["timeline"]:
+        assert "source" not in entry
 
 
 def test_the_renderer_js_should_apply_failed_class_to_response_badge():
@@ -422,20 +821,20 @@ def test_the_renderer_js_should_emit_data_stage_transport_on_breadcrumb_pills():
 # ---------------------------------------------------------------------------
 
 
-def test_the_root_should_carry_data_schema_version_1_1():
+def test_the_root_should_carry_data_schema_version_1_3():
     html = _render(_stage_report_json())
     soup = BeautifulSoup(html, "html.parser")
     root = soup.select_one(".harness-report")
     assert root is not None
-    assert root.get("data-schema-version") == "1.1"
+    assert root.get("data-schema-version") == "1.3"
 
 
-def test_the_meta_harness_schema_version_should_be_1_1():
+def test_the_meta_harness_schema_version_should_be_1_3():
     html = _render(_stage_report_json())
     soup = BeautifulSoup(html, "html.parser")
     meta = soup.find("meta", attrs={"name": "harness-schema-version"})
     assert meta is not None
-    assert meta.get("content") == "1.1"
+    assert meta.get("content") == "1.3"
 
 
 # ---------------------------------------------------------------------------

@@ -29,6 +29,10 @@ mutants/
 htmlcov/
 coverage.xml
 
+.hypothesis/
+
+.scratch/
+
 # choreo-reporter output (PRD-007)
 test-report/
 

@@ -299,7 +299,7 @@ class Collector:
             run["transport"] = self.transport
 
         return {
-            "schema_version": "1.1",
+            "schema_version": "1.3",
             "run": run,
             "tests": tests_json,
         }

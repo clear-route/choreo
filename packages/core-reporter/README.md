@@ -8,8 +8,8 @@ Installing this package registers a pytest plugin that, at suite exit, emits a
 
 - An HTML report with a Jaeger-style waterfall of every scenario's messages,
   expectations, replies, and latency budgets.
-- A JSON report conforming to the `test-report-v1.1` schema for CI ingestion
-  (see [docs/schemas/test-report-v1.1.json](../../docs/schemas/test-report-v1.1.json)).
+- A JSON report conforming to the `test-report-v1.3` schema for CI ingestion
+  (see [docs/schemas/test-report-v1.3.json](../../docs/schemas/test-report-v1.3.json)).
 - Payload redaction for common credential shapes (bearer tokens, URL creds,
   denylisted field names such as `password` / `token` / `api_key`).
 - Hash-based redaction of multi-transport (`Stage`) per-transport
@@ -38,6 +38,105 @@ addopts = --harness-report=test-report
 
 Disable with `--harness-report-disable`. Register a custom redactor for
 domain-specific payload shapes via `choreo_reporter.register_redactor(...)`.
+
+## DSL-source attribution on timeline entries — PRD-013 v1.3
+
+PRD-013 v1.3 (schema v1.3) tags every Stage timeline entry with the DSL
+surface that produced it, so consumers can disambiguate a test-side
+publish from a reply-chain's automatic response on the same topic
+without reading the test code. The schema bumps from `"1.2"` to `"1.3"`
+(additive minor); every v1.2-valid report validates against v1.3 after
+the `schema_version` rewrite.
+ff
+New optional field on `timeline_entry`:
+
+- `source` — `"publish"` (test-side `scope.publish` / `harness.publish`),
+  `"expect"` (subscriber registered by `scope.expect` / `s.expect`),
+  `"reply"` (reply chain registered by `scope.on(...).publish(...)`),
+  or `"scope"` (scope-level framework event such as `DEADLINE`).
+  Single-`Harness` entries continue to omit the key entirely.
+
+HTML report additions:
+
+- A small `hr-waterfall-source` pill rendered after each event's
+  action verb, naming the DSL surface ("by test", "by reply",
+  "by expect", "by scope").
+- A `data-source` attribute on every waterfall row so consumers can
+  filter via CSS / DOM queries (e.g. `[data-source="reply"]`
+  selects every reply-chain entry).
+
+### Migration paths for v1.2 -> v1.3
+
+1. **Strict-validator consumer pinned to `test-report-v1.2.json`**:
+   update the pinned schema to `test-report-v1.3.json`. The diff is
+   purely additive on `timeline_entry`; every v1.2-valid report
+   (after the `schema_version` substitution `"1.2"` -> `"1.3"`)
+   validates against v1.3.
+2. **Lenient consumer that ignores unknown fields**: gate on
+   `schema_version.startswith("1")` to accept v1.0 through v1.3.
+   No code change required.
+3. **Consumer counting publishes by topic**: previously two
+   PUBLISHED entries on the same topic could not be distinguished
+   between test-side and reply-chain origins. v1.3 lets you filter
+   by `entry["source"] == "publish"` to count only test-initiated
+   publishes.
+
+## Stage timeline capture — PRD-013 v1.2
+
+PRD-013 adds per-scope event timeline capture for Stage scenarios. The
+schema bumps from `"1.1"` to `"1.2"` (additive minor); every v1.1-valid
+report validates against v1.2 after the `schema_version` rewrite. Strict
+schema-validator consumers update their pinned schema document to
+[test-report-v1.2.json](../../docs/schemas/test-report-v1.2.json); the
+v1.1 schema remains in tree at
+[test-report-v1.1.json](../../docs/schemas/test-report-v1.1.json).
+
+Additive fields on `timeline_entry`:
+
+- `transport` — present on Stage timeline entries produced by a
+  per-transport child; the registered transport name (`"nats"`,
+  `"kafka"`, ...). Single-`Harness` entries and scope-level Stage
+  events (DEADLINE) omit the key entirely. Schema regex:
+  `^[a-zA-Z0-9_-]{1,64}$`.
+- `topic` is now optional; scope-level events (DEADLINE) omit the key.
+- `logical_topic` — forward-compatibility groundwork for translating
+  bridges; today's `MappedBridge` does not translate topics, so this
+  field is always omitted.
+
+HTML report additions:
+
+- A "Stage timeline captured: N events across M transports" banner
+  above the waterfall for Stage scenarios with non-empty timelines.
+- Per-transport swim lanes (`hr-waterfall-lane[data-transport=...]`)
+  for Stage scenarios that exercise multiple transports.
+- A dedicated scope-events lane (`data-scope-lane="true"`) for
+  topic-less events (DEADLINE).
+- Cross-transport reply-arrow overlay: an SVG element with
+  `<path data-reply-link-from data-reply-link-to>` per RECEIVED ->
+  REPLIED pair, geometry computed at boot via `layoutReplyArrows`.
+- Virtualisation under cap-saturated workloads: timelines below 500
+  entries mount eagerly; at/above the threshold the renderer mounts
+  the first 500 entries and exposes a "Show remaining N events"
+  button.
+
+### Migration paths for v1.1 -> v1.2
+
+Three migration scenarios — pick the one that matches your consumer:
+
+1. **Strict-validator consumer pinned to `test-report-v1.1.json`**:
+   update the pinned schema to `test-report-v1.2.json`. The diff is
+   purely additive on `timeline_entry`; every v1.1-valid report
+   (after the `schema_version` substitution `"1.1"` -> `"1.2"`)
+   validates against v1.2.
+2. **Lenient consumer that ignores unknown fields**: gate on
+   `schema_version.startswith("1")` to accept v1.0, v1.1, and v1.2.
+   No code change required.
+3. **Consumer reading `scenario.timeline[]` for Stage scenarios**:
+   v1.1 emitted `[]` as a deferral marker. v1.2 populates the array
+   with actual entries. Consumers gating on `len(scenario["timeline"])
+   > 0` to detect "timeline available" continue to work; consumers
+   that hardcoded "Stage scenarios have empty timelines" need to
+   update their assumption.
 
 ## Multi-transport (`Stage`) scenarios — PRD-012 v1.1
 
@@ -135,7 +234,15 @@ process):
 
 | Attribute | Element | Value |
 |---|---|---|
-| `data-schema-version` | `.harness-report` root | `"1.1"` |
+| `data-schema-version` | `.harness-report` root | `"1.3"` |
+| `data-source` | waterfall row + JSON timeline entry | `"publish"` / `"expect"` / `"reply"` / `"scope"` (Stage scenarios only) |
+| `data-stage-timeline-banner` | timeline host (Stage scenarios only) | `"true"` |
+| `data-scope-event` | waterfall row | `"true"` for scope-level events (DEADLINE), `"false"` otherwise |
+| `data-transport` | waterfall row + `hr-waterfall-lane` wrapper | per-transport attribution (Stage scenarios only) |
+| `data-scope-lane` | scope-events lane wrapper | `"true"` |
+| `data-reply-link-from` / `-to` | SVG `<path>` per arrow | source/target node ids |
+| `data-virtualised` / `-shown` / `-total` | timeline host | bounded-mount markers (timelines >= 500 events) |
+| `data-virtualised-expand` | expansion `<button>` | `"true"` |
 | `data-grouping-mode` | `.harness-report` root | stable; today emits `"by-scenario"` only (the toggle UI that flips it to `"by-transport"` is a follow-up — the attribute name and initial value are pinned now) |
 | `data-handle-transport` | handle row | transport name |
 | `data-stage-transports` | Stage breadcrumb container | space-separated transports |

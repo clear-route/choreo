@@ -125,12 +125,34 @@ class MockTransport:
         if not self._connected:
             raise RuntimeError("MockTransport is not connected; cannot publish")
         self._sent.append((topic, payload))
-        for cb in list(self._callbacks.get(topic, ())):
-            cb(topic, payload)
-        # Synchronous dispatch — "on wire" is equivalent to "this call
-        # returned", so the post-wire callback fires before we return.
+        # Fire `on_sent` BEFORE subscriber dispatch so the post-wire
+        # marker records before any nested publish triggered by a
+        # subscriber. Matches real-broker semantics (the broker confirms
+        # the send, then propagates to subscribers — physically separate
+        # channels, the confirmation arrives independently of delivery).
+        # Important for the PRD-013 timeline: a synchronous reply chain
+        # would otherwise record REPLIED (the inner publish's on_sent)
+        # before PUBLISHED (the outer publish's on_sent), inverting the
+        # causal order in the rendered waterfall.
         if on_sent is not None:
             on_sent()
+        # Isolate subscriber exceptions: one callback raising MUST NOT
+        # abort fan-out to siblings AND MUST NOT propagate back to the
+        # publisher. Real brokers behave this way (a misbehaving consumer
+        # does not fail the publish); MockTransport now matches.
+        # Specifically: if a Stage reply chain's response-side subscriber
+        # raises, the outer reply chain's `try` block would see the
+        # exception and record REPLY_FAILED for an outbound that already
+        # recorded REPLIED — a double-event for one publish.
+        for cb in list(self._callbacks.get(topic, ())):
+            try:
+                cb(topic, payload)
+            except Exception:
+                logging.getLogger(__name__).warning(
+                    "mock_transport_subscriber_failed",
+                    extra={"topic": topic},
+                    exc_info=True,
+                )
 
     # ---- diagnostics for tests ------------------------------------------
 

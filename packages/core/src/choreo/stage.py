@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import secrets
 
 _LOG = logging.getLogger("choreo.stage")
@@ -31,7 +32,14 @@ from typing import Any, Literal, Protocol, runtime_checkable
 
 from choreo.correlation import Envelope
 from choreo.harness import Harness
-from choreo.scenario import Handle, Outcome
+from choreo.redaction import redact_correlation_id
+from choreo.scenario import (
+    Handle,
+    Outcome,
+    TimelineAction,
+    TimelineEntry,
+    _Timeline,
+)
 
 log = logging.getLogger("choreo.stage")
 
@@ -82,6 +90,47 @@ def _redact(s: str, head: int = 8, tail: int = 4) -> str:
     return f"{s[:head]!r}...{s[-tail:]!r} (len={len(s)})"
 
 
+def _record_event(
+    timeline: _Timeline | None,
+    *,
+    action: TimelineAction,
+    topic: str | None,
+    transport: str | None = None,
+    detail: str = "",
+    logical_topic: str | None = None,
+    source: str | None = None,
+    now: float | None = None,
+) -> None:
+    """Record a single timeline event, no-op when `timeline` is None.
+
+    Centralises the `if timeline is not None:` guard, the `loop.time()`
+    lookup for the event timestamp, and the kwargs threading. Used by
+    every PRD-013 hook-point recording site so the call sites stay
+    one-liners and the behavioural contract stays in one place.
+
+    `source` is the DSL-surface attribution (PRD-013 §1.6, schema v1.3).
+    Per-site values:
+      - `"publish"` for `_StageScenarioScope.publish` (test-side publish)
+      - `"reply"` for `_register_stage_reply._on_trigger` events
+        (reply-chain trigger arrival + chain's response publish)
+      - `"expect"` for `_StageScenarioScope.expect`'s `_on_message`
+        events (subscriber-side observations)
+      - `"scope"` for `_StageScenarioScope.await_all`'s `DEADLINE`
+    """
+    if timeline is None:
+        return
+    when = now if now is not None else asyncio.get_running_loop().time()
+    timeline.record(
+        now=when,
+        topic=topic,
+        action=action,
+        detail=detail,
+        transport=transport,
+        logical_topic=logical_topic,
+        source=source,
+    )
+
+
 def _decode_and_correlation_check(
     *,
     raw_payload: bytes,
@@ -91,6 +140,8 @@ def _decode_and_correlation_check(
     correlation_policy: Any,
     expected_wire_id: str,
     bridge: Any | None = None,
+    timeline: _Timeline | None = None,
+    source: str | None = None,
 ) -> Any | None:
     """Decode an inbound payload and apply the per-scope correlation filter.
 
@@ -167,8 +218,55 @@ def _decode_and_correlation_check(
                         "error_class": type(exc).__name__,
                     },
                 )
+        # PRD-013 §2.3 row 3: record CORRELATION_SKIPPED with the wire-id
+        # mismatch hash-redacted (PRD-013 §Security; preserves PRD-012
+        # §1.5.1's report-boundary redaction posture). Wire ids carry no
+        # diagnostic value once they are visibly distinct, so hash redaction
+        # costs nothing while preventing archive-grep correlation across
+        # tenants. Asymmetric vs MISMATCHED's un-redacted detail because
+        # payload values DO have diagnostic value.
+        # NOTE: do NOT add `wire_id`/`msg_corr` to log extras above —
+        # the un-redacted id stays inside `bridge.from_wire`'s scope.
+        try:
+            redacted = redact_correlation_id(msg_corr)
+        except Exception as exc:
+            # A non-conforming `CorrelationPolicy.read()` could return
+            # a non-`str` (the Protocol declares `str | None` but Python
+            # does not enforce it at runtime). `.encode("utf-8")` on
+            # bytes/int raises AttributeError. Swallow + log so the
+            # dispatcher does not crash; the un-redacted id never leaks
+            # into the timeline.
+            log.warning(
+                "stage_correlation_redact_failed",
+                extra={
+                    "transport": transport,
+                    "topic": msg_topic,
+                    "error_class": type(exc).__name__,
+                },
+            )
+            redacted = "sha256:<redact-failed>"
+        _record_event(
+            timeline,
+            action=TimelineAction.CORRELATION_SKIPPED,
+            topic=msg_topic,
+            transport=transport,
+            detail=redacted,
+            source=source,
+        )
         return None
 
+    # PRD-013 §2.3 row 2: RECEIVED is recorded at the moment a subscriber
+    # callback saw a message after the correlation filter passed, BEFORE
+    # the matcher ran. The bar from a previous PUBLISHED/REPLIED to this
+    # RECEIVED is wire propagation; the bar from this RECEIVED to the
+    # subsequent MATCHED/REPLIED is handler work.
+    _record_event(
+        timeline,
+        action=TimelineAction.RECEIVED,
+        topic=msg_topic,
+        transport=transport,
+        source=source,
+    )
     return payload
 
 
@@ -180,6 +278,8 @@ def _resolve_handle_on_match(
     fulfilled: asyncio.Future[None],
     loop: asyncio.AbstractEventLoop,
     registered_at: float,
+    timeline: _Timeline | None = None,
+    transport: str | None = None,
 ) -> None:
     """Apply the matcher to a payload that has already passed the
     correlation filter. On match: resolve the handle (PASS) and
@@ -188,7 +288,13 @@ def _resolve_handle_on_match(
 
     Mutates `handle` in place. Mirrors the matcher branch in
     `scenario._register_expectation` minus latency-budget evaluation
-    (Group K) and timeline recording (deferred).
+    (Group K).
+
+    PRD-013 §2.3 rows 4-5: when `timeline` is provided, the function
+    records `MATCHED` on the accept branch and `MISMATCHED` on the
+    reject branch, both attributed to `transport`. The MISMATCHED
+    `detail` is the matcher's reason (un-redacted per PRD-013
+    §Security: payload values stay visible in this test tool).
     """
     recv_t = loop.time()
     result = matcher.match(payload)
@@ -198,10 +304,27 @@ def _resolve_handle_on_match(
         handle.outcome = Outcome.PASS
         handle._reason = result.reason
         fulfilled.set_result(None)
+        _record_event(
+            timeline,
+            action=TimelineAction.MATCHED,
+            topic=handle.topic,
+            transport=transport,
+            source="expect",
+            now=recv_t,
+        )
     else:
         handle._attempts += 1
         handle._last_mismatch_reason = result.reason
         handle._last_mismatch_payload = payload
+        _record_event(
+            timeline,
+            action=TimelineAction.MISMATCHED,
+            topic=handle.topic,
+            transport=transport,
+            detail=result.reason,
+            source="expect",
+            now=recv_t,
+        )
 
 
 def _register_stage_reply(
@@ -214,6 +337,7 @@ def _register_stage_reply(
     response_transport: str,
     matcher: Any | None,
     build: Callable[[Any], Any],
+    timeline: _Timeline | None = None,
 ) -> None:
     """Register a reactive reply on the trigger transport, with the
     response routed to the (possibly different) response transport.
@@ -265,15 +389,10 @@ def _register_stage_reply(
     response_harness = ctx_response.harness
     response_policy = ctx_response.harness.correlation
     response_wire_id = ctx_response.wire_id
-    bridge = ctx_trigger.harness  # placeholder; bridge plumbed below
-    # The bridge is reachable via the parent stage; helpers for the reply
-    # path receive it through the closure for symmetry with expect().
-    # This module-level helper does not have a Stage reference, so the
-    # caller wires it. Currently None — Group M2's diagnostic only fires
-    # for expect callbacks, not reply triggers (replies have a separate
-    # set of WARNINGs for build/publish failure that already cover the
-    # observability need).
-    bridge = None
+    # Reply-trigger paths skip the `bridge.from_wire` diagnostic that
+    # `expect()` callbacks use (Group M2). Replies emit their own WARNINGs
+    # on build/publish failure, which already covers the observability need.
+    bridge: Any | None = None
 
     def _on_trigger(msg_topic: str, raw_payload: bytes) -> None:
         # Use the same decode + correlation prelude as expect()'s
@@ -287,6 +406,8 @@ def _register_stage_reply(
             correlation_policy=trigger_policy,
             expected_wire_id=trigger_wire_id,
             bridge=bridge,
+            timeline=timeline,
+            source="reply",
         )
         if payload is None:
             return  # decode failure, policy failure, or for another scope
@@ -328,7 +449,28 @@ def _register_stage_reply(
                 Envelope(topic=response_topic, payload=response_payload),
                 response_wire_id,
             )
-            response_harness.publish(envelope.topic, envelope.payload)
+            # PRD-013 §2.3 row 7 + §2.3.1: REPLIED records at the post-wire
+            # `on_sent` boundary so semantics match PUBLISHED. The detail
+            # carries the trigger topic so a reader can correlate
+            # trigger -> response across transports.
+            if timeline is not None:
+                published_topic = envelope.topic
+
+                def _record_replied() -> None:
+                    _record_event(
+                        timeline,
+                        action=TimelineAction.REPLIED,
+                        topic=published_topic,
+                        transport=response_transport,
+                        detail=f"trigger={trigger_topic}",
+                        source="reply",
+                    )
+
+                response_harness.publish(
+                    envelope.topic, envelope.payload, on_sent=_record_replied
+                )
+            else:
+                response_harness.publish(envelope.topic, envelope.payload)
         except Exception as exc:
             reply.state = StageReplyState.FIRED_BUILDER_ERROR
             reply.builder_error = type(exc).__name__
@@ -341,6 +483,18 @@ def _register_stage_reply(
                     "response_transport": response_transport,
                     "error_class": type(exc).__name__,
                 },
+            )
+            # PRD-013 §2.3 row 8: REPLY_FAILED detail carries the response
+            # topic and the exception CLASS NAME ONLY (no `str(exc)`) per
+            # ADR-0017 §Security Considerations. Consistent with
+            # single-Harness scenario.py:1058.
+            _record_event(
+                timeline,
+                action=TimelineAction.REPLY_FAILED,
+                topic=response_topic,
+                transport=response_transport,
+                detail=f"reply={response_topic} error={type(exc).__name__}",
+                source="reply",
             )
 
     # Subscribe BEFORE recording the reply on the trigger child's
@@ -507,6 +661,22 @@ class UnknownTransportError(StageError, LookupError):
     so consumers can `except LookupError` for transport-name typos. The
     error message names the registered transports so the user can spot
     the typo without reading source.
+    """
+
+
+# Transport name regex (PRD-012 §1.4-§1.5, PRD-013 §1.1). Stage validates
+# at __init__ to fail closed before consumer-supplied names can flow into
+# the timeline / results.json / Phase 2 renderer.
+_TRANSPORT_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
+
+class InvalidTransportNameError(StageError, ValueError):
+    """A transport name registered on `Stage(harnesses=...)` does not
+    match the schema regex `^[a-zA-Z0-9_-]{1,64}$` (PRD-012 §1.4-§1.5).
+
+    Stage fails closed at construction so consumer-supplied names
+    cannot propagate into the timeline / results.json / Phase 2
+    renderer where they would otherwise become an injection surface.
     """
 
 
@@ -977,6 +1147,19 @@ class StageScenarioResult:
     uses this for the breadcrumb's transports list so the test author
     sees every transport they configured, even if the test path didn't
     fire on one of them."""
+    timeline: tuple[TimelineEntry, ...] = ()
+    """Observed events recorded during the scope's lifetime, in
+    observation order (PRD-013 §2.4). Populated by the framework's
+    Stage hook points; each entry's `transport` field carries the
+    per-transport attribution for transport-scoped events and is
+    omitted (`None`) for scope-level events such as `DEADLINE`
+    (PRD-013 §D-3). Empty for scopes that did not exercise any
+    instrumented path."""
+    timeline_dropped: int = 0
+    """Count of events the per-scope `_Timeline` ring buffer had to
+    drop because the per-scope cap (256) was hit. Distinct from the
+    per-run aggregate cap policed at the reporter boundary
+    (PRD-013 §D-4)."""
     kind: Literal["stage"] = field(default="stage", init=False)
 
     @property
@@ -1064,6 +1247,17 @@ class Stage:
     ) -> None:
         if not harnesses:
             raise ValueError("Stage requires at least one harness")
+        # Fail closed on transport names that do not match the schema
+        # regex BEFORE any further setup. Consumer-supplied names flow
+        # into the timeline, results.json, and (Phase 2) the HTML
+        # renderer; rejecting at construction keeps the framework
+        # boundary the only place this constraint is enforced.
+        for name in harnesses:
+            if not isinstance(name, str) or not _TRANSPORT_NAME_PATTERN.match(name):
+                raise InvalidTransportNameError(
+                    f"transport name {name!r} does not match "
+                    f"{_TRANSPORT_NAME_PATTERN.pattern}"
+                )
         # `dict(...)` preserves insertion order (Python 3.7+) so the
         # registration order downstream rollback / disconnect routines
         # rely on is deterministic.
@@ -1365,6 +1559,10 @@ class _StageScenarioScope:
         # refs etc. when Group F lands the DSL methods).
         self._children: dict[str, _StageChild] = {}
         self._entered = False
+        # PRD-013 §2.2: per-scope event timeline. Anchored on first
+        # recorded event (via `_Timeline.record`'s lazy anchoring), so
+        # an empty scope does not consume any t0 slot.
+        self._timeline = _Timeline()
 
     async def __aenter__(self) -> _StageScenarioScope:
         if self._entered:
@@ -1549,6 +1747,7 @@ class _StageScenarioScope:
         correlation_policy = child.harness.correlation
         wire_id = child.wire_id
         bridge = self._stage._bridge
+        timeline = self._timeline
 
         def _on_message(msg_topic: str, raw_payload: bytes) -> None:
             if fulfilled.done():
@@ -1561,6 +1760,8 @@ class _StageScenarioScope:
                 correlation_policy=correlation_policy,
                 expected_wire_id=wire_id,
                 bridge=bridge,
+                timeline=timeline,
+                source="expect",
             )
             if payload is None:
                 return  # decode failure, policy failure, or for another scope
@@ -1571,6 +1772,8 @@ class _StageScenarioScope:
                 fulfilled=fulfilled,
                 loop=loop,
                 registered_at=registered_at,
+                timeline=timeline,
+                transport=transport,
             )
 
         # Subscribe BEFORE appending the expectation: if subscribe
@@ -1618,7 +1821,26 @@ class _StageScenarioScope:
             Envelope(topic=topic, payload=payload),
             child.wire_id,
         )
-        child.harness.publish(envelope.topic, envelope.payload)
+        # PRD-013 §2.3 row 1 (PUBLISHED) + §2.3.1: record at the post-wire
+        # `on_sent` boundary so semantics match single-Harness scenario.py:716.
+        # If the harness/transport raises before invoking `on_sent`, no
+        # PUBLISHED is recorded and the exception propagates — consistent
+        # with the "the bytes have left the wire" reading PRD-013 documents.
+        timeline = self._timeline
+        published_topic = envelope.topic
+
+        def _record_published() -> None:
+            _record_event(
+                timeline,
+                action=TimelineAction.PUBLISHED,
+                topic=published_topic,
+                transport=transport,
+                source="publish",
+            )
+
+        child.harness.publish(
+            envelope.topic, envelope.payload, on_sent=_record_published
+        )
         return self
 
     async def await_all(self, timeout_ms: int) -> StageScenarioResult:
@@ -1653,7 +1875,19 @@ class _StageScenarioScope:
                 async with asyncio.timeout_at(deadline):
                     await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
             except TimeoutError:
-                pass  # expected when some expectations did not fire
+                # Expected when some expectations did not fire within the
+                # budget. PRD-013 §2.3 row 6: record one scope-level
+                # DEADLINE event. Both `transport` and `topic` are OMITTED
+                # (None) for scope-level events per §D-3 — symmetric
+                # treatment, no in-band signalling on either field.
+                _record_event(
+                    self._timeline,
+                    action=TimelineAction.DEADLINE,
+                    topic=None,
+                    detail=f"timeout_ms={timeout_ms}",
+                    source="scope",
+                    now=loop.time(),
+                )
 
         now_t = loop.time()
         for exp in all_expectations:
@@ -1691,6 +1925,23 @@ class _StageScenarioScope:
         # report should show the configured shape, not the executed
         # subset.
         registered_transports = tuple(self._stage._harnesses.keys())
+        # PRD-013 §2.2: freeze the per-scope timeline into the result.
+        # The deque is iterated in observation order (§2.4); the result
+        # carries an immutable tuple. `timeline_dropped` exposes the
+        # ring-buffer overflow count (§D-4 per-scope cap).
+        # Seal BEFORE snapshotting so any in-flight inbound callback
+        # (subscriptions stay live until `__aexit__` runs the unsubscribe
+        # loop) sees `sealed=True` and becomes a silent no-op. Without
+        # this ordering, a late callback's `record()` could see
+        # `sealed=False`, append to the deque, and increment `dropped`
+        # AFTER the snapshot was taken — producing a consumer-visible
+        # inconsistency between `len(result.timeline)` and
+        # `result.timeline_dropped`. The closures captured the same
+        # `_Timeline` instance, so flipping the seal propagates to every
+        # recording site immediately.
+        self._timeline.sealed = True
+        timeline = tuple(self._timeline.entries)
+        timeline_dropped = self._timeline.dropped
         result = StageScenarioResult(
             handles=handles,
             passed=passed,
@@ -1699,6 +1950,8 @@ class _StageScenarioScope:
             name=self._name,
             bridge_class=bridge_class,
             registered_transports=registered_transports,
+            timeline=timeline,
+            timeline_dropped=timeline_dropped,
         )
         # Notify the reporter (PRD-007 §2 observer seam). Mirrors the
         # single-Harness `Scenario._do_await_all` emission at
@@ -1801,5 +2054,6 @@ class StageReplyChain:
             response_transport=response_transport,
             matcher=self._matcher,
             build=build,
+            timeline=self._scope._timeline,
         )
         return self._scope

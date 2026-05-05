@@ -369,7 +369,60 @@ _CSS = """
    that single hop. Time axis header aligns with bar track. */
 .harness-report .hr-timeline-wrap { position: relative; }
 
-.harness-report .hr-waterfall { margin-top: var(--hr-space-3); border: 1px solid var(--hr-border); border-radius: var(--hr-radius-sm); background: var(--hr-bg); overflow: hidden; }
+.harness-report .hr-waterfall { margin-top: var(--hr-space-3); border: 1px solid var(--hr-border); border-radius: var(--hr-radius-sm); background: var(--hr-bg); overflow: hidden; position: relative; }
+
+/* PRD-013 §4.1: per-transport swim-lane wrappers. Each lane carries
+   `data-transport`; the dedicated scope-events lane carries
+   `data-scope-lane="true"`. Lanes are visually separated by a top
+   border and a label header. */
+.harness-report .hr-waterfall-lane { border-top: 1px solid var(--hr-border); }
+.harness-report .hr-waterfall-lane:first-child { border-top: none; }
+.harness-report .hr-waterfall-lane[data-scope-lane="true"] { background: var(--hr-surface-1); }
+.harness-report .hr-waterfall-lane-label {
+  padding: var(--hr-space-1) var(--hr-space-3);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hr-text-subtle);
+  background: var(--hr-surface-2);
+  border-bottom: 1px solid var(--hr-border);
+}
+
+/* PRD-013 §4.2: cross-transport reply-arrow SVG overlay. Sized + positioned
+   by `layoutReplyArrows` at boot; CSS sets the absolute-positioning anchor
+   so coordinates inside the SVG align with positions inside the waterfall.
+   `pointer-events: none` so arrows don't block row hover/click. */
+.harness-report .hr-waterfall-reply-arrows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.harness-report .hr-waterfall-reply-arrow {
+  fill: none;
+  stroke: var(--hr-info);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.65;
+}
+
+/* PRD-013 §4.1.1: virtualisation expansion button. Plain UA button is
+   ugly; this borrows the existing button shape from the report toolbar. */
+.harness-report .hr-timeline-expand {
+  margin-top: var(--hr-space-2);
+  padding: var(--hr-space-1) var(--hr-space-3);
+  border: 1px solid var(--hr-border);
+  border-radius: var(--hr-radius-sm);
+  background: var(--hr-surface-1);
+  color: var(--hr-text);
+  font-size: 11px;
+  font-family: var(--hr-font-mono);
+  cursor: pointer;
+}
+.harness-report .hr-timeline-expand:hover { background: var(--hr-surface-2); }
+.harness-report .hr-timeline-expand:focus-visible { outline: 2px solid var(--hr-info); outline-offset: 2px; }
 
 .harness-report .hr-waterfall-row,
 .harness-report .hr-waterfall-axis {
@@ -454,6 +507,29 @@ _CSS = """
 .harness-report .hr-waterfall-action[data-action="replied"] { color: var(--hr-pass); }
 .harness-report .hr-waterfall-action[data-action="reply_failed"] { color: var(--hr-fail); }
 .harness-report .hr-waterfall-action[data-action="correlation_skipped"] { color: var(--hr-text-subtle); }
+
+/* PRD-013 §1.6 / schema v1.3: source-attribution badge.
+   Subtle pill rendered after the action verb naming the DSL surface
+   that produced the event (test publish vs reply chain vs expect
+   subscriber vs scope-level). Helps the reader disambiguate two
+   PUBLISHED entries on the same topic when one is from `scope.publish`
+   and another from a reply chain. */
+.harness-report .hr-waterfall-source {
+  display: inline-block;
+  margin-left: var(--hr-space-1);
+  padding: 0 var(--hr-space-1);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hr-text-subtle);
+  border: 1px solid var(--hr-border);
+  border-radius: var(--hr-radius-sm);
+  background: var(--hr-surface-1);
+}
+.harness-report .hr-waterfall-source[data-source="publish"] { color: var(--hr-info); border-color: var(--hr-info); }
+.harness-report .hr-waterfall-source[data-source="reply"] { color: var(--hr-pass); border-color: var(--hr-pass); }
+.harness-report .hr-waterfall-source[data-source="expect"] { color: var(--hr-text-muted); }
+.harness-report .hr-waterfall-source[data-source="scope"] { color: var(--hr-text-subtle); font-style: italic; }
 
 /* Bar track — position: relative so absolute-positioned bars + dots
    land at % offsets computed from the scenario's max offset. Faint
@@ -1310,9 +1386,23 @@ _JS = r"""
     if (action === 'deadline') { return 'timed out'; }
     if (action === 'correlation_skipped') { return 'other scope'; }
     if (action === 'received') { return 'received'; }
-    if (action === 'replied') { return 'replied'; }
-    if (action === 'reply_failed') { return 'reply failed'; }
+    // PRD-013 v1.3: `replied` IS a publish (from a reply chain). The
+    // `source=reply` badge disambiguates origin; the action label
+    // shows the wire-level verb. Schema enum value stays `"replied"`
+    // for backward-compat with PRD-008 / Chronicle ingest.
+    if (action === 'replied') { return 'published'; }
+    if (action === 'reply_failed') { return 'publish failed'; }
     return action;
+  }
+
+  function sourceBadgeText(source) {
+    // PRD-013 §1.6: short human-readable text for the source badge.
+    // Names the DSL surface that produced the event.
+    if (source === 'publish') { return 'by test'; }
+    if (source === 'expect') { return 'by expect'; }
+    if (source === 'reply') { return 'by reply'; }
+    if (source === 'scope') { return 'by scope'; }
+    return source;
   }
 
   // Directional arrow. Published = outbound (→). Received / matched /
@@ -1893,6 +1983,16 @@ _JS = r"""
     return out;
   }
 
+  // PRD-013 §4.1.1: virtualisation threshold. Timelines below this
+  // size mount eagerly (lower latency for the common case);
+  // timelines at or above this size mount the first
+  // VIRTUALISATION_THRESHOLD entries and expose an expansion control.
+  // The cap-saturated workload (1000 scopes x 256 entries = 256k
+  // events naively, bounded to 50k by the per-run aggregate cap) is
+  // what motivates this; a single scope hitting the per-scope 256
+  // cap stays in eager mount.
+  var VIRTUALISATION_THRESHOLD = 500;
+
   function mountTimeline(host, scenario) {
     clear(host);
     host.setAttribute('data-timeline-mounted', 'true');
@@ -1912,6 +2012,35 @@ _JS = r"""
     heading.appendChild(el('small', {}, formatOffset(maxOffset) + ' total'));
     host.appendChild(heading);
 
+    // PRD-013 §4.3 visibility banner: Stage scenarios with timeline
+    // data emit a stable-tier banner naming the per-transport
+    // breakdown. Sits as a semantic header above the swim-lane
+    // waterfall.
+    if (scenario.stage) {
+      var transports = {};
+      for (var bi = 0; bi < entries.length; bi++) {
+        var bt = entries[bi].transport;
+        if (bt) { transports[bt] = true; }
+      }
+      var transportCount = 0;
+      for (var bk in transports) {
+        if (Object.prototype.hasOwnProperty.call(transports, bk)) {
+          transportCount += 1;
+        }
+      }
+      var bannerText = 'Stage timeline captured: ' + entries.length + ' event' +
+        (entries.length === 1 ? '' : 's') +
+        ' across ' + transportCount + ' transport' +
+        (transportCount === 1 ? '' : 's');
+      host.appendChild(el('div', {
+        'class': 'hr-empty',
+        'data-stage-timeline-banner': 'true',
+        'data-stage-timeline-events': String(entries.length),
+        'data-stage-timeline-transports': String(transportCount),
+        'style': 'text-align: left; padding: 0 0 var(--hr-space-2) 0; font-style: normal;'
+      }, bannerText));
+    }
+
     // Clock-source caveat. Offsets come from `asyncio.get_running_loop().time()`
     // — per-process monotonic. Under pytest-xdist every worker has its own
     // epoch, so a waterfall only makes sense *within* one scope on one
@@ -1929,15 +2058,30 @@ _JS = r"""
 
     var wrap = el('div', { 'class': 'hr-timeline-wrap' });
 
-    // Jaeger-style waterfall. Each event becomes a row whose depth in
-    // the causal tree determines indentation (initial publish = 0;
-    // matched / replied children = parent depth + 1). The bar's
-    // horizontal position is proportional to `offset_ms / maxOffset`
-    // and its width is the hop's propagation latency. Reading top to
-    // bottom, indenting right, shows the chain.
-    wrap.appendChild(renderWaterfall(entries, maxOffset));
+    // PRD-013 §4.1.1: virtualisation under cap-saturated workloads.
+    // Below the threshold, mount the full waterfall eagerly. Above
+    // it, mount only the first VIRTUALISATION_THRESHOLD entries and
+    // expose an expansion control - rendering 50k DOM nodes upfront
+    // would blow past the time-to-interactive budget.
+    if (entries.length >= VIRTUALISATION_THRESHOLD) {
+      mountTimelineVirtualised(host, wrap, entries, maxOffset, scenario);
+    } else {
+      // Jaeger-style waterfall. Each event becomes a row whose depth in
+      // the causal tree determines indentation (initial publish = 0;
+      // matched / replied children = parent depth + 1). The bar's
+      // horizontal position is proportional to `offset_ms / maxOffset`
+      // and its width is the hop's propagation latency. Reading top to
+      // bottom, indenting right, shows the chain.
+      wrap.appendChild(renderWaterfall(entries, maxOffset, scenario));
+    }
 
     host.appendChild(wrap);
+
+    // PRD-013 §4.2: reply-arrow geometry runs after the waterfall is
+    // mounted to the document so row positions are measurable. The
+    // overlay SVG was constructed with placeholder `d` attributes;
+    // `layoutReplyArrows` rewrites them to real row-to-row diagonals.
+    layoutReplyArrows(host);
 
     if (scenario.timeline_dropped) {
       host.appendChild(el('div', {
@@ -1945,6 +2089,47 @@ _JS = r"""
         'data-field': 'timeline-dropped-note'
       }, '\u2026 ' + scenario.timeline_dropped + ' earliest entries dropped (buffer cap)'));
     }
+  }
+
+  function mountTimelineVirtualised(host, wrap, entries, maxOffset, scenario) {
+    // PRD-013 \u00a74.1.1: bounded mount + expansion control. The first
+    // VIRTUALISATION_THRESHOLD entries render eagerly so the user
+    // sees the start of the timeline immediately; the remainder
+    // mounts on click, swapping out the partial waterfall for the
+    // full one. Stable-tier markers (`data-virtualised`,
+    // `data-virtualised-shown`, `data-virtualised-total`,
+    // `data-virtualised-expand`) make the state machine queryable
+    // without depending on row counts in the DOM.
+    var initial = entries.slice(0, VIRTUALISATION_THRESHOLD);
+    host.setAttribute('data-virtualised', 'true');
+    host.setAttribute('data-virtualised-shown', String(initial.length));
+    host.setAttribute('data-virtualised-total', String(entries.length));
+
+    var partial = renderWaterfall(initial, maxOffset, scenario);
+    wrap.appendChild(partial);
+
+    var remaining = entries.length - initial.length;
+    var expandControl = el('button', {
+      type: 'button',
+      'class': 'hr-timeline-expand',
+      'data-virtualised-expand': 'true',
+      'data-virtualised-remaining': String(remaining),
+      'aria-controls': host.id || ''
+    }, 'Show remaining ' + remaining + ' event' + (remaining === 1 ? '' : 's'));
+    expandControl.addEventListener('click', function () {
+      // Swap the partial waterfall for the full one. Constructing
+      // 50k DOM nodes is the cost the user is opting in to.
+      var full = renderWaterfall(entries, maxOffset, scenario);
+      wrap.replaceChild(full, partial);
+      host.setAttribute('data-virtualised-shown', String(entries.length));
+      host.setAttribute('data-virtualised-expanded', 'true');
+      expandControl.parentNode.removeChild(expandControl);
+      // Re-layout reply arrows over the freshly-mounted full waterfall;
+      // row positions changed so the placeholder `d` attributes need
+      // recomputing.
+      layoutReplyArrows(host);
+    });
+    wrap.appendChild(expandControl);
   }
 
   // -------------------------------------------------------------------
@@ -1982,6 +2167,8 @@ _JS = r"""
       var node = {
         id: i,
         topic: e.topic,
+        transport: e.transport || null,
+        source: e.source || null,
         action: e.action,
         offsetMs: (typeof e.offset_ms === 'number') ? e.offset_ms : 0,
         detail: e.detail || '',
@@ -2100,7 +2287,183 @@ _JS = r"""
     return nice * exp;
   }
 
-  function renderWaterfall(entries, maxOffset) {
+  function pairReplyArrows(nodes) {
+    // PRD-013 §4.2.1: single linear scan. Track the most recent
+    // RECEIVED node per topic; for each REPLIED, parse the trigger
+    // topic from `detail` (`trigger=<topic>`) and pair against the
+    // last RECEIVED on that topic. O(events) cost. Cross-scope
+    // pairing is intentionally NOT done here (Chronicle territory).
+    var lastReceivedByTopic = {};
+    var pairs = [];
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (node.action === 'received' && node.topic) {
+        lastReceivedByTopic[node.topic] = node;
+      } else if (node.action === 'replied') {
+        var m = /trigger=(\S+)/.exec(node.detail || '');
+        if (m && lastReceivedByTopic[m[1]]) {
+          pairs.push({
+            from: lastReceivedByTopic[m[1]],
+            to: node
+          });
+        }
+      }
+    }
+    return pairs;
+  }
+
+  function renderReplyArrowOverlay(pairs) {
+    // SVG overlay above the lane wrappers. Geometry is laid out at
+    // boot time via `layoutReplyArrows`; here we build the DOM
+    // structure with stable-tier `data-reply-link-*` attributes so
+    // consumers (and tests) can target individual arrows without
+    // depending on path coordinates.
+    var SVG_NS = 'http://www.w3.org/2000/svg';
+    var overlay = document.createElementNS(SVG_NS, 'svg');
+    overlay.setAttribute('class', 'hr-waterfall-reply-arrows');
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.setAttribute('data-reply-arrow-count', String(pairs.length));
+    for (var i = 0; i < pairs.length; i++) {
+      var p = pairs[i];
+      var path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('class', 'hr-waterfall-reply-arrow');
+      path.setAttribute('data-reply-link-from', String(p.from.id));
+      path.setAttribute('data-reply-link-to', String(p.to.id));
+      // Placeholder `d` attribute. Real geometry is resolved by
+      // `layoutReplyArrows` once the waterfall is mounted to the
+      // document and row positions are measurable.
+      path.setAttribute('d', 'M0,0 L0,0');
+      overlay.appendChild(path);
+    }
+    return overlay;
+  }
+
+  function layoutReplyArrows(host) {
+    // PRD-013 §4.2: runtime layout pass. After the waterfall is
+    // attached to the document, every `<path data-reply-link-from
+    // data-reply-link-to>` learns its row-to-row geometry. Straight
+    // diagonal from the FROM row's right edge to the TO row's left
+    // edge, with coordinates relative to the SVG (which is sized to
+    // overlay its parent waterfall via CSS). Single pass, O(arrows).
+    var svgs = host.querySelectorAll('.hr-waterfall-reply-arrows');
+    for (var s = 0; s < svgs.length; s++) {
+      var svg = svgs[s];
+      var paths = svg.querySelectorAll('.hr-waterfall-reply-arrow');
+      if (paths.length === 0) { continue; }
+      var waterfall = svg.parentNode;
+      if (!waterfall) { continue; }
+      var waterfallRect = waterfall.getBoundingClientRect();
+      // Size the SVG to the waterfall so absolute coordinates inside
+      // the SVG match positions inside the waterfall.
+      svg.setAttribute('width', String(waterfallRect.width));
+      svg.setAttribute('height', String(waterfallRect.height));
+      svg.setAttribute(
+        'viewBox', '0 0 ' + waterfallRect.width + ' ' + waterfallRect.height
+      );
+      for (var p = 0; p < paths.length; p++) {
+        var path = paths[p];
+        var fromId = path.getAttribute('data-reply-link-from');
+        var toId = path.getAttribute('data-reply-link-to');
+        var fromRow = waterfall.querySelector(
+          '[data-node-id="' + fromId + '"]'
+        );
+        var toRow = waterfall.querySelector(
+          '[data-node-id="' + toId + '"]'
+        );
+        if (!fromRow || !toRow) { continue; }
+        var fromRect = fromRow.getBoundingClientRect();
+        var toRect = toRow.getBoundingClientRect();
+        var fromX = fromRect.right - waterfallRect.left;
+        var fromY = fromRect.top + fromRect.height / 2 - waterfallRect.top;
+        var toX = toRect.left - waterfallRect.left;
+        var toY = toRect.top + toRect.height / 2 - waterfallRect.top;
+        path.setAttribute(
+          'd', 'M' + fromX + ',' + fromY + ' L' + toX + ',' + toY
+        );
+      }
+    }
+  }
+
+  function isSwimLaneMode(scenario, nodes) {
+    // PRD-013 §D-3a: swim-lane mode activates when at least one node
+    // has a transport set AND that transport is registered on the
+    // scenario's stage block. Single-`Harness` scenarios (no
+    // `scenario.stage`) and Stage scopes whose only timeline event
+    // is scope-level (DEADLINE, no transport) fall through to the
+    // legacy per-topic layout.
+    if (!scenario || !scenario.stage || !scenario.stage.transports) {
+      return false;
+    }
+    var registered = {};
+    for (var ri = 0; ri < scenario.stage.transports.length; ri++) {
+      registered[scenario.stage.transports[ri]] = true;
+    }
+    for (var ni = 0; ni < nodes.length; ni++) {
+      var t = nodes[ni].transport;
+      if (t && Object.prototype.hasOwnProperty.call(registered, t)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function renderSwimLaneWaterfall(root, nodes, scenario, axisMax, nodeById, topicShape, rowsById) {
+    // PRD-013 §4.1: group rows by transport into per-lane wrappers.
+    // Lane order matches `scenario.stage.transports` (registration
+    // order) so consumers see a consistent shape across runs.
+    // Topic-less entries (DEADLINE) fall into a dedicated scope
+    // lane after the per-transport lanes.
+    var laneOrder = scenario.stage.transports;
+    var laneByTransport = {};
+    for (var li = 0; li < laneOrder.length; li++) {
+      var t = laneOrder[li];
+      var lane = el('div', {
+        'class': 'hr-waterfall-lane',
+        'data-transport': t,
+        role: 'group',
+        'aria-label': 'Transport lane: ' + t
+      });
+      lane.appendChild(el('div', {
+        'class': 'hr-waterfall-lane-label'
+      }, t));
+      laneByTransport[t] = lane;
+      root.appendChild(lane);
+    }
+    var scopeLane = el('div', {
+      'class': 'hr-waterfall-lane',
+      'data-transport': '',
+      'data-scope-lane': 'true',
+      role: 'group',
+      'aria-label': 'Scope-level events'
+    });
+    var scopeLaneAttached = false;
+    for (var ni = 0; ni < nodes.length; ni++) {
+      var node = nodes[ni];
+      var row = renderWaterfallRow(node, axisMax, nodeById, topicShape);
+      rowsById[node.id] = row;
+      if (node.transport && laneByTransport[node.transport]) {
+        laneByTransport[node.transport].appendChild(row);
+      } else {
+        if (!scopeLaneAttached) {
+          scopeLane.appendChild(el('div', {
+            'class': 'hr-waterfall-lane-label'
+          }, '(scope)'));
+          root.appendChild(scopeLane);
+          scopeLaneAttached = true;
+        }
+        scopeLane.appendChild(row);
+      }
+    }
+    // PRD-013 §4.2: cross-transport reply linkage. Pair RECEIVED ->
+    // REPLIED via `trigger=` detail; render an SVG overlay above
+    // the lane wrappers with one path per pair. Path coordinates
+    // start at the placeholder origin; `layoutReplyArrows` rewrites
+    // them once rows are measurable in the document.
+    var arrowPairs = pairReplyArrows(nodes);
+    root.appendChild(renderReplyArrowOverlay(arrowPairs));
+  }
+
+  function renderWaterfall(entries, maxOffset, scenario) {
     var root = el('div', {
       'class': 'hr-waterfall',
       role: 'tree',
@@ -2117,11 +2480,18 @@ _JS = r"""
     var topicShape = computeTopicShape(nodes);
 
     var rowsById = {};
-    nodes.forEach(function (node) {
-      var row = renderWaterfallRow(node, axisMax, nodeById, topicShape);
-      rowsById[node.id] = row;
-      root.appendChild(row);
-    });
+
+    if (isSwimLaneMode(scenario, nodes)) {
+      renderSwimLaneWaterfall(
+        root, nodes, scenario, axisMax, nodeById, topicShape, rowsById
+      );
+    } else {
+      nodes.forEach(function (node) {
+        var row = renderWaterfallRow(node, axisMax, nodeById, topicShape);
+        rowsById[node.id] = row;
+        root.appendChild(row);
+      });
+    }
 
     // Click-to-expand inline detail. Highlight the ancestor chain
     // (parent, grandparent, …) so the reader sees which earlier event
@@ -2236,26 +2606,46 @@ _JS = r"""
   }
 
   function renderWaterfallRow(node, axisMax, nodeById, topicShape) {
+    // PRD-013 §D-3: scope-level events (currently DEADLINE) carry
+    // no `topic` field. Tag the row with `data-scope-event="true"`
+    // so consumer queries and the swim-lane renderer route these
+    // into the dedicated scope-events lane. Stable-tier contract:
+    // the data attribute survives renderer reorganisations.
+    var isScopeEvent = !node.topic;
     var row = el('div', {
       'class': 'hr-waterfall-row',
       'data-action': node.action,
       'data-depth': String(node.depth),
       'data-node-id': String(node.id),
       'data-parent-id': node.parentId !== null ? String(node.parentId) : '',
+      'data-scope-event': isScopeEvent ? 'true' : 'false',
+      'data-transport': node.transport || '',
+      'data-source': node.source || '',
       role: 'treeitem',
       'aria-level': String(node.depth + 1),
       'aria-expanded': 'false',
       tabindex: '0'
     });
 
-    // Label column: tree guides + topic + action verb.
+    // Label column: tree guides + topic + action verb + source badge.
     var label = el('div', { 'class': 'hr-waterfall-label' });
     label.appendChild(renderWaterfallIndent(node, nodeById));
-    label.appendChild(renderTopicCell(node.topic, topicShape));
+    label.appendChild(renderTopicCell(node.topic || '(scope)', topicShape));
     label.appendChild(el('span', {
       'class': 'hr-waterfall-action',
       'data-action': node.action
     }, actionLabel(node.action)));
+    // PRD-013 §1.6 / schema v1.3: render a small badge naming the DSL
+    // surface that produced this event so a reader can disambiguate
+    // a test-side publish from a reply-chain's automatic response on
+    // the same topic at a glance. CSS in the `.hr-waterfall-source`
+    // rule styles this as a subtle subscript.
+    if (node.source) {
+      label.appendChild(el('span', {
+        'class': 'hr-waterfall-source',
+        'data-source': node.source
+      }, sourceBadgeText(node.source)));
+    }
     row.appendChild(label);
 
     // Bar track: the bar spans from parent's offset to this event's
@@ -2275,7 +2665,7 @@ _JS = r"""
       'class': 'hr-waterfall-dot',
       'data-action': node.action,
       style: 'left: ' + endPct + '%;',
-      title: actionLabel(node.action) + ' — ' + node.topic + ' (' + formatOffset(node.endMs) + ')'
+      title: actionLabel(node.action) + ' — ' + (node.topic || '(scope)') + ' (' + formatOffset(node.endMs) + ')'
     });
     track.appendChild(dot);
     row.appendChild(track);
@@ -3007,11 +3397,11 @@ _HTML_TEMPLATE = (
     "<head>\n"
     '<meta charset="utf-8">\n'
     "<title>Harness Test Report</title>\n"
-    '<meta name="harness-schema-version" content="1.1">\n'
+    '<meta name="harness-schema-version" content="1.3">\n'
     "<style>" + _CSS + "</style>\n"
     "</head>\n"
     "<body>\n"
-    '<div class="harness-report" data-schema-version="1.1" data-grouping-mode="by-scenario">\n'
+    '<div class="harness-report" data-schema-version="1.3" data-grouping-mode="by-scenario">\n'
     '  <header class="hr-header">\n'
     '    <div class="hr-hero-meta">\n'
     '      <div class="hr-hero-project" data-field="project_name" hidden></div>\n'

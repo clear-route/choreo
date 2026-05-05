@@ -1,8 +1,8 @@
-"""Serialisation — PRD-007 §3, §5; PRD-012 §1.7, §2.2, §2.3, §2.4.
+"""Serialisation — PRD-007 §3, §5; PRD-012 §1.7, §2.2, §2.3, §2.4; PRD-013 §1.1, §1.6, §3.1.
 
 Converts `ScenarioResult` / `StageScenarioResult` / `Handle` /
 `TimelineEntry` (defined in `core`) into JSON-shaped dicts that
-conform to docs/schemas/test-report-v1.1.json.
+conform to docs/schemas/test-report-v1.3.json.
 
 Applies size caps in a single tree walk: string fields >2 KB are replaced
 with a truncation marker, and a JSON-encoded per-payload cap of 8 KB
@@ -222,13 +222,29 @@ def derive_test_outcome(pytest_outcome: str, scenario_outcomes: list[str]) -> st
 
 
 def serialise_timeline_entry(entry: TimelineEntry) -> dict[str, Any]:
-    return {
+    """Render one TimelineEntry to its JSON shape.
+
+    Optional fields (`topic`, `transport`, `logical_topic`, `source`)
+    are OMITTED from the output dict when their Python value is `None`
+    — never emitted as `null`. Preserves the byte-identity contract
+    for single-`Harness` entries (PRD-012 §1.5) and the per-PRD-013
+    §1.1 / §1.6 omission rules.
+    """
+    out: dict[str, Any] = {
         "offset_ms": entry.offset_ms,
         "wall_clock": entry.wall_clock,
-        "topic": entry.topic,
         "action": entry.action.value,
         "detail": entry.detail,
     }
+    if entry.topic is not None:
+        out["topic"] = entry.topic
+    if entry.transport is not None:
+        out["transport"] = entry.transport
+    if entry.logical_topic is not None:
+        out["logical_topic"] = entry.logical_topic
+    if entry.source is not None:
+        out["source"] = entry.source
+    return out
 
 
 def serialise_match_failure(failure: MatchFailure, stats: RedactionStats) -> dict[str, Any]:
@@ -340,7 +356,7 @@ REPLIES_CAP = 100
 
 
 # StageReplyState → schema-string mapping per PRD-012 §1.7.
-# The `state` enum in test-report-v1.1.json keeps the v1.0 four values.
+# The `state` enum in test-report-v1.2.json keeps the v1.0 four values.
 # Framework-side StageReplyState.FIRED collapses to "replied"; the
 # distinction (which framework path produced it) is preserved
 # in-process via the enum, not on the wire.
@@ -558,6 +574,7 @@ def _serialise_stage_scenario(
     """
     handles = tuple(result.handles[:HANDLES_CAP])
     replies = tuple(result.replies[:REPLIES_CAP])
+    timeline = tuple(result.timeline[:TIMELINE_CAP])
     by_transport = result.by_transport
 
     # PRD-012 §1.4 + the user-feedback fix: emit the FULL set of
@@ -611,8 +628,8 @@ def _serialise_stage_scenario(
         "duration_ms": duration_ms,
         "completed_normally": completed_normally,
         "handles": [serialise_handle(h, stats) for h in handles],
-        "timeline": [],
-        "timeline_dropped": 0,
+        "timeline": [serialise_timeline_entry(e) for e in timeline],
+        "timeline_dropped": result.timeline_dropped,
         "replies": [serialise_reply_report(r) for r in replies],
         "summary_text": "",
         "stage": stage_block,

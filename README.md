@@ -12,17 +12,17 @@
 
 ---
 
-Your services do not talk over function calls. They talk over queues. Orders fans out to payments. Payments calls fraud. Fraud replies. Orders watches the result. Every hop is a topic, not a return value.
-
-When the test fails, a plain `TimeoutError` rarely tells you which hop broke. Did the message arrive at all? Did it arrive with the wrong shape? Did it arrive on time? Standard async test code cannot tell these apart, so teams either write a pile of bespoke glue around every test or ship on hope.
-
 Choreo is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
 
-Supporting: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
+Supporting natively: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
 
 ---
 
-## Why Choreo
+## When to use Choreo
+
+Use Choreo when your system is message-driven and your tests need to assert on what comes back over the wire: event pipelines, pub/sub fan-out, request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS read models.
+
+**Not a good fit for:** pure unit tests with no I/O, HTTP request/response testing (use `httpx` + `respx`), or synchronous Python-only fakes.
 
 Three things Choreo does that you will not find combined in any other Python test framework today.
 
@@ -84,13 +84,13 @@ s.on("fraud.check").publish(
 )
 ```
 
-Want the real upstream in the test instead? Drop the reply, let the service run against the broker, and widen the expectation. The scenario does not care how many dancers are on the floor — it cares about the cues.
+Want the real upstream in the test instead? Drop the reply, let the service run against the broker, and widen the expectation. The scenario does not care how many dancers are on the floor; it cares about the cues.
 
 ### Multi-transport bridges (Stage)
 
 Some services exist to translate between transports: an HTTP listener that pushes events onto Kafka; a gateway that consumes NATS requests and republishes them as RabbitMQ messages; a router that bridges a low-latency NATS edge to a durable Kafka pipeline. The natural test boundary spans both transports.
 
-`Stage` is a coordinator that wraps a named registry of harnesses. One scenario can publish on transport A, register a reactive reply on transport B, and assert on transport A again — in a single deadline-bounded block.
+`Stage` is a coordinator that wraps a named registry of harnesses. One scenario can publish on transport A, register a reactive reply on transport B, and assert on transport A again, in a single deadline-bounded block.
 
 ```python
 from choreo import Stage, Harness, MappedBridge
@@ -118,15 +118,7 @@ async with stage.scenario("nats-kafka-round-trip") as s:
     result = await s.await_all(timeout_ms=100)
 ```
 
-The full bridge round-trip in 13 lines of scenario body. Each transport keeps its own codec and correlation policy; a `CorrelationBridge` translates per-scope correlation across the wire. Cross-scope traffic between concurrent test scopes is filtered out by construction so 100 scopes can run against shared brokers without cross-talk. See [PRD-011](docs/prd/PRD-011-multi-transport-stage.md), [ADR-0027](docs/adr/0027-stage-multi-transport-coordinator.md), and the [Stage user guide](docs/guides/stage.md).
-
----
-
-## When to use Choreo
-
-Use Choreo when your system is message-driven and your tests need to assert on what comes back over the wire: event pipelines, pub/sub fan-out, request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS read models.
-
-**Not a good fit for:** pure unit tests with no I/O, HTTP request/response testing (use `httpx` + `respx`), or synchronous Python-only fakes.
+The full bridge round-trip in 13 lines of scenario body. Each transport keeps its own codec and correlation policy; a `CorrelationBridge` translates per-scope correlation across the wire. Cross-scope traffic between concurrent test scopes is filtered out by construction so 100 scopes can run against shared brokers without cross-talk.
 
 ---
 
@@ -157,7 +149,7 @@ pip install choreo-chronicle
 
 ## Quickstart
 
-Zero to a passing scenario against a real NATS broker in three steps. NATS is the lightest broker to boot locally — one container, no ZooKeeper, small image — so it makes the easiest first touch.
+Zero to a passing scenario against a real NATS broker in three steps. NATS is the lightest broker to boot locally (one container, small image), so it makes the easiest first touch.
 
 ### 1. Bring up the broker
 
@@ -225,44 +217,35 @@ For real consumer repos, wrap `Harness` in a session-scoped `pytest_asyncio` fix
 
 Self-contained, runnable projects in [examples/](examples/):
 
-- **[examples/01-hello-world/](examples/01-hello-world/)** — the minimum useful test. Publish, expect, assert.
-- **[examples/02-request-reply/](examples/02-request-reply/)** — stage a fake upstream service inside the test with `on(trigger).publish(reply)`.
-- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)** — opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
-- **[examples/04-transport-auth/](examples/04-transport-auth/)** — wire a typed `auth=` descriptor into a transport, see credential lifecycle and redaction in action.
-- **[examples/05-auth-resolver/](examples/05-auth-resolver/)** — fetch credentials at `connect()` time via sync/async resolvers (env vars, Vault, Secrets Manager pattern).
+- **[examples/01-hello-world/](examples/01-hello-world/)**: the minimum useful test. Publish, expect, assert.
+- **[examples/02-request-reply/](examples/02-request-reply/)**: stage a fake upstream service inside the test with `on(trigger).publish(reply)`.
+- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)**: opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
+- **[examples/04-transport-auth/](examples/04-transport-auth/)**: wire a typed `auth=` descriptor into a transport, see credential lifecycle and redaction in action.
+- **[examples/05-auth-resolver/](examples/05-auth-resolver/)**: fetch credentials at `connect()` time via sync/async resolvers (env vars, Vault, Secrets Manager pattern).
+- **[examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/)**: testing a service that bridges two transports with `Stage` — a vendor-protocol adapter into the energy domain, a vendor → domain → vendor round-trip, and a dispatch orchestrator fanning out commands to multiple connected devices.
 
 Each example ships its own `README.md` explaining what it shows. Run any of them with `pytest examples/<dir>/`.
 
 ---
 
-## Architecture at a glance
-
-```mermaid
-flowchart TD
-    T["Test"] -- publish --> SUT["System Under Test"]
-    SUT -- "reply (on the wire)" --> LP["Loop-poster\n<em>move off the network thread</em>"]
-    LP --> D["Dispatcher\n<em>whose reply is this?</em>"]
-    D --> S["Scenario"]
-    S -- "handle fulfilled" --> T
-```
-
 Four dancers on the floor:
 
-**Harness** — the session-scoped coordinator. You construct one with a Transport and call `connect()`. The transport runs its allowlist check, opens its socket, and reports ready. When the suite ends, `disconnect()` tears everything down.
+**Harness**: the session-scoped coordinator. You construct one with a Transport and call `connect()`. The transport runs its allowlist check, opens its socket, and reports ready. When the suite ends, `disconnect()` tears everything down.
 
-**Scenario** — the per-test scope. Opening one owns its expectations, replies, and timeline, and cleans them up on exit (normal or exception). Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the library default is transparent passthrough (`NoCorrelationPolicy`), so `s.publish(topic, payload)` sends `payload` unchanged. Consumers who want the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()` at Harness construction (ADR-0019).
+**Scenario**: the per-test scope. Opening one owns its expectations, replies, and timeline, and cleans them up on exit (normal or exception). Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the library default is transparent passthrough (`NoCorrelationPolicy`), so `s.publish(topic, payload)` sends `payload` unchanged. Consumers who want the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()` at Harness construction (ADR-0019).
 
-**Dispatcher** — the router. Every inbound message lands here. It pulls the correlation ID out of the payload and hands the message to the scenario that claimed it. Unmatched messages go to a **surprise log** (metadata only; payloads not retained).
+**Dispatcher**: the router. Every inbound message lands here. It pulls the correlation ID out of the payload and hands the message to the scenario that claimed it. Unmatched messages go to a **surprise log** (metadata only; payloads not retained).
 
-**Loop-poster** — the thread-safe bridge. Stateful client libraries or native-code backends that deliver messages on their own thread use the loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto the asyncio loop before the dispatcher sees them. Without it, you'd get race conditions that vanish when you add a `print()`.
+**Loop-poster**: the thread-safe bridge. Stateful client libraries or native-code backends that deliver messages on their own thread use the loop-poster's `loop.call_soon_threadsafe` hop to move those messages onto the asyncio loop before the dispatcher sees them. Without it, you'd get race conditions that vanish when you add a `print()`.
+
+For scenarios that span two transports, `Stage` wraps multiple `Harness` instances behind one scope and adds a `CorrelationBridge` that translates the per-scope id across wires. See [Multi-transport bridges (Stage)](#multi-transport-bridges-stage) above.
 
 ---
 
 ## The Scenario DSL
 
 A scenario moves through three states. Each state exposes only the methods
-valid at that point; illegal transitions raise `AttributeError` at runtime
-(ADR-0012).
+valid at that point; illegal transitions raise `AttributeError` at runtime.
 
 ```mermaid
 stateDiagram-v2
@@ -272,6 +255,8 @@ stateDiagram-v2
     EXPECTING --> TRIGGERED : publish()
     TRIGGERED --> ScenarioResult : await_all()
 ```
+
+The signatures below are the single-`Harness` form. When the scenario runs under `Stage`, every method (`expect`, `publish`, `on`) takes an additional `on=<transport-name>` argument that selects which harness handles the call; omitting it raises `MissingTransportError`. See [Multi-transport bridges (Stage)](#multi-transport-bridges-stage).
 
 ### `expect(topic, matcher) → Handle`
 
@@ -369,7 +354,7 @@ assert report.match_count == 1
 Rules:
 
 - Must be registered **before** `publish()`. It is a pre-trigger
-  arrangement, not a background subscription (ADR-0016).
+  arrangement, not a background subscription.
 - Fires **once per scope**. The chain is single-use; calling `.publish()`
   a second time on the same `ReplyChain` raises `ReplyAlreadyBoundError`.
 - The `matcher` argument is optional; `None` means *every inbound on the
@@ -390,6 +375,20 @@ Each registered reply produces a `ReplyReport` in `result.replies`:
 | `reply_published` | whether the reply actually went out |
 | `builder_error` | exception class name if the builder raised |
 
+### Cross-transport replies
+
+Under `Stage`, the trigger and the response can live on different transports. The same `on().publish()` chain takes an `on=<name>` argument on both ends:
+
+```python
+async with stage.scenario("bridge") as s:
+    s.on("orders.new", on="kafka").publish(
+        "orders.processed", on="nats",
+        build=lambda trigger: {"forwarded": trigger["payload"]},
+    )
+```
+
+The framework picks the trigger up on the Kafka harness, runs the builder, and emits the response on the NATS harness — correlation translation between the two is handled by the `CorrelationBridge` configured on the `Stage`. See [Multi-transport bridges (Stage)](#multi-transport-bridges-stage) and the worked example in [examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/).
+
 ---
 
 ## Correlation policy
@@ -401,20 +400,10 @@ ships three profiles:
 ```python
 from choreo import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
 
-# Default: transparent passthrough. s.publish(topic, payload) sends
-# `payload` unchanged. Every live scope on a topic sees every message.
-# Safe for: single-scenario tests, dedicated or per-run infrastructure.
+#
 Harness(transport)
-Harness(transport, correlation=NoCorrelationPolicy())   # same as above, explicit
-
-# Stamp / read a dict field. Scenes stop cross-matching when parallel.
-# Safe for: multiple scenarios on one broker within a process.
+Harness(transport, correlation=NoCorrelationPolicy())   
 Harness(transport, correlation=DictFieldPolicy(field="trace_id"))
-
-# The pre-ADR-0019 posture: DictFieldPolicy with prefix="TEST-".
-# Safe for: deployments whose downstream ingress filters test traffic by
-# looking for the TEST- prefix (see ADR-0006).
-Harness(transport, correlation=test_namespace())
 ```
 
 ### When do I need one?
@@ -427,44 +416,30 @@ Harness(transport, correlation=test_namespace())
 | Downstream systems filter test traffic on `TEST-` | `test_namespace()` |
 | Correlation lives in a header, not the payload | Custom `CorrelationPolicy` |
 
-### Contract
-
-A `CorrelationPolicy` is four methods:
-
-```python
-from choreo import CorrelationPolicy, Envelope
-
-class MyPolicy:
-    async def new_id(self) -> str | None:             # id per scope
-        ...
-    def write(self, env: Envelope, corr_id: str) -> Envelope:   # stamp outbound
-        ...
-    def read(self, env: Envelope) -> str | None:      # extract inbound
-        ...
-    @property
-    def routes_by_correlation(self) -> bool:
-        ...
-```
-
-The `Envelope` gives your policy `{topic, payload, headers}` so a
-header-stamping or FIX-tag policy doesn't have to touch the payload. See
-[ADR-0019](docs/adr/0019-pluggable-correlation-policy.md) for the full
-contract, the trust-boundary rules (policies run on the harness hot
-path), and a worked example of each shipped profile.
 
 A working demonstration of parallel isolation with and without a policy
 lives in [examples/03-parallel-isolation/](examples/03-parallel-isolation/).
 
-### Broadcast-fallback safety note
+### When you also have a `CorrelationBridge`
 
-`NoCorrelationPolicy` only routes by topic. If two scenarios subscribe to
-the same topic on a shared broker, they see each other's messages. This
-is the intended semantics (no policy means no isolation), but the
-failure mode is subtle (extra matches, not missing ones). For anything
-other than dedicated or per-run infrastructure, pick a routing policy.
-The harness emits a `correlator_noop_against_real_transport` WARNING at
-`connect()` when `NoCorrelationPolicy` is paired with a non-Mock
-transport, so the unsafe pairing surfaces in logs.
+`CorrelationPolicy` and `CorrelationBridge` solve different problems and
+compose. The policy decides how a wire id is stamped onto and read from
+a single message on a single transport. The bridge — only present in
+`Stage` scenarios — translates a per-scope *logical* id into a different
+*wire* id per transport, so the same scope can be filtered independently
+on Kafka, NATS, and any other harness it owns.
+
+In a multi-transport test you typically configure both: each harness
+gets its own `DictFieldPolicy(field="correlation_id")` (or whatever
+your schema uses), and the `Stage` gets a `MappedBridge` whose
+`forwards` mapping mints a deterministic per-transport id from the
+logical scope id. The policy then stamps the bridge's per-transport id
+onto each outbound message and reads it back on inbound, keeping
+concurrent scopes from cross-matching even on shared brokers.
+
+See the [Stage user guide](docs/guides/stage.md) for the full
+relationship and [examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/)
+for a worked example.
 
 ---
 
@@ -735,7 +710,7 @@ What the report includes:
   receive, match, mismatch, reply, and deadline event plotted on one axis.
 - **Expected-vs-actual diffs** for failing handles, driven by
   `matcher.expected_shape()`.
-- **Per-reply lifecycle** — was it armed? did it match? did it fire?
+- **Per-reply lifecycle**: was it armed? did it match? did it fire?
 - **Git metadata** per test (commit, branch, author).
 - **Credential redaction (best-effort).** The default redactor strips
   values under a denylist of field names (`password`, `token`, `secret`,
@@ -760,7 +735,7 @@ What the report includes:
 
 ---
 
-## Chronicle — Longitudinal Analytics
+## Chronicle: Longitudinal Analytics
 
 Chronicle is a self-hosted reporting server that ingests `test-report-v1` JSON
 over time, stores it in TimescaleDB, and serves a React dashboard for
@@ -792,55 +767,6 @@ DATABASE_URL=postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle \
 # Dashboard at http://localhost:5173
 ```
 
----
-
-## Downstream consumer pattern
-
-The `choreo` package is designed to be installed as a library by separate
-repos that test their own services. It ships no pytest fixtures and reads
-no environment variables. Those are consumer decisions.
-
-```python
-# consumer-repo/conftest.py
-import os
-from pathlib import Path
-
-import pytest_asyncio
-
-from choreo import Harness
-from choreo.transports import NatsTransport
-
-
-@pytest_asyncio.fixture(loop_scope="session", scope="session")
-async def harness():
-    transport = NatsTransport(
-        servers=[os.environ.get("MY_APP_NATS_URL", "nats://localhost:4222")],
-        allowlist_path=Path(os.environ.get("MY_APP_ALLOWLIST", "config/allowlist.yaml")),
-    )
-    h = Harness(transport)
-    await h.connect()
-    try:
-        yield h
-    finally:
-        await h.disconnect()
-
-
-# consumer-repo/tests/test_events.py
-from choreo.matchers import contains_fields
-
-
-async def test_a_created_event_should_produce_a_state_change(harness):
-    async with harness.scenario("state_change") as s:
-        s.expect("state.changed", contains_fields({"count": 1000}))
-        s = s.publish("events.created", {"count": 1000, "item_id": "ITEM-42"})
-        result = await s.await_all(timeout_ms=500)
-
-    result.assert_passed()
-```
-
-The library has no opinion about which transport you pick, what you name
-your env vars, or where you keep your allowlist files. Those are
-deployment concerns.
 
 ---
 

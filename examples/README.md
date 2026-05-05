@@ -10,6 +10,7 @@ complete pytest project — `cd` into it and run `pytest`.
 | [03-parallel-isolation](03-parallel-isolation/) | Opting into per-scope routing with a `CorrelationPolicy` so parallel scenarios don't cross-match. |
 | [04-transport-auth](04-transport-auth/) | Wire a typed `auth=` descriptor into a transport — credential lifecycle, redaction, and the Mock parity guarantee. |
 | [05-auth-resolver](05-auth-resolver/) | Fetch credentials at `connect()` time via sync/async resolvers — env vars, Vault, Secrets Manager. |
+| [06-multi-transport-bridge](06-multi-transport-bridge/) | Testing a service that bridges two transports — external boundary in, transformed and republished onto the internal domain bus, with `Stage`. |
 
 ## Prerequisites
 

@@ -24,6 +24,8 @@ from choreo.scenario import (
     ReplyReport,
     ReplyReportState,
     ScenarioResult,
+    TimelineAction,
+    TimelineEntry,
 )
 from choreo.stage import (
     StageReplyReport,
@@ -461,10 +463,384 @@ def _to_dict(collector: Collector) -> dict[str, Any]:
     )
 
 
-def test_emitted_reports_should_carry_schema_version_1_1():
+def test_emitted_reports_should_carry_schema_version_1_3():
     collector = _collector_with_scenarios()
     out = _to_dict(collector)
-    assert out["schema_version"] == "1.1"
+    assert out["schema_version"] == "1.3"
+
+
+# ---------------------------------------------------------------------------
+# Stage timeline serialisation (PRD-013 §3.1)
+# ---------------------------------------------------------------------------
+
+
+def _make_timeline_entry(
+    *,
+    action: TimelineAction = TimelineAction.PUBLISHED,
+    topic: str | None = "orders.new",
+    transport: str | None = "kafka",
+    detail: str = "",
+    logical_topic: str | None = None,
+) -> TimelineEntry:
+    return TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic=topic,
+        action=action,
+        detail=detail,
+        transport=transport,
+        logical_topic=logical_topic,
+    )
+
+
+def test_a_stage_scenario_should_serialise_its_timeline_entries():
+    """PRD-013 §3.1: the reporter populates `scenario.timeline` from
+    `StageScenarioResult.timeline`. The Phase-1-deferral marker
+    (`timeline: []`) is removed."""
+    entry = _make_timeline_entry(action=TimelineAction.PUBLISHED, transport="kafka")
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="round-trip",
+        bridge_class="MappedBridge",
+        registered_transports=("nats", "kafka"),
+        timeline=(entry,),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    assert len(out["timeline"]) == 1
+    assert out["timeline"][0]["action"] == "published"
+    assert out["timeline"][0]["topic"] == "orders.new"
+
+
+def test_a_stage_scenario_should_round_trip_timeline_dropped():
+    """`timeline_dropped` is the per-scope ring-buffer overflow count
+    surfaced to the consumer alongside the captured entries."""
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="dropped",
+        bridge_class="MappedBridge",
+        registered_transports=("nats",),
+        timeline=(),
+        timeline_dropped=42,
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    assert out["timeline_dropped"] == 42
+
+
+def test_a_stage_timeline_entry_should_emit_the_transport_field_when_set():
+    """Stage entries produced by a per-transport child carry the
+    child's transport name in the JSON. PRD-013 §1.1."""
+    entry = _make_timeline_entry(transport="kafka")
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="transport-field",
+        bridge_class="MappedBridge",
+        registered_transports=("nats", "kafka"),
+        timeline=(entry,),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    assert out["timeline"][0]["transport"] == "kafka"
+
+
+def test_a_stage_scope_level_event_should_omit_the_transport_key_entirely():
+    """PRD-013 §D-3: scope-level events (DEADLINE) omit the `transport`
+    JSON key entirely - not `null`. Symmetric `topic` omission applies."""
+    entry = _make_timeline_entry(
+        action=TimelineAction.DEADLINE,
+        topic=None,
+        transport=None,
+        detail="timeout_ms=200",
+    )
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="deadline-omit",
+        bridge_class="MappedBridge",
+        registered_transports=("nats",),
+        timeline=(entry,),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    payload = out["timeline"][0]
+    assert "transport" not in payload
+    assert "topic" not in payload
+    assert payload["action"] == "deadline"
+
+
+def test_a_stage_timeline_entry_should_emit_logical_topic_when_set():
+    """Forward-compat: when a translating bridge populates
+    `logical_topic`, the reporter emits the field. Otherwise the JSON
+    key is omitted."""
+    entry = _make_timeline_entry(
+        topic="nats-orders",
+        transport="nats",
+        logical_topic="orders",
+    )
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="logical-topic",
+        bridge_class="MappedBridge",
+        registered_transports=("nats",),
+        timeline=(entry,),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    assert out["timeline"][0]["logical_topic"] == "orders"
+
+
+def test_a_stage_timeline_entry_should_omit_logical_topic_when_unset():
+    """Default `logical_topic=None` produces an absent JSON key, not
+    `"logical_topic": null`."""
+    entry = _make_timeline_entry(transport="kafka")
+    result = StageScenarioResult(
+        handles=(_make_handle(transport="nats"),),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="no-logical-topic",
+        bridge_class="MappedBridge",
+        registered_transports=("kafka",),
+        timeline=(entry,),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    assert "logical_topic" not in out["timeline"][0]
+
+
+def test_a_single_harness_timeline_entry_should_omit_the_transport_key():
+    """Byte-identity contract from PRD-012: single-`Harness` entries
+    have `transport=None` and the reporter omits the JSON key entirely
+    (no surprise `null` regression for v1.1-pinned consumers)."""
+    from choreo_reporter._serialise import serialise_timeline_entry
+
+    entry = TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic="results",
+        action=TimelineAction.PUBLISHED,
+    )
+    out = serialise_timeline_entry(entry)
+    assert "transport" not in out
+    assert "logical_topic" not in out
+    # PRD-013 §1.6 / schema v1.3: single-Harness entries also omit
+    # `source` for byte-identity with v1.0/v1.1/v1.2.
+    assert "source" not in out
+
+
+def test_a_timeline_entry_should_emit_source_when_set():
+    """v1.3 schema field: `source` carries the DSL-surface attribution
+    (`publish` / `expect` / `reply` / `scope`). Emitted when set."""
+    from choreo_reporter._serialise import serialise_timeline_entry
+
+    entry = TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic="orders.new",
+        action=TimelineAction.PUBLISHED,
+        transport="kafka",
+        source="publish",
+    )
+    out = serialise_timeline_entry(entry)
+    assert out["source"] == "publish"
+
+
+def test_a_reply_chain_published_response_should_carry_source_reply_in_the_json():
+    """End-to-end: a Stage REPLIED entry with `source="reply"` round-trips
+    into the JSON's `scenario.timeline[].source`. Disambiguates the
+    chain's automatic response from a test-side publish on the same
+    topic without reading the test code."""
+    from choreo.stage import StageScenarioResult
+
+    handle = _make_handle(transport="kafka")
+    test_pub = TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic="orders.new",
+        action=TimelineAction.PUBLISHED,
+        transport="kafka",
+        source="publish",
+    )
+    chain_replied = TimelineEntry(
+        offset_ms=1.0,
+        _wall_clock_epoch=0.001,
+        topic="orders.processed",
+        action=TimelineAction.REPLIED,
+        transport="nats",
+        detail="trigger=orders.new",
+        source="reply",
+    )
+    result = StageScenarioResult(
+        handles=(handle,),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="source-disambiguation",
+        bridge_class="MappedBridge",
+        registered_transports=("kafka", "nats"),
+        timeline=(test_pub, chain_replied),
+    )
+    out = serialise_scenario(
+        result,
+        duration_ms=1.0,
+        completed_normally=True,
+        stats=RedactionStats(),
+    )
+    sources = [e.get("source") for e in out["timeline"]]
+    assert sources == ["publish", "reply"]
+
+
+# ---------------------------------------------------------------------------
+# End-to-end Phase 1 -> Phase 2 wiring
+# ---------------------------------------------------------------------------
+
+
+def test_an_end_to_end_stage_scenario_should_emit_a_non_empty_timeline_in_the_report():
+    """Phase 1 + Phase 2 wired together: a real `Stage` scope's
+    `result.timeline` (populated by the eight hook points) must
+    round-trip through the reporter into the JSON's
+    `scenario.timeline[]` array - no longer the v2-era empty-list
+    deferral marker."""
+    from choreo.scenario import Outcome
+    from choreo.stage import StageScenarioResult
+
+    # Construct a result mirroring what the framework produces today
+    # for a Stage scope that published once and the matcher accepted.
+    handle = _make_handle(transport="kafka", outcome=Outcome.PASS)
+    publish_entry = TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic="orders.new",
+        action=TimelineAction.PUBLISHED,
+        transport="kafka",
+    )
+    received_entry = TimelineEntry(
+        offset_ms=0.5,
+        _wall_clock_epoch=0.0005,
+        topic="orders.new",
+        action=TimelineAction.RECEIVED,
+        transport="kafka",
+    )
+    matched_entry = TimelineEntry(
+        offset_ms=1.0,
+        _wall_clock_epoch=0.001,
+        topic="orders.new",
+        action=TimelineAction.MATCHED,
+        transport="kafka",
+    )
+    result = StageScenarioResult(
+        handles=(handle,),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="end-to-end",
+        bridge_class="MappedBridge",
+        registered_transports=("kafka",),
+        timeline=(publish_entry, received_entry, matched_entry),
+    )
+    collector = _collector_with_scenarios(result)
+    out = _to_dict(collector)
+    scenario = out["tests"][0]["scenarios"][0]
+    actions = [e["action"] for e in scenario["timeline"]]
+    assert actions == ["published", "received", "matched"]
+    assert all(e["transport"] == "kafka" for e in scenario["timeline"])
+
+
+def test_a_stage_timeline_should_round_trip_through_the_full_reporter_to_renderer_chain():
+    """End-to-end: Phase 1 framework -> Phase 2 reporter -> Phase 2
+    renderer. A real `StageScenarioResult` carrying a Stage timeline
+    is serialised by the reporter and rendered by `render_html`; the
+    inlined JSON in the rendered HTML carries the timeline entries
+    in the v1.2 shape with optional fields correctly omitted.
+
+    Closes the integration gap test-quality review flagged: previous
+    tests covered framework->reporter or hand-authored-JSON->renderer
+    in isolation; this exercises the full chain so a divergence
+    between the two boundaries surfaces immediately."""
+    import json as _json
+
+    from bs4 import BeautifulSoup
+
+    from choreo.stage import StageScenarioResult
+    from choreo_reporter._template import render_html
+
+    publish_entry = TimelineEntry(
+        offset_ms=0.0,
+        _wall_clock_epoch=0.0,
+        topic="orders.new",
+        action=TimelineAction.PUBLISHED,
+        transport="kafka",
+    )
+    deadline_entry = TimelineEntry(
+        offset_ms=200.0,
+        _wall_clock_epoch=0.2,
+        topic=None,  # scope-level event omits topic per PRD-013 §D-3
+        action=TimelineAction.DEADLINE,
+        detail="timeout_ms=200",
+    )
+    handle = _make_handle(transport="kafka")
+    result = StageScenarioResult(
+        handles=(handle,),
+        passed=True,
+        replies=(),
+        correlation_id="logical-x",
+        name="full-chain",
+        bridge_class="MappedBridge",
+        registered_transports=("kafka",),
+        timeline=(publish_entry, deadline_entry),
+    )
+    collector = _collector_with_scenarios(result)
+    report_dict = _to_dict(collector)
+    html = render_html(_json.dumps(report_dict))
+    soup = BeautifulSoup(html, "html.parser")
+    inlined = _json.loads(soup.find("script", id="harness-results").string)
+    timeline = inlined["tests"][0]["scenarios"][0]["timeline"]
+    assert [e["action"] for e in timeline] == ["published", "deadline"]
+    # Scope-level event: topic key omitted (not null)
+    assert "topic" not in timeline[1]
+    # Per-transport entry carries transport
+    assert timeline[0]["transport"] == "kafka"
+    # Scope-level entry omits transport
+    assert "transport" not in timeline[1]
 
 
 def test_a_run_with_stage_scenarios_should_emit_redaction_version():

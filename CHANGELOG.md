@@ -11,6 +11,63 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added (`choreo` + `choreo-reporter`) — PRD-013 v1.3 DSL-source attribution
+
+- **Schema v1.3 (additive minor over v1.2).** New optional
+  `timeline_entry.source` enum field tagging the DSL surface that
+  produced the event: `publish` (test-side `scope.publish` /
+  `harness.publish`), `expect` (subscriber registered by `scope.expect`
+  / `s.expect`), `reply` (reply chain registered by
+  `scope.on(...).publish(...)`), `scope` (scope-level framework event
+  such as `DEADLINE`). Disambiguates test-side and reply-chain
+  publishes on the same topic. Schema document:
+  [test-report-v1.3.json](docs/schemas/test-report-v1.3.json).
+- **Renderer additions:** small `hr-waterfall-source` pill rendered
+  after each event's action verb naming the DSL surface ("by test",
+  "by reply", "by expect", "by scope"). `data-source` attribute on
+  every waterfall row for CSS/DOM filtering.
+- **Single-Harness preserves byte-identity**: the new optional
+  `source` field is omitted entirely when not set, so single-`Harness`
+  reports continue to be byte-identical to v1.0/v1.1/v1.2 emission.
+
+### Added (`choreo` + `choreo-reporter`) — PRD-013 Stage timeline capture
+
+- **Schema v1.2 (additive minor over v1.1).** `timeline_entry.transport`
+  (optional, regex `^[a-zA-Z0-9_-]{1,64}$`) attributes Stage timeline
+  entries to a per-transport child. `timeline_entry.topic` relaxed to
+  optional; scope-level events (DEADLINE) omit the field.
+  `timeline_entry.logical_topic` is forward-compatibility groundwork
+  for translating bridges. Single-`Harness` entries omit all three new
+  optional fields, preserving the v1.0/v1.1 byte-identity contract.
+  Schema document: [test-report-v1.2.json](docs/schemas/test-report-v1.2.json).
+- **Eight Stage timeline hook points** in `choreo` core: `PUBLISHED`,
+  `RECEIVED`, `MATCHED`, `MISMATCHED`, `CORRELATION_SKIPPED`,
+  `DEADLINE`, `REPLIED`, `REPLY_FAILED`. Per-scope ring buffer (256
+  entries); per-run aggregate cap (50,000) at the reporter boundary.
+- **`StageScenarioResult.timeline` and `.timeline_dropped`** fields
+  exposed to consumers.
+- **HTML report additions** (`choreo-reporter`):
+  - Stage timeline banner ("Stage timeline captured: N events across
+    M transports") for Stage scenarios with non-empty timelines.
+  - Per-transport swim lanes (`hr-waterfall-lane[data-transport=...]`)
+    in swim-lane mode (Stage scenarios with transport-attributed
+    entries).
+  - Dedicated scope-events lane (`data-scope-lane="true"`) for
+    topic-less events (DEADLINE).
+  - Cross-transport reply-arrow SVG overlay (`<path
+    data-reply-link-from data-reply-link-to>`) with runtime layout
+    pass on boot.
+  - Virtualisation for cap-saturated workloads: timelines below 500
+    entries mount eagerly; at/above the threshold the renderer mounts
+    the first 500 entries and exposes a "Show remaining N events"
+    button (`data-virtualised-expand="true"`).
+- **Resilience.** `_Timeline.record` swallows internal exceptions (an
+  observability seam must never break the AUT) and exposes a
+  `record_errors` counter. `Stage.__init__` validates transport names
+  against the schema regex (`InvalidTransportNameError`). The
+  per-scope timeline seals on `await_all` so late inbound callbacks
+  cannot mutate the snapshot's counters.
+
 ### Added (Chronicle)
 - Chronicle reporting server (`choreo-chronicle`) — FastAPI + TimescaleDB + React dashboard.
 - Ingest `test-report-v1` JSON via `POST /api/v1/runs` with idempotency support.

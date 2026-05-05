@@ -242,6 +242,12 @@ class RabbitTransport:
         exchange = self._exchange
         in_flight = [t for t in self._pending_subs if not t.done()]
 
+        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        # timeline ordering is deterministic. See KafkaTransport.publish
+        # for the rationale.
+        if on_sent is not None:
+            on_sent()
+
         async def _do_publish() -> None:
             if in_flight:
                 await asyncio.gather(*in_flight, return_exceptions=True)
@@ -252,8 +258,6 @@ class RabbitTransport:
                 )
             except Exception:
                 return
-            if on_sent is not None:
-                on_sent()
 
         self._track(loop.create_task(_do_publish()))
 

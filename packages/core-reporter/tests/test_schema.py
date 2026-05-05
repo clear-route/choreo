@@ -12,7 +12,7 @@ from copy import deepcopy
 from jsonschema import Draft202012Validator
 
 APPENDIX_A_EXAMPLE: dict = {
-    "schema_version": "1.1",
+    "schema_version": "1.3",
     "run": {
         "started_at": "2026-04-17T09:12:04.118000+00:00",
         "finished_at": "2026-04-17T09:12:07.942000+00:00",
@@ -72,7 +72,7 @@ def test_a_document_with_the_wrong_major_version_should_fail(
     invalid["schema_version"] = "2"
     validator = Draft202012Validator(schema)
     errors = list(validator.iter_errors(invalid))
-    assert errors, "schema_version must be pinned to '1.1' for v1.1"
+    assert errors, "schema_version must be pinned to '1.3' for v1.3"
 
 
 def test_every_required_object_should_list_its_fields(schema: dict) -> None:

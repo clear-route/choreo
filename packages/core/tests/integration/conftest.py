@@ -77,6 +77,27 @@ def two_harnesses(allowlist_yaml_path: Path) -> dict[str, Any]:
 
 
 @pytest.fixture
+async def connected_stage(two_harnesses: dict[str, Any]):
+    """Yield a connected `Stage` over the canonical {nats, kafka} pair.
+
+    Used by tests that exercise full Stage scenarios end-to-end and do
+    not need bespoke harness configuration. The Stage is connected
+    before yield and disconnected on teardown. Bridge is the canonical
+    `mapped_bridge_for("nats", "kafka")`.
+    """
+    from choreo.stage import Stage
+
+    stage = Stage(
+        harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka")
+    )
+    await stage.connect()
+    try:
+        yield stage
+    finally:
+        await stage.disconnect()
+
+
+@pytest.fixture
 async def open_scope(two_harnesses: dict[str, Any]):
     """Yield an open Stage scenario scope. Used by every Group F+
     test that exercises the DSL surface (`expect`, `publish`, `on`)

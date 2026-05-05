@@ -36,25 +36,25 @@ from choreo.transports import MockTransport
 async def test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines(
     allowlist_yaml_path: Path,
 ) -> None:
-    """P1. The full bridge round-trip:
+    """P1. The full bridge round-trip, validated bidirectionally:
 
     1. Test publishes a request on Kafka (the AUT-side input).
     2. AUT-stand-in (subscribed on Kafka) translates the request
-       into a Kafka response, stamping the correlation id back so
-       the inbound side routes correctly.
-    3. The scope's `s.on(...)` reactive reply chain registers the
-       Kafka-trigger / NATS-response reply.
-    4. The reply's build callback receives the AUT's Kafka-side
-       response and produces the NATS-side request.
-    5. The scope's `s.expect(...)` on NATS waits for the AUT's
-       NATS-side reply.
-    6. AUT-stand-in (subscribed on NATS for the request topic)
-       echoes a final response on NATS that the expectation
-       resolves on.
+       into a NATS response on `results`, stamping the bridge-mapped
+       correlation id so the NATS scope routes it.
+    3. The scope's `s.on(...)` reactive reply chain registers a
+       Kafka-trigger / NATS-response reply on `orders.processed`.
+    4. The reply's build callback receives the trigger payload and
+       produces the NATS-side response.
+    5. Two `s.expect(...)` calls on NATS — one for `orders.processed`
+       (the framework-emitted reply) and one for `results` (the
+       AUT-stand-in's echo). Both must resolve PASS for the round
+       trip to be considered bidirectional: NATS observes both the
+       reply chain's output and the AUT's downstream message.
 
     All of the above is the framework's job; the scenario body is
-    just the publish + reply chain + expect. Counted lines: 15
-    or fewer.
+    just the publish + reply chain + two expects. Counted lines:
+    15 or fewer.
     """
     # --- fixture-shaped setup (excluded from the line count) -----------
     nats_h = Harness(
@@ -99,21 +99,25 @@ async def test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines
         async with stage.scenario("bridge_round_trip") as scope:                # 1
             scope.on("orders.new", on="kafka").publish(                         # 2
                 "orders.processed",                                             # 3
-                on="kafka",                                                     # 4
+                on="nats",                                                      # 4
                 build=lambda trigger: {"forwarded": trigger["payload"]},        # 5
             )                                                                   # 6
-            result_handle = scope.expect(                                       # 7
-                "results",                                                      # 8
-                field_equals("kind", "result"),                                 # 9
-                on="nats",                                                      # 10
-            )                                                                   # 11
-            scope.publish("orders.new", {"payload": 42}, on="kafka")            # 12
-            result = await scope.await_all(timeout_ms=100)                      # 13
+            processed_handle = scope.expect(                                    # 7
+                "orders.processed", field_equals("forwarded", 42), on="nats",   # 8
+            )                                                                   # 9
+            result_handle = scope.expect(                                       # 10
+                "results", field_equals("kind", "result"), on="nats",           # 11
+            )                                                                   # 12
+            scope.publish("orders.new", {"payload": 42}, on="kafka")            # 13
+            result = await scope.await_all(timeout_ms=100)                      # 14
         # ---------------------------------------------------------------
     finally:
         await stage.disconnect()
 
-    # The round-trip resolved on NATS with the AUT's echoed payload.
+    # The round-trip resolved on NATS with the AUT's echoed payload
+    # and the reply chain's forwarded payload, both observed on NATS.
     assert result_handle.outcome is Outcome.PASS
     assert result_handle.message["echo"] == 42
+    assert processed_handle.outcome is Outcome.PASS
+    assert processed_handle.message["forwarded"] == 42
     assert result.passed

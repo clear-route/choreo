@@ -483,11 +483,28 @@ should rely on stable-tier attributes only.
 
 ### Schema versioning
 
-`schema_version` bumps from `"1"` to `"1.1"` (additive minor).
-Consumers gating on `schema_version.startswith("1")` are unaffected.
-Strict-validator consumers update their pinned schema document to
-[test-report-v1.1.json](../schemas/test-report-v1.1.json); the v1.0
-schema remains at [test-report-v1.0.json](../schemas/test-report-v1.0.json).
+`schema_version` is `"1.3"` (PRD-013, additive minor over v1.2).
+Consumers gating on `schema_version.startswith("1")` continue to work
+across v1.0 through v1.3. Strict-validator consumers update their
+pinned schema document to
+[test-report-v1.3.json](../schemas/test-report-v1.3.json); v1.2, v1.1,
+and v1.0 schemas remain in tree.
+
+The v1.3 addition is a new optional `source` enum field on
+`timeline_entry` (`publish` / `expect` / `reply` / `scope`) tagging
+the DSL surface that produced the event. Disambiguates a test-side
+publish from a reply-chain's automatic response on the same topic.
+Single-`Harness` entries omit the field for byte-identity.
+
+The v1.2 additions (still in effect) are: optional `transport`
+(per-transport attribution for Stage entries), optional
+`logical_topic` (forward-compatibility for translating bridges), and
+`topic` relaxed to optional (scope-level events such as DEADLINE
+omit the field). The HTML report adds a Stage timeline banner,
+per-transport swim lanes, cross-transport reply arrows, and
+virtualisation for cap-saturated workloads. See PRD-013 for the
+full specification and the choreo-reporter README for the consumer
+contract.
 
 ### Wire-id redaction
 

@@ -54,6 +54,41 @@ the consumer's schema requires — a dict field, a transport header, a
 tag-value-protocol tag, a protobuf field. See the ADR for the protocol
 contract and the trust-boundary rules.
 
+## Multi-transport scenarios
+
+For tests that span two transports — typically a bridge or protocol
+translator AUT that consumes on one wire and republishes on another,
+or an orchestrator that fans out to many connected devices — use
+`Stage`. A `Stage` wraps a named registry of `Harness` instances and
+a `CorrelationBridge` so a single scenario can publish on transport
+A, register a reactive reply on transport B, and assert on transport
+A again, all under one deadline.
+
+```python
+from choreo import DictFieldPolicy, Harness, MappedBridge, Stage
+from choreo.transports import KafkaTransport, NatsTransport
+
+stage = Stage(
+    harnesses={
+        "kafka": Harness(KafkaTransport(...), correlation=DictFieldPolicy(field="correlation_id")),
+        "nats":  Harness(NatsTransport(...),  correlation=DictFieldPolicy(field="correlation_id")),
+    },
+    bridge=MappedBridge(forwards={
+        "kafka": lambda l: f"kafka-{l}",
+        "nats":  lambda l: f"nats-{l}",
+    }),
+)
+```
+
+Single-transport tests should keep using a plain `Harness` — `Stage`
+adds correlation translation and per-transport routing concepts that
+cost nothing on the multi-transport path but are unnecessary noise
+for a single-transport test.
+
+See `examples/06-multi-transport-bridge/` and the
+[Stage user guide](https://github.com/clear-route/choreo/blob/main/docs/guides/stage.md)
+for the full pattern.
+
 ## Examples
 
 Runnable example projects live in the repo's `examples/` directory:
@@ -61,6 +96,9 @@ Runnable example projects live in the repo's `examples/` directory:
 - `examples/01-hello-world/` — minimum useful test.
 - `examples/02-request-reply/` — staging a fake upstream with `on().publish()`.
 - `examples/03-parallel-isolation/` — opting into a `CorrelationPolicy`.
+- `examples/04-transport-auth/` — wiring a typed `auth=` descriptor into a transport.
+- `examples/05-auth-resolver/` — fetching credentials at `connect()` time via sync / async resolvers.
+- `examples/06-multi-transport-bridge/` — testing a multi-transport bridge / orchestrator with `Stage`.
 
 ```bash
 pytest examples/01-hello-world/
