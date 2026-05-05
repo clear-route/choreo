@@ -214,6 +214,8 @@ Top-level:
 }
 ```
 
+> **Schema version status (post-PRD-012):** the v1 schema has a v1.0 baseline ([test-report-v1.0.json](../schemas/test-report-v1.0.json), frozen) and a v1.1 successor ([test-report-v1.1.json](../schemas/test-report-v1.1.json), additive). v1.1 adds optional Stage scenario fields (`handle.transport`, `reply_report.{trigger,response}_transport`, `scenario.stage`, `run.transports`) and bumps `schema_version` to `"1.1"`. Consumers gating on `schema_version.startswith("1")` are unaffected. See [PRD-012](PRD-012-test-report-stage-support.md) for the full diff and rationale.
+
 **Outcome normalisation table.** One mapping, applied consistently:
 
 | Source                                       | Serialised string |

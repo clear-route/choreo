@@ -15,6 +15,21 @@ The public surface is small by design:
         test_namespace,
     )
 
+Multi-transport scenarios (ADR-0027 / PRD-011) — opt-in:
+
+    from choreo import Stage, MappedBridge, IdentityBridge, CorrelationBridge
+    from choreo import (
+        StageError,
+        StageStateError,
+        StageConnectError,
+        StageDisconnectError,
+        MissingTransportError,
+        UnknownTransportError,
+        BridgeAmbiguityError,
+        BridgeTransportMismatchError,
+        BridgeTranslationError,
+    )
+
 Everything else is internal."""
 
 from __future__ import annotations
@@ -33,6 +48,24 @@ from .correlation import (
 )
 from .harness import Harness
 from .scenario import Scenario
+from .stage import (
+    BridgeAmbiguityError,
+    BridgeTranslationError,
+    BridgeTransportMismatchError,
+    CorrelationBridge,
+    IdentityBridge,
+    MappedBridge,
+    MissingTransportError,
+    Stage,
+    StageConnectError,
+    StageDisconnectError,
+    StageError,
+    StageReplyReport,
+    StageReplyState,
+    StageScenarioResult,
+    StageStateError,
+    UnknownTransportError,
+)
 
 # Bundle contract exported for consumer-side bundle type-checking.
 # A bundle is a plain function that takes a Scenario and registers replies
@@ -42,14 +75,30 @@ BundleFn: TypeAlias = Callable[[Scenario], None]
 
 
 __all__ = [
+    "BridgeAmbiguityError",
+    "BridgeTranslationError",
+    "BridgeTransportMismatchError",
     "BundleFn",
+    "CorrelationBridge",
     "CorrelationIdNotInNamespaceError",
     "CorrelationPolicy",
     "CorrelationPolicyError",
     "DictFieldPolicy",
     "Envelope",
     "Harness",
+    "IdentityBridge",
+    "MappedBridge",
+    "MissingTransportError",
     "NoCorrelationPolicy",
     "Scenario",
+    "Stage",
+    "StageConnectError",
+    "StageDisconnectError",
+    "StageError",
+    "StageReplyReport",
+    "StageReplyState",
+    "StageScenarioResult",
+    "StageStateError",
+    "UnknownTransportError",
     "test_namespace",
 ]

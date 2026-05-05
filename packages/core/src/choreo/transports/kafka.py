@@ -364,6 +364,17 @@ class KafkaTransport:
         # same tick races the consumer join and the message is lost.
         in_flight = [f for f in self._pending_subs if not f.done()]
 
+        # Fire `on_sent` SYNCHRONOUSLY at call time so timeline ordering
+        # is deterministic regardless of broker / consumer scheduling.
+        # `on_sent` marks "the framework has queued the publish for
+        # delivery" — a framework-time event matching the test author's
+        # mental model. Without this, in a self-loopback reply chain the
+        # consumer's reader task could fire the inner reply's `on_sent`
+        # before the outer publish's `on_sent`, inverting the rendered
+        # timeline. PRD-013 §2.3.1 / Phase 2 review cycle 2026-05-05.
+        if on_sent is not None:
+            on_sent()
+
         async def _do_publish() -> None:
             if in_flight:
                 await asyncio.gather(*in_flight, return_exceptions=True)
@@ -374,8 +385,6 @@ class KafkaTransport:
                 # delivery observe timeouts / TIMEOUT outcomes, which is the
                 # same signal MockTransport / NatsTransport produce.
                 return
-            if on_sent is not None:
-                on_sent()
 
         self._track(loop.create_task(_do_publish()))
 

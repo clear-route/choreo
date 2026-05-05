@@ -271,6 +271,12 @@ class RedisTransport:
         # registered the subscription and returns zero recipients.
         in_flight = [f for f in self._pending_ready if not f.done()]
 
+        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        # timeline ordering is deterministic. See KafkaTransport.publish
+        # for the rationale.
+        if on_sent is not None:
+            on_sent()
+
         async def _do_publish() -> None:
             if in_flight:
                 await asyncio.gather(*in_flight, return_exceptions=True)
@@ -284,8 +290,6 @@ class RedisTransport:
                     await client.publish(topic, payload)
                 except Exception:
                     return
-                if on_sent is not None:
-                    on_sent()
 
         self._track(loop.create_task(_do_publish()))
 

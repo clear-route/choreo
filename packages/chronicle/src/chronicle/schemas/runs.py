@@ -19,7 +19,8 @@ class RunSummary(BaseModel):
     finished_at: datetime
     duration_ms: float
     environment: str | None
-    transport: str
+    transport: str | None
+    transports: list[str] | None = None
     branch: str | None
     git_sha: str | None
     project_name: str | None
@@ -69,6 +70,38 @@ class RunDetail(RunSummary):
 
 class RunListResponse(PagedResponse[RunSummary]):
     """Paginated list of runs."""
+
+    pass
+
+
+class TimelineEventResponse(BaseModel):
+    """One timeline event in the read response (PRD-013 §5).
+
+    Mirrors the v1.3 `timeline_entry` JSON shape: mandatory `time` /
+    `action` / `detail` / `offset_ms` plus optional `topic` /
+    `transport` / `logical_topic` / `source`. Optional fields are
+    emitted as `null` when unset (consumers using
+    `entry.get("source")` continue to work; pin-on-presence consumers
+    rely on `is None` checks)."""
+
+    model_config = {"from_attributes": True}
+
+    scenario_id: UUID
+    time: datetime
+    offset_ms: float
+    action: str
+    detail: str
+    topic: str | None = None
+    transport: str | None = None
+    logical_topic: str | None = None
+    source: str | None = None
+
+
+class TimelineEventListResponse(PagedResponse[TimelineEventResponse]):
+    """Paginated list of timeline events for a run.
+
+    `GET /api/v1/runs/{run_id}/timeline` returns this shape with
+    optional `?transport=` / `?action=` / `?source=` filters."""
 
     pass
 

@@ -108,13 +108,19 @@ class IngestService:
                 ]
                 db_scenarios = await self._run_repo.bulk_insert_scenarios(run, scenario_dicts)
 
-                # Build handle tuples keyed by scenario ID
+                # Build handle tuples keyed by scenario ID. Per PRD-012 §2.5
+                # the first slot in each tuple is the per-handle transport
+                # (falling back to the run-level value when the handle is
+                # single-Harness, i.e. h.transport is None). The repository
+                # interposes this into the COPY's `transport` column.
+                run_level_transport = normalised.transport
                 handles_by_scenario: dict[UUID, list[tuple]] = {}
                 for db_scenario, norm_scenario in zip(
                     db_scenarios, normalised.scenarios, strict=True
                 ):
                     handle_tuples = [
                         (
+                            h.transport or run_level_transport,
                             h.topic,
                             h.outcome,
                             h.latency_ms,
@@ -131,6 +137,34 @@ class IngestService:
                 rows_inserted = await self._run_repo.copy_handle_measurements(
                     run, db_scenarios, handles_by_scenario
                 )
+
+                # PRD-013 §5: bulk-insert Stage timeline events via the
+                # same COPY pattern. Build per-scenario tuples in the
+                # order TIMELINE_COPY_COLUMNS expects (after the 4-field
+                # run/scenario context prefix the repo prepends): time,
+                # action, detail, offset_ms, topic, transport,
+                # logical_topic, source.
+                events_by_scenario: dict[UUID, list[tuple]] = {}
+                for db_scenario, norm_scenario in zip(
+                    db_scenarios, normalised.scenarios, strict=True
+                ):
+                    event_tuples = [
+                        (
+                            e.time,
+                            e.action,
+                            e.detail,
+                            e.offset_ms,
+                            e.topic,
+                            e.transport,
+                            e.logical_topic,
+                            e.source,
+                        )
+                        for e in norm_scenario.timeline
+                    ]
+                    if event_tuples:
+                        events_by_scenario[db_scenario.id] = event_tuples
+                if events_by_scenario:
+                    await self._run_repo.copy_timeline_events(run, db_scenarios, events_by_scenario)
 
                 # Register topics for this tenant
                 if normalised.topics:

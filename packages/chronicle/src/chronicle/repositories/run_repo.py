@@ -7,7 +7,7 @@ The COPY-protocol bulk insert for handle measurements bypasses the ORM.
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,6 +33,22 @@ HANDLE_COPY_COLUMNS: list[str] = [
     "matcher_description",
     "diagnosis_kind",
     "over_budget",
+]
+
+# Column list for asyncpg COPY into `timeline_events` (migration 005,
+# PRD-013 §5). Order matches the create_table column declarations.
+TIMELINE_COPY_COLUMNS: list[str] = [
+    "time",
+    "tenant_id",
+    "run_id",
+    "scenario_id",
+    "action",
+    "detail",
+    "offset_ms",
+    "topic",
+    "transport",
+    "logical_topic",
+    "source",
 ]
 
 
@@ -98,6 +114,7 @@ class RunRepository:
             duration_ms=normalised.duration_ms,
             environment=normalised.environment,
             transport=normalised.transport,
+            transports=normalised.transports,
             branch=normalised.branch,
             git_sha=normalised.git_sha,
             hostname=normalised.hostname,
@@ -152,10 +169,16 @@ class RunRepository:
     ) -> int:
         """Bulk-insert handle measurement rows via asyncpg's COPY protocol.
 
-        ``handles_by_scenario`` maps ``scenario.id`` to a list of tuples,
-        where each tuple contains the handle-level fields in the order
-        defined by ``HANDLE_COPY_COLUMNS`` (excluding the run/scenario
-        context fields which are prepended here).
+        ``handles_by_scenario`` maps ``scenario.id`` to a list of tuples
+        where each tuple's first field is the per-handle transport
+        (PRD-012 §2.5). The remaining fields follow the per-handle
+        portion of ``HANDLE_COPY_COLUMNS``. Run/scenario context fields
+        (time/tenant/run/scenario/environment/branch) are prepended
+        here.
+
+        For single-`Harness` ingests, the caller passes the run-level
+        transport in the per-handle slot (Stage handles supply their
+        own per-handle value).
 
         Returns the number of rows inserted.
         """
@@ -164,11 +187,14 @@ class RunRepository:
         run_tenant = run.tenant_id
         run_id = run.id
         run_env = run.environment
-        run_transport = run.transport
         run_branch = run.branch
 
         for scenario in scenarios:
             for handle_fields in handles_by_scenario.get(scenario.id, []):
+                # First handle field is the per-handle transport;
+                # interpose it at the schema's `transport` column slot.
+                transport = handle_fields[0]
+                rest = handle_fields[1:]
                 records.append(
                     (
                         run_time,
@@ -176,9 +202,9 @@ class RunRepository:
                         run_id,
                         scenario.id,
                         run_env,
-                        run_transport,
+                        transport,
                         run_branch,
-                        *handle_fields,
+                        *rest,
                     )
                 )
 
@@ -193,6 +219,61 @@ class RunRepository:
             "handle_measurements",
             records=records,
             columns=HANDLE_COPY_COLUMNS,
+        )
+        return len(records)
+
+    async def copy_timeline_events(
+        self,
+        run: Run,
+        scenarios: list[Scenario],
+        events_by_scenario: dict[UUID, list[tuple]],
+    ) -> int:
+        """Bulk-insert timeline event rows via asyncpg's COPY protocol
+        (PRD-013 §5).
+
+        ``events_by_scenario`` maps ``scenario.id`` to a list of tuples
+        with the per-event payload following ``TIMELINE_COPY_COLUMNS``
+        from index 4 onwards (action, detail, offset_ms, topic,
+        transport, logical_topic, source). Run/scenario context fields
+        (time/tenant/run/scenario) are prepended here so callers don't
+        repeat them per row.
+
+        Mirrors the `copy_handle_measurements` pattern. Returns the
+        number of rows inserted.
+        """
+        records: list[tuple] = []
+        run_tenant = run.tenant_id
+        run_id = run.id
+
+        for scenario in scenarios:
+            for event_fields in events_by_scenario.get(scenario.id, []):
+                # First slot is the per-event `time` (parsed from
+                # `wall_clock`); remaining slots are the per-event
+                # payload. Run-level context (tenant/run/scenario) is
+                # constant across all events in a scenario.
+                event_time = event_fields[0]
+                rest = event_fields[1:]
+                records.append(
+                    (
+                        event_time,
+                        run_tenant,
+                        run_id,
+                        scenario.id,
+                        *rest,
+                    )
+                )
+
+        if not records:
+            return 0
+
+        sa_connection = await self.session.connection()
+        raw_connection = await sa_connection.get_raw_connection()
+        asyncpg_conn = raw_connection.driver_connection
+
+        await asyncpg_conn.copy_records_to_table(
+            "timeline_events",
+            records=records,
+            columns=TIMELINE_COPY_COLUMNS,
         )
         return len(records)
 
@@ -277,6 +358,58 @@ class RunRepository:
         )
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def list_timeline_events(
+        self,
+        run_id: UUID,
+        *,
+        transport: str | None = None,
+        action: str | None = None,
+        source: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> tuple[list[dict], int]:
+        """Return a page of timeline events for a run, in observation
+        order (PRD-013 §5).
+
+        `timeline_events` is a hypertable with no ORM model — uses raw
+        SQL via the SQLAlchemy session. Filters are SQL-parameter
+        bound (no string interpolation; safe against injection).
+
+        Returns ``(events, total_count)``. Each event is a dict with
+        the v1.3 schema fields plus `scenario_id`.
+        """
+        clauses = ["run_id = :run_id"]
+        params: dict[str, object] = {"run_id": run_id}
+        if transport is not None:
+            clauses.append("transport = :transport")
+            params["transport"] = transport
+        if action is not None:
+            clauses.append("action = :action")
+            params["action"] = action
+        if source is not None:
+            clauses.append("source = :source")
+            params["source"] = source
+        where = " AND ".join(clauses)
+
+        count_sql = text(f"SELECT COUNT(*) FROM timeline_events WHERE {where}")
+        count_result = await self.session.execute(count_sql, params)
+        total = count_result.scalar_one()
+
+        page_sql = text(
+            f"""
+            SELECT scenario_id, time, offset_ms, action, detail,
+                   topic, transport, logical_topic, source
+            FROM timeline_events
+            WHERE {where}
+            ORDER BY offset_ms ASC
+            LIMIT :limit OFFSET :offset
+            """
+        )
+        page_params = {**params, "limit": limit, "offset": offset}
+        rows_result = await self.session.execute(page_sql, page_params)
+        events = [dict(row._mapping) for row in rows_result.all()]
+        return events, total
 
     async def get_run_raw_report(self, run_id: UUID) -> dict | None:
         """Fetch only the ``raw_report`` JSONB for a run.  Returns ``None``

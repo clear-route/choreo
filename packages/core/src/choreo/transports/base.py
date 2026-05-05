@@ -42,13 +42,28 @@ class TransportCapabilities:
     ordered_per_topic: bool = True
 
 
-# Callback fired by `publish()` when the message is confirmed on-wire.
-# Synchronous transports (MockTransport) fire it immediately before
-# returning; asynchronous transports (NatsTransport) fire it inside the
-# publish task AFTER the broker has acknowledged the send. This is the
-# hook scenarios use to timestamp PUBLISHED / REPLIED events at their
-# true post-wire moment rather than at the moment the publish call was
-# made (which for async transports is pre-wire and misleading).
+# Callback fired by `publish()` at the framework's queue-time boundary —
+# the moment the test framework has accepted the publish for delivery
+# but BEFORE any subscriber dispatch or broker round-trip. Every
+# transport (sync MockTransport, async NATS / Kafka / Rabbit / Redis)
+# invokes `on_sent` synchronously inside `publish()` BEFORE scheduling
+# any work and BEFORE firing subscriber callbacks. This guarantees:
+#
+#   1. Deterministic timeline ordering across nested publishes (a
+#      subscriber callback that triggers another publish records its
+#      own PUBLISHED / REPLIED strictly after the outer publish, never
+#      before it).
+#   2. Consistent `loop.time()` capture across transports — `on_sent`
+#      always fires at "the test author's mental model time" of the
+#      publish, not at "the broker has confirmed delivery" time which
+#      varies by transport implementation.
+#
+# Trade-off: a subsequent broker-side failure (network drop, ack
+# refusal) does not retroactively unset the `on_sent` recording. The
+# rendered timeline will show PUBLISHED + no RECEIVED; the test will
+# observe a TIMEOUT outcome on any handle awaiting delivery. This
+# behaviour matches the MockTransport contract and is documented in
+# PRD-013 §2.3.1.
 OnSent = Callable[[], None]
 
 

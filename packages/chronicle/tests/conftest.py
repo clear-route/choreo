@@ -108,7 +108,8 @@ def db_client():
                 "postgresql://chronicle:chronicle@localhost:5433/chronicle"
             )
             await conn.execute(
-                "TRUNCATE runs, scenarios, handle_measurements, anomalies, topics, tenants CASCADE"
+                "TRUNCATE runs, scenarios, handle_measurements, "
+                "timeline_events, anomalies, topics, tenants CASCADE"
             )
             await conn.close()
 

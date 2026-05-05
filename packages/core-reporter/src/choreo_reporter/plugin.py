@@ -415,6 +415,33 @@ def _write_report(session: pytest.Session, state: _State) -> None:
             xdist_info["incomplete_workers"] = merge.incomplete_workers
             payload["run"]["xdist"] = xdist_info
         payload["run"]["totals"] = compute_totals(payload["tests"])
+        # PRD-012 §1.5/§1.6: re-derive run-level transports from merged
+        # Stage scenarios. The master Collector did not see worker
+        # observer callbacks, so its own `stage_transports` aggregation
+        # at to_dict() time was empty. Walk the merged tests' stage
+        # blocks here to populate `run.transports` (sorted union) and
+        # null out `run.transport` when any Stage scenario was observed.
+        _stage_transports: set[str] = set()
+        for t in payload["tests"]:
+            for s in t.get("scenarios", []):
+                stage = s.get("stage")
+                if stage:
+                    _stage_transports.update(stage.get("transports", []))
+        if _stage_transports:
+            sh_transport = payload["run"].get("transport")
+            transports_union: set[str] = set(_stage_transports)
+            if sh_transport and sh_transport != "unknown":
+                transports_union.add(sh_transport)
+            payload["run"]["transport"] = None
+            payload["run"]["transports"] = sorted(transports_union)
+            # Surface the redaction algorithm version (matches the
+            # workers' choice). Workers that produced Stage scenarios
+            # already emitted `redaction_version` in their partial; this
+            # ensures the merged top-level `redactions` mirrors them.
+            payload["run"].setdefault("redactions", {})
+            from choreo.redaction import REDACTION_VERSION as _RV
+
+            payload["run"]["redactions"]["redaction_version"] = _RV
         cleanup_partial_dir(state.report_dir)
 
     encoded = json.dumps(payload, default=str, indent=2)

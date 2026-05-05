@@ -15,7 +15,7 @@ pytest_plugins = ["pytester"]
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_PATH = REPO_ROOT / "docs" / "schemas" / "test-report-v1.json"
+SCHEMA_PATH = REPO_ROOT / "docs" / "schemas" / "test-report-v1.3.json"
 
 
 @pytest.fixture

@@ -340,18 +340,21 @@ class NatsTransport:
         #  has to run first to buffer anything)."
         in_flight = [t for t in self._pending_subs if not t.done()]
 
+        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        # timeline ordering is deterministic across nested publishes
+        # (e.g. a reply chain triggered by a subscriber callback). The
+        # alternative — firing on_sent inside the publish task after
+        # `await nc.publish()` — let the consumer's reader task
+        # interleave, recording the inner reply's `on_sent` before the
+        # outer publish's. See KafkaTransport.publish for the full
+        # rationale.
+        if on_sent is not None:
+            on_sent()
+
         async def _do_publish() -> None:
             if in_flight:
                 await asyncio.gather(*in_flight, return_exceptions=True)
             await self._nc.publish(topic, payload)
-            # Post-wire: fire the on_sent hook so the caller can timestamp
-            # "message sent" accurately. Without this hook, callers that
-            # time the publish by reading `loop.time()` immediately after
-            # `publish()` returns are capturing "task scheduled", which on
-            # a loaded loop or behind `in_flight` blockers can be several
-            # ms earlier than the true wire send.
-            if on_sent is not None:
-                on_sent()
 
         self._track(loop.create_task(_do_publish()))
 

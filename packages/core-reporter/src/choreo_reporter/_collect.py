@@ -29,7 +29,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from choreo.redaction import REDACTION_VERSION
 from choreo.scenario import ScenarioResult
+from choreo.stage import StageScenarioResult
 
 from ._redact import RedactionStats, redact_stream
 from ._serialise import (
@@ -45,7 +47,7 @@ _SESSION_KEY = "<session>"
 
 @dataclass
 class ScenarioRecord:
-    result: ScenarioResult
+    result: ScenarioResult | StageScenarioResult
     completed_normally: bool
 
 
@@ -172,7 +174,7 @@ class Collector:
 
     def record_scenario(
         self,
-        result: ScenarioResult,
+        result: ScenarioResult | StageScenarioResult,
         nodeid: str | None,
         completed_normally: bool,
     ) -> None:
@@ -237,38 +239,77 @@ class Collector:
 
         totals = compute_totals(tests_json)
 
+        # Run-level transport aggregation (PRD-012 §1.5, §1.6, §2.5).
+        # Single-Harness-only: `transport` carries the class name,
+        # `transports` is omitted. Any Stage scenario observed: bump
+        # `transport` to null and emit `transports` with the sorted
+        # union (sorted alphabetically, deterministic for snapshot tests).
+        # In mixed-mode runs (both single-Harness and Stage), the union
+        # includes the single-Harness transport class name plus every
+        # Stage transport. Per PRD-012 §1.6: "populates run.transports
+        # with the union of every transport name encountered".
+        stage_transports: set[str] = set()
+        single_harness_observed = False
+        for rec in self.tests.values():
+            for s in rec.scenarios:
+                if s.result.kind == "stage":
+                    stage_transports.update(s.result.by_transport.keys())  # type: ignore[union-attr]
+                else:
+                    single_harness_observed = True
+
+        transports_union: set[str] = set(stage_transports)
+        if stage_transports and single_harness_observed and self.transport:
+            transports_union.add(self.transport)
+
+        # PRD-012 §1.5.1: emit `redaction_version` only when at least one
+        # Stage scenario was observed (and therefore the hash-based
+        # redaction at the report boundary was applied). Pre-PRD-012
+        # consumers reading single-Harness reports see the same v1.0
+        # `redactions` shape, preserving the snapshot-test byte-identity
+        # contract (US-6).
+        redactions: dict[str, Any] = {
+            "fields": self.stats.fields,
+            "stream_matches": self.stats.stream_matches,
+        }
+        if stage_transports:
+            redactions["redaction_version"] = REDACTION_VERSION
+
+        run: dict[str, Any] = {
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "duration_ms": final_duration_ms,
+            "totals": totals,
+            "project_name": self.project_name,
+            "allowlist_path": self.allowlist_path,
+            "python_version": self.python_version,
+            "harness_version": harness_version,
+            "reporter_version": reporter_version,
+            "git_sha": git_sha,
+            "git_branch": git_branch,
+            "environment": self.environment,
+            "hostname": self.hostname,
+            "xdist": xdist,
+            "truncated": self.truncated,
+            "redactions": redactions,
+        }
+        if stage_transports:
+            run["transport"] = None
+            run["transports"] = sorted(transports_union)
+        else:
+            run["transport"] = self.transport
+
         return {
-            "schema_version": "1",
-            "run": {
-                "started_at": self.started_at,
-                "finished_at": self.finished_at,
-                "duration_ms": final_duration_ms,
-                "totals": totals,
-                "project_name": self.project_name,
-                "transport": self.transport,
-                "allowlist_path": self.allowlist_path,
-                "python_version": self.python_version,
-                "harness_version": harness_version,
-                "reporter_version": reporter_version,
-                "git_sha": git_sha,
-                "git_branch": git_branch,
-                "environment": self.environment,
-                "hostname": self.hostname,
-                "xdist": xdist,
-                "truncated": self.truncated,
-                "redactions": {
-                    "fields": self.stats.fields,
-                    "stream_matches": self.stats.stream_matches,
-                },
-            },
+            "schema_version": "1.3",
+            "run": run,
             "tests": tests_json,
         }
 
 
-def _scenario_duration_ms(result: ScenarioResult) -> float:
-    if not result.timeline:
+def _scenario_duration_ms(result: ScenarioResult | StageScenarioResult) -> float:
+    timeline = getattr(result, "timeline", ())
+    if not timeline:
         return 0.0
-    return max(e.offset_ms for e in result.timeline)
+    return max(e.offset_ms for e in timeline)
 
 
 def compute_totals(tests: list[dict[str, Any]]) -> dict[str, int]:
