@@ -1,15 +1,16 @@
 # Changelog
 
 All notable changes to the Choreo packages (`choreo`, `choreo-reporter`,
-`choreo-chronicle`) are recorded here. Both `choreo` and `choreo-reporter`
-release in lockstep under a single `vX.Y.Z` git tag; an entry under a version
-heading applies to both unless called out otherwise. `choreo-chronicle` is
-versioned independently.
+`choreo-chronicle`) are recorded here. All three packages release in lockstep
+under a single `vX.Y.Z` git tag; an entry under a version heading applies to
+all three unless called out otherwise.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-05-05
 
 ### Added (`choreo` + `choreo-reporter`) — PRD-013 v1.3 DSL-source attribution
 
@@ -127,5 +128,6 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Repository initialised.
 
-[Unreleased]: https://github.com/clear-route/choreo/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/clear-route/choreo/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/clear-route/choreo/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/clear-route/choreo/releases/tag/v0.1.0
