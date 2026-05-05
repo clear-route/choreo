@@ -491,9 +491,7 @@ async def _await_all(context: _ScenarioContext, *, timeout_ms: int) -> ScenarioR
     # timeline carries reply events that are worth surfacing even when the
     # scenario passed (otherwise the HTML reply section has no context).
     keep_timeline = (not passed) or bool(context.replies)
-    timeline_entries = (
-        tuple(context.timeline.entries) if keep_timeline else ()
-    )
+    timeline_entries = tuple(context.timeline.entries) if keep_timeline else ()
     timeline_dropped = context.timeline.dropped if keep_timeline else 0
     return ScenarioResult(
         name=context.name,
