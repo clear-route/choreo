@@ -73,11 +73,7 @@ def _stage_with_droppable(
             endpoint="mock://localhost",
         )
     )
-    live_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
-    )
+    live_h = Harness(MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"))
     return _DroppablePair(
         stage=Stage(
             harnesses={droppable_name: droppable_h, live_name: live_h},
@@ -180,9 +176,7 @@ async def test_stage_scope_aexit_should_complete_when_unsubscribe_raises_due_to_
 
     # The dropped transport's unsubscribe failure was recorded.
     teardown_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_scope_unsubscribe_failed"
+        r for r in caplog.records if r.getMessage() == "stage_scope_unsubscribe_failed"
     ]
     assert len(teardown_warnings) == 1
     assert teardown_warnings[0].transport == "nats"
@@ -210,12 +204,8 @@ async def test_stage_scope_should_resolve_only_dropped_transports_handles_as_tim
     await pair.stage.connect()
     try:
         async with pair.stage.scenario("h4") as scope:
-            dropped_handle = scope.expect(
-                "topic.dropped", _PLACEHOLDER_MATCHER, on="nats"
-            )
-            live_handle = scope.expect(
-                "topic.live", _PLACEHOLDER_MATCHER, on="kafka"
-            )
+            dropped_handle = scope.expect("topic.dropped", _PLACEHOLDER_MATCHER, on="nats")
+            live_handle = scope.expect("topic.live", _PLACEHOLDER_MATCHER, on="kafka")
             _drop(pair.droppable)
             scope.publish("topic.live", {"status": "ok"}, on="kafka")
             result = await scope.await_all(timeout_ms=50)

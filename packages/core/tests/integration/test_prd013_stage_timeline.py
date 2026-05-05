@@ -53,16 +53,12 @@ from .conftest import mapped_bridge_for
 def test_a_stage_scenario_result_should_default_to_an_empty_timeline_tuple():
     """The field is additive on the dataclass; existing call sites that
     construct `StageScenarioResult` without the kwarg still pass."""
-    result = StageScenarioResult(
-        handles=(), passed=True, replies=(), correlation_id=None
-    )
+    result = StageScenarioResult(handles=(), passed=True, replies=(), correlation_id=None)
     assert result.timeline == ()
 
 
 def test_a_stage_scenario_result_should_default_timeline_dropped_to_zero():
-    result = StageScenarioResult(
-        handles=(), passed=True, replies=(), correlation_id=None
-    )
+    result = StageScenarioResult(handles=(), passed=True, replies=(), correlation_id=None)
     assert result.timeline_dropped == 0
 
 
@@ -126,9 +122,7 @@ async def test_publishing_on_two_transports_should_record_two_published_entries_
         scope.publish("results", b"n", on="nats")
         result = await scope.await_all(timeout_ms=10)
     published = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.PUBLISHED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.PUBLISHED
     ]
     assert published == [("kafka", "orders.new"), ("nats", "results")]
 
@@ -143,9 +137,7 @@ async def test_publishing_on_one_transport_should_not_record_a_published_entry_f
         scope.publish("orders.new", b"payload", on="kafka")
         result = await scope.await_all(timeout_ms=10)
     nats_published = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.PUBLISHED and e.transport == "nats"
+        e for e in result.timeline if e.action == TimelineAction.PUBLISHED and e.transport == "nats"
     ]
     assert nats_published == []
 
@@ -158,9 +150,7 @@ async def test_a_scope_with_no_publish_should_record_no_published_entries(
     async with connected_stage.scenario("expect-only") as scope:
         scope.expect("orders.new", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=10)
-    published = [
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    ]
+    published = [e for e in result.timeline if e.action == TimelineAction.PUBLISHED]
     assert published == []
 
 
@@ -177,9 +167,7 @@ async def test_publishing_on_one_transport_should_not_record_a_received_entry_on
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     nats_received = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.RECEIVED and e.transport == "nats"
+        e for e in result.timeline if e.action == TimelineAction.RECEIVED and e.transport == "nats"
     ]
     assert nats_received == []
 
@@ -193,9 +181,7 @@ async def test_a_published_entry_should_carry_a_non_negative_offset_ms(
     async with connected_stage.scenario("offset-shape") as scope:
         scope.publish("orders.new", b"payload", on="kafka")
         result = await scope.await_all(timeout_ms=10)
-    published = [
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    ]
+    published = [e for e in result.timeline if e.action == TimelineAction.PUBLISHED]
     assert len(published) == 1
     assert published[0].offset_ms >= 0.0
     assert math.isfinite(published[0].offset_ms)
@@ -209,9 +195,7 @@ async def test_a_single_harness_scenario_timeline_should_remain_unchanged(
     PR 1.2's Stage instrumentation does not regress single-`Harness`."""
 
     harness = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=_test_namespace(),
     )
 
@@ -221,9 +205,7 @@ async def test_a_single_harness_scenario_timeline_should_remain_unchanged(
             s.expect("results", field_equals("kind", "never-arrives"))
             s = s.publish("topic", b"payload")
             result = await s.await_all(timeout_ms=10)
-        published = [
-            e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-        ]
+        published = [e for e in result.timeline if e.action == TimelineAction.PUBLISHED]
         assert len(published) == 1
         # Single-Harness entries do NOT carry a transport attribution; the
         # field defaults to None and the reporter omits the JSON key.
@@ -245,15 +227,12 @@ async def test_a_message_arriving_on_an_expected_topic_should_record_a_received_
     entry on the receiving transport. The `transport` field carries the
     receiving child's name (PRD-013 §2.3 row 2)."""
 
-
     async with connected_stage.scenario("received") as scope:
         scope.expect("orders.new", field_equals("kind", "never-matches"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     received = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.RECEIVED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.RECEIVED
     ]
     assert received == [("kafka", "orders.new")]
 
@@ -271,9 +250,7 @@ async def test_a_loopback_publish_should_record_both_published_and_received(
         scope.expect("orders.new", field_equals("kind", "never-matches"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    actions_with_transport = [
-        (e.action, e.transport) for e in result.timeline
-    ]
+    actions_with_transport = [(e.action, e.transport) for e in result.timeline]
     assert (TimelineAction.PUBLISHED, "kafka") in actions_with_transport
     assert (TimelineAction.RECEIVED, "kafka") in actions_with_transport
 
@@ -294,12 +271,8 @@ async def test_a_loopback_publish_should_record_published_before_received(
         scope.expect("orders.new", field_equals("kind", "never-matches"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    pub = next(
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    )
-    rcv = next(
-        e for e in result.timeline if e.action == TimelineAction.RECEIVED
-    )
+    pub = next(e for e in result.timeline if e.action == TimelineAction.PUBLISHED)
+    rcv = next(e for e in result.timeline if e.action == TimelineAction.RECEIVED)
     assert pub.offset_ms <= rcv.offset_ms
 
 
@@ -316,12 +289,8 @@ async def test_a_received_message_should_record_received_before_matched(
         scope.expect("orders.new", field_equals("kind", "ping"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    rcv = next(
-        e for e in result.timeline if e.action == TimelineAction.RECEIVED
-    )
-    matched = next(
-        e for e in result.timeline if e.action == TimelineAction.MATCHED
-    )
+    rcv = next(e for e in result.timeline if e.action == TimelineAction.RECEIVED)
+    matched = next(e for e in result.timeline if e.action == TimelineAction.MATCHED)
     assert rcv.offset_ms <= matched.offset_ms
 
 
@@ -334,17 +303,11 @@ async def test_a_rejected_message_should_record_received_before_mismatched(
     RECEIVED)."""
 
     async with connected_stage.scenario("rcv-then-mismatch") as scope:
-        scope.expect(
-            "orders.new", field_equals("kind", "expected"), on="kafka"
-        )
+        scope.expect("orders.new", field_equals("kind", "expected"), on="kafka")
         scope.publish("orders.new", {"kind": "actual"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    rcv = next(
-        e for e in result.timeline if e.action == TimelineAction.RECEIVED
-    )
-    mis = next(
-        e for e in result.timeline if e.action == TimelineAction.MISMATCHED
-    )
+    rcv = next(e for e in result.timeline if e.action == TimelineAction.RECEIVED)
+    mis = next(e for e in result.timeline if e.action == TimelineAction.MISMATCHED)
     assert rcv.offset_ms <= mis.offset_ms
 
 
@@ -365,12 +328,8 @@ async def test_a_reply_chain_should_record_published_trigger_before_replied_resp
         )
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    pub = next(
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    )
-    rep = next(
-        e for e in result.timeline if e.action == TimelineAction.REPLIED
-    )
+    pub = next(e for e in result.timeline if e.action == TimelineAction.PUBLISHED)
+    rep = next(e for e in result.timeline if e.action == TimelineAction.REPLIED)
     assert pub.offset_ms <= rep.offset_ms
 
 
@@ -392,9 +351,7 @@ async def test_a_reply_chain_should_record_received_on_the_trigger_transport(
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     received_on_kafka = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.RECEIVED and e.transport == "kafka"
+        e for e in result.timeline if e.action == TimelineAction.RECEIVED and e.transport == "kafka"
     ]
     assert len(received_on_kafka) >= 1
 
@@ -411,9 +368,7 @@ async def test_two_consecutive_publishes_should_record_strictly_increasing_offse
         scope.publish("orders.new", b"a", on="kafka")
         scope.publish("orders.new", b"b", on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    published = [
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    ]
+    published = [e for e in result.timeline if e.action == TimelineAction.PUBLISHED]
     assert len(published) == 2
     assert published[0].offset_ms <= published[1].offset_ms
 
@@ -433,9 +388,7 @@ async def test_a_test_side_publish_should_carry_source_publish(
     async with connected_stage.scenario("source-publish") as scope:
         scope.publish("orders.new", b"payload", on="kafka")
         result = await scope.await_all(timeout_ms=10)
-    pub = next(
-        e for e in result.timeline if e.action == TimelineAction.PUBLISHED
-    )
+    pub = next(e for e in result.timeline if e.action == TimelineAction.PUBLISHED)
     assert pub.source == "publish"
 
 
@@ -450,12 +403,8 @@ async def test_an_expect_subscriber_callback_should_carry_source_expect(
         scope.expect("orders.new", field_equals("kind", "ping"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    rcv = next(
-        e for e in result.timeline if e.action == TimelineAction.RECEIVED
-    )
-    matched = next(
-        e for e in result.timeline if e.action == TimelineAction.MATCHED
-    )
+    rcv = next(e for e in result.timeline if e.action == TimelineAction.RECEIVED)
+    matched = next(e for e in result.timeline if e.action == TimelineAction.MATCHED)
     assert rcv.source == "expect"
     assert matched.source == "expect"
 
@@ -475,9 +424,7 @@ async def test_a_reply_chain_published_response_should_carry_source_reply(
         )
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    rep = next(
-        e for e in result.timeline if e.action == TimelineAction.REPLIED
-    )
+    rep = next(e for e in result.timeline if e.action == TimelineAction.REPLIED)
     assert rep.source == "reply"
 
 
@@ -498,9 +445,7 @@ async def test_a_reply_trigger_received_should_carry_source_reply(
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     received_on_kafka = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.RECEIVED and e.transport == "kafka"
+        e for e in result.timeline if e.action == TimelineAction.RECEIVED and e.transport == "kafka"
     ]
     assert len(received_on_kafka) == 1
     assert received_on_kafka[0].source == "reply"
@@ -516,9 +461,7 @@ async def test_a_deadline_event_should_carry_source_scope(
     async with connected_stage.scenario("source-scope") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    (deadline,) = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    (deadline,) = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadline.source == "scope"
 
 
@@ -539,14 +482,10 @@ async def test_canonical_round_trip_disambiguates_test_publish_from_reply_publis
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     test_publishes = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.PUBLISHED and e.source == "publish"
+        e for e in result.timeline if e.action == TimelineAction.PUBLISHED and e.source == "publish"
     ]
     reply_publishes = [
-        e
-        for e in result.timeline
-        if e.action == TimelineAction.REPLIED and e.source == "reply"
+        e for e in result.timeline if e.action == TimelineAction.REPLIED and e.source == "reply"
     ]
     assert len(test_publishes) == 1
     assert test_publishes[0].topic == "orders.new"
@@ -572,17 +511,12 @@ async def test_a_message_for_another_scopes_wire_id_should_record_a_correlation_
     (PRD-013 §2.3 row 3). The detail is hash-redacted via
     `redact_correlation_id` per PRD-013 §Security."""
 
-
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     kafka_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     stage = Stage(
@@ -604,11 +538,7 @@ async def test_a_message_for_another_scopes_wire_id_should_record_a_correlation_
             # to every Harness subscriber, including the victim's.
             await foreign.await_all(timeout_ms=10)
             result = await victim.await_all(timeout_ms=10)
-        skipped = [
-            e
-            for e in result.timeline
-            if e.action == TimelineAction.CORRELATION_SKIPPED
-        ]
+        skipped = [e for e in result.timeline if e.action == TimelineAction.CORRELATION_SKIPPED]
         assert len(skipped) == 1
         assert skipped[0].transport == "kafka"
         assert skipped[0].topic == "orders.new"
@@ -634,9 +564,7 @@ async def test_a_matcher_accepting_a_message_should_record_a_matched_entry(
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     matched = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.MATCHED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.MATCHED
     ]
     assert matched == [("kafka", "orders.new")]
 
@@ -691,9 +619,7 @@ async def test_a_matcher_rejecting_a_message_should_record_a_mismatched_entry(
         scope.publish("orders.new", {"kind": "actual"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     mismatched = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.MISMATCHED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.MISMATCHED
     ]
     assert mismatched == [("kafka", "orders.new")]
 
@@ -725,9 +651,7 @@ async def test_a_mismatched_entry_should_carry_the_un_redacted_matcher_reason(
         scope.expect("orders.new", field_equals("kind", "expected"), on="kafka")
         scope.publish("orders.new", {"kind": "actual"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    mismatched = [
-        e for e in result.timeline if e.action == TimelineAction.MISMATCHED
-    ]
+    mismatched = [e for e in result.timeline if e.action == TimelineAction.MISMATCHED]
     assert len(mismatched) == 1
     detail = mismatched[0].detail
     # The actual rejected value must be visible (un-redacted).
@@ -747,9 +671,7 @@ async def test_a_matched_payload_should_not_record_a_mismatched_entry(
         scope.expect("orders.new", field_equals("kind", "ping"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    mismatched = [
-        e for e in result.timeline if e.action == TimelineAction.MISMATCHED
-    ]
+    mismatched = [e for e in result.timeline if e.action == TimelineAction.MISMATCHED]
     assert mismatched == []
 
 
@@ -768,9 +690,7 @@ async def test_a_scope_that_times_out_should_record_a_deadline_entry(
     async with connected_stage.scenario("times-out") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    deadlines = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    deadlines = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert len(deadlines) == 1
 
 
@@ -785,9 +705,7 @@ async def test_a_deadline_entry_should_omit_the_transport_field(
     async with connected_stage.scenario("deadline-attr") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    (deadline,) = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    (deadline,) = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadline.transport is None
 
 
@@ -802,9 +720,7 @@ async def test_a_deadline_entry_should_omit_the_topic_field(
     async with connected_stage.scenario("deadline-topic") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    (deadline,) = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    (deadline,) = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadline.topic is None
 
 
@@ -818,9 +734,7 @@ async def test_a_deadline_detail_should_describe_the_timeout_budget(
     async with connected_stage.scenario("deadline-detail") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
         result = await scope.await_all(timeout_ms=42)
-    (deadline,) = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    (deadline,) = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadline.detail == "timeout_ms=42"
 
 
@@ -835,9 +749,7 @@ async def test_a_scope_that_completes_within_budget_should_not_record_a_deadline
         scope.expect("orders.new", field_equals("kind", "ping"), on="kafka")
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=200)
-    deadlines = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    deadlines = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadlines == []
 
 
@@ -850,9 +762,7 @@ async def test_a_scope_with_no_expectations_should_not_record_a_deadline_entry(
     async with connected_stage.scenario("no-expectations") as scope:
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    deadlines = [
-        e for e in result.timeline if e.action == TimelineAction.DEADLINE
-    ]
+    deadlines = [e for e in result.timeline if e.action == TimelineAction.DEADLINE]
     assert deadlines == []
 
 
@@ -876,9 +786,7 @@ async def test_a_reply_that_fires_successfully_should_record_a_replied_entry(
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     replied = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.REPLIED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.REPLIED
     ]
     assert replied == [("nats", "results")]
 
@@ -897,9 +805,7 @@ async def test_a_replied_detail_should_name_the_trigger_topic(
         )
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    (replied,) = [
-        e for e in result.timeline if e.action == TimelineAction.REPLIED
-    ]
+    (replied,) = [e for e in result.timeline if e.action == TimelineAction.REPLIED]
     assert "orders.new" in replied.detail
 
 
@@ -919,15 +825,11 @@ async def test_a_reply_whose_build_raises_should_record_a_reply_failed_entry(
         raise ValueError("test-injected build failure")
 
     async with connected_stage.scenario("reply-build-fails") as scope:
-        scope.on("orders.new", on="kafka").publish(
-            "results", on="nats", build=boom
-        )
+        scope.on("orders.new", on="kafka").publish("results", on="nats", build=boom)
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
     failed = [
-        (e.transport, e.topic)
-        for e in result.timeline
-        if e.action == TimelineAction.REPLY_FAILED
+        (e.transport, e.topic) for e in result.timeline if e.action == TimelineAction.REPLY_FAILED
     ]
     assert failed == [("nats", "results")]
 
@@ -944,14 +846,10 @@ async def test_a_reply_failed_detail_should_carry_only_the_exception_class_name(
         raise ValueError("this message MUST NOT appear in the timeline")
 
     async with connected_stage.scenario("reply-detail-redaction") as scope:
-        scope.on("orders.new", on="kafka").publish(
-            "results", on="nats", build=boom
-        )
+        scope.on("orders.new", on="kafka").publish("results", on="nats", build=boom)
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    (failed,) = [
-        e for e in result.timeline if e.action == TimelineAction.REPLY_FAILED
-    ]
+    (failed,) = [e for e in result.timeline if e.action == TimelineAction.REPLY_FAILED]
     # Class name MUST appear; exception message MUST NOT.
     assert "ValueError" in failed.detail
     assert "MUST NOT appear" not in failed.detail
@@ -996,7 +894,5 @@ async def test_a_successful_reply_should_not_record_a_reply_failed_entry(
         )
         scope.publish("orders.new", {"kind": "ping"}, on="kafka")
         result = await scope.await_all(timeout_ms=20)
-    failed = [
-        e for e in result.timeline if e.action == TimelineAction.REPLY_FAILED
-    ]
+    failed = [e for e in result.timeline if e.action == TimelineAction.REPLY_FAILED]
     assert failed == []

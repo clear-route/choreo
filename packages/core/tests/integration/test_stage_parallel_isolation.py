@@ -81,15 +81,11 @@ async def test_stage_should_isolate_one_hundred_concurrent_scopes(
     not equal X.
     """
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     kafka_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     bridge = MappedBridge(
@@ -129,9 +125,7 @@ async def test_stage_should_isolate_one_hundred_concurrent_scopes(
         async with AsyncExitStack() as exit_stack:
             scopes = []
             for i in range(_N_SCOPES):
-                scope = await exit_stack.enter_async_context(
-                    stage.scenario(f"scope-{i}")
-                )
+                scope = await exit_stack.enter_async_context(stage.scenario(f"scope-{i}"))
                 scopes.append(scope)
 
             # Phase 1: every scope subscribes (registers an expectation).
@@ -151,24 +145,18 @@ async def test_stage_should_isolate_one_hundred_concurrent_scopes(
             # ALL 100 NATS subscribers, exercising the correlation filter
             # in every scope's callback.
             for idx, scope in enumerate(scopes):
-                scope.publish(
-                    "request.topic", {"scope_idx": idx}, on="kafka"
-                )
+                scope.publish("request.topic", {"scope_idx": idx}, on="kafka")
 
             # Phase 3: await each scope's deadline. With MockTransport's
             # synchronous delivery, every handle resolved synchronously
             # in phase 2; await_all is a fast no-op.
-            results = [
-                await scope.await_all(timeout_ms=500) for scope in scopes
-            ]
+            results = [await scope.await_all(timeout_ms=500) for scope in scopes]
     finally:
         await stage.disconnect()
 
     # Headline assertion: every scope passed.
     failed = [
-        (i, h.outcome, h._reason)
-        for i, h in enumerate(handles)
-        if h.outcome is not Outcome.PASS
+        (i, h.outcome, h._reason) for i, h in enumerate(handles) if h.outcome is not Outcome.PASS
     ]
     assert not failed, f"{len(failed)} scopes did not PASS: {failed[:5]}"
 
@@ -217,9 +205,7 @@ async def test_stage_should_leak_across_scopes_when_bridge_fresh_is_collision_pr
     whose `scope_idx` is 0.
     """
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
 
@@ -249,20 +235,12 @@ async def test_stage_should_leak_across_scopes_when_bridge_fresh_is_collision_pr
     # distinguish them.
     try:
         async with AsyncExitStack() as exit_stack:
-            scope_a = await exit_stack.enter_async_context(
-                stage.scenario("scope-a")
-            )
-            scope_b = await exit_stack.enter_async_context(
-                stage.scenario("scope-b")
-            )
+            scope_a = await exit_stack.enter_async_context(stage.scenario("scope-a"))
+            scope_b = await exit_stack.enter_async_context(stage.scenario("scope-b"))
 
             # Each scope expects a message with its own scope_idx.
-            handle_a = scope_a.expect(
-                "topic", field_equals("scope_idx", 0), on="nats"
-            )
-            handle_b = scope_b.expect(
-                "topic", field_equals("scope_idx", 1), on="nats"
-            )
+            handle_a = scope_a.expect("topic", field_equals("scope_idx", 0), on="nats")
+            handle_b = scope_b.expect("topic", field_equals("scope_idx", 1), on="nats")
 
             # Scope A publishes ONLY its own message. Both scopes'
             # callbacks fire (DictFieldPolicy reads the same wire id);

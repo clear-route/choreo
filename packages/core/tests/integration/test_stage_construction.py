@@ -318,9 +318,7 @@ def test_stage_construction_should_emit_an_audit_log_naming_the_bridge_class(
     with caplog.at_level(logging.INFO, logger="choreo.stage"):
         Stage(harnesses=two_harnesses, bridge=bridge)
 
-    init_records = [
-        r for r in caplog.records if r.getMessage() == "stage_initialised"
-    ]
+    init_records = [r for r in caplog.records if r.getMessage() == "stage_initialised"]
     assert len(init_records) == 1
     record = init_records[0]
     assert record.bridge_class == "MappedBridge"

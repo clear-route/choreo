@@ -164,9 +164,7 @@ async def get_run_raw(
     return JSONResponse(content=raw)
 
 
-@router.get(
-    "/runs/{run_id}/timeline", response_model=TimelineEventListResponse
-)
+@router.get("/runs/{run_id}/timeline", response_model=TimelineEventListResponse)
 async def list_run_timeline(
     run_id: UUID,
     run_repo: Annotated[RunRepository, Depends(get_run_repo)],

@@ -14,22 +14,14 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-VERSIONS_DIR = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "chronicle"
-    / "migrations"
-    / "versions"
-)
+VERSIONS_DIR = Path(__file__).resolve().parents[2] / "src" / "chronicle" / "migrations" / "versions"
 
 
 def _load_migration_module(slug: str):
     """Import a migration file by its filename slug (e.g. '005_prd013_timeline_events')."""
     path = VERSIONS_DIR / f"{slug}.py"
     spec = importlib.util.spec_from_file_location(slug, path)
-    assert spec is not None and spec.loader is not None, (
-        f"could not load migration {slug}"
-    )
+    assert spec is not None and spec.loader is not None, f"could not load migration {slug}"
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -51,7 +43,7 @@ def test_migration_005_upgrade_should_create_the_timeline_events_hypertable():
     suite; here we pin only that the source contains the necessary
     DDL calls."""
     source = (VERSIONS_DIR / "005_prd013_timeline_events.py").read_text()
-    assert 'create_table(' in source
+    assert "create_table(" in source
     assert '"timeline_events"' in source
     assert "create_hypertable(" in source
 
@@ -71,9 +63,7 @@ def test_migration_005_should_include_columns_for_every_v1_3_optional_field():
     (v1.2), `logical_topic` (v1.2), `source` (v1.3)."""
     source = (VERSIONS_DIR / "005_prd013_timeline_events.py").read_text()
     for column in ["topic", "transport", "logical_topic", "source"]:
-        assert f'sa.Column("{column}"' in source, (
-            f"timeline_events missing column {column!r}"
-        )
+        assert f'sa.Column("{column}"' in source, f"timeline_events missing column {column!r}"
 
 
 def test_migration_005_should_set_a_compression_policy():
@@ -125,6 +115,5 @@ def test_the_migration_chain_should_be_linear():
     for slug, expected_down in chain_pairs:
         module = _load_migration_module(slug)
         assert module.down_revision == expected_down, (
-            f"{slug}.down_revision = {module.down_revision!r}, "
-            f"expected {expected_down!r}"
+            f"{slug}.down_revision = {module.down_revision!r}, expected {expected_down!r}"
         )

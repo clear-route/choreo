@@ -298,9 +298,7 @@ def test_a_secret_marker_in_a_stage_handle_correlation_id_should_not_appear_verb
     import json as _json
 
     canary = "SECRET-CANARY-XYZ-3f2a91b8c4d50e1f"
-    handles = (
-        _make_handle(transport="nats", wire_id=canary),
-    )
+    handles = (_make_handle(transport="nats", wire_id=canary),)
     result = _stage_scenario_result(handles=handles)
     out = serialise_scenario(
         result,
@@ -442,9 +440,7 @@ def _collector_with_scenarios(*scenarios: Any) -> Collector:
     collector = Collector()
     collector.start_run(0.0)
     for scenario in scenarios:
-        collector.record_scenario(
-            scenario, nodeid="t.py::test_x", completed_normally=True
-        )
+        collector.record_scenario(scenario, nodeid="t.py::test_x", completed_normally=True)
     collector.finish_run()
     return collector
 
@@ -867,9 +863,7 @@ def test_a_run_with_only_single_harness_scenarios_should_emit_transport_only():
         outcome=Outcome.PASS,
     )
     handle._latency_ms = 1.0
-    sh_result = ScenarioResult(
-        name="sh", correlation_id="x", handles=(handle,), passed=True
-    )
+    sh_result = ScenarioResult(name="sh", correlation_id="x", handles=(handle,), passed=True)
     collector = Collector(transport="MockTransport")
     collector.start_run(0.0)
     collector.record_scenario(sh_result, "t::sh", True)
@@ -906,9 +900,7 @@ def test_a_mixed_run_should_emit_both_transport_and_transports():
         outcome=Outcome.PASS,
     )
     sh_handle._latency_ms = 1.0
-    sh_result = ScenarioResult(
-        name="sh", correlation_id="x", handles=(sh_handle,), passed=True
-    )
+    sh_result = ScenarioResult(name="sh", correlation_id="x", handles=(sh_handle,), passed=True)
     stage_handles = (
         _make_handle(transport="nats", wire_id="n-1"),
         _make_handle(transport="kafka", wire_id="k-1"),

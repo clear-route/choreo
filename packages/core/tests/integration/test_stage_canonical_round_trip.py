@@ -58,15 +58,11 @@ async def test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines
     """
     # --- fixture-shaped setup (excluded from the line count) -----------
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     kafka_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     bridge = MappedBridge(
@@ -96,20 +92,24 @@ async def test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines
     kafka_h.subscribe("orders.new", aut)
     try:
         # --- canonical scenario body (counted lines start here) --------
-        async with stage.scenario("bridge_round_trip") as scope:                # 1
-            scope.on("orders.new", on="kafka").publish(                         # 2
-                "orders.processed",                                             # 3
-                on="nats",                                                      # 4
-                build=lambda trigger: {"forwarded": trigger["payload"]},        # 5
-            )                                                                   # 6
-            processed_handle = scope.expect(                                    # 7
-                "orders.processed", field_equals("forwarded", 42), on="nats",   # 8
-            )                                                                   # 9
-            result_handle = scope.expect(                                       # 10
-                "results", field_equals("kind", "result"), on="nats",           # 11
-            )                                                                   # 12
-            scope.publish("orders.new", {"payload": 42}, on="kafka")            # 13
-            result = await scope.await_all(timeout_ms=100)                      # 14
+        async with stage.scenario("bridge_round_trip") as scope:  # 1
+            scope.on("orders.new", on="kafka").publish(  # 2
+                "orders.processed",  # 3
+                on="nats",  # 4
+                build=lambda trigger: {"forwarded": trigger["payload"]},  # 5
+            )  # 6
+            processed_handle = scope.expect(  # 7
+                "orders.processed",
+                field_equals("forwarded", 42),
+                on="nats",  # 8
+            )  # 9
+            result_handle = scope.expect(  # 10
+                "results",
+                field_equals("kind", "result"),
+                on="nats",  # 11
+            )  # 12
+            scope.publish("orders.new", {"payload": 42}, on="kafka")  # 13
+            result = await scope.await_all(timeout_ms=100)  # 14
         # ---------------------------------------------------------------
     finally:
         await stage.disconnect()

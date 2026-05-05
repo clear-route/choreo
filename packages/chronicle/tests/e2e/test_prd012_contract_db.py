@@ -130,9 +130,7 @@ def _v1_1_stage_report() -> dict[str, Any]:
 class TestPRD012Contract:
     """End-to-end: POST a v1.1 Stage report → assert 201 + persistence."""
 
-    def test_a_v1_1_stage_report_should_be_accepted_with_201(
-        self, db_client: TestClient
-    ) -> None:
+    def test_a_v1_1_stage_report_should_be_accepted_with_201(self, db_client: TestClient) -> None:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_1_stage_report(),
@@ -198,6 +196,5 @@ class TestPRD012Contract:
 
         transports = asyncio.run(_query())
         assert transports == ["nats"], (
-            "per-handle transport must be preserved on handle_measurements; "
-            "got " + repr(transports)
+            "per-handle transport must be preserved on handle_measurements; got " + repr(transports)
         )

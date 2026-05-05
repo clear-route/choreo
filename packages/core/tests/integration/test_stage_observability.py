@@ -57,9 +57,7 @@ async def test_stage_construction_should_emit_a_stage_initialised_audit_log(
     with caplog.at_level(logging.INFO, logger="choreo.stage"):
         Stage(harnesses=two_harnesses, bridge=bridge)
 
-    init_records = [
-        r for r in caplog.records if r.getMessage() == "stage_initialised"
-    ]
+    init_records = [r for r in caplog.records if r.getMessage() == "stage_initialised"]
     assert len(init_records) == 1
     record = init_records[0]
     assert record.bridge_class == "MappedBridge"
@@ -107,14 +105,10 @@ async def test_stage_should_log_warning_when_from_wire_raises_during_diagnostics
             raise RuntimeError(f"from_wire test-injected failure: {wire!r}")
 
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
-    stage = Stage(
-        harnesses={"nats": nats_h}, bridge=_FromWireRaisingBridge()
-    )
+    stage = Stage(harnesses={"nats": nats_h}, bridge=_FromWireRaisingBridge())
     await stage.connect()
 
     try:
@@ -145,11 +139,7 @@ async def test_stage_should_log_warning_when_from_wire_raises_during_diagnostics
         await stage.disconnect()
 
     # The diagnostic failure was logged.
-    diag_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_from_wire_failed"
-    ]
+    diag_warnings = [r for r in caplog.records if r.getMessage() == "stage_from_wire_failed"]
     assert len(diag_warnings) == 1
     record = diag_warnings[0]
     assert record.bridge_class == "_FromWireRaisingBridge"

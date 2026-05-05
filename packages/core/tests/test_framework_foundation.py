@@ -32,16 +32,12 @@ from choreo.transports import MockTransport
 def test_a_single_harness_scenario_result_should_carry_kind_single_harness():
     """The reporter dispatches on `result.kind`; ScenarioResult declares
     its kind so duck-typing is not needed."""
-    result = ScenarioResult(
-        name="t", correlation_id=None, handles=(), passed=True
-    )
+    result = ScenarioResult(name="t", correlation_id=None, handles=(), passed=True)
     assert result.kind == "single_harness"
 
 
 def test_a_stage_scenario_result_should_carry_kind_stage():
-    result = StageScenarioResult(
-        handles=(), passed=True, replies=(), correlation_id=None
-    )
+    result = StageScenarioResult(handles=(), passed=True, replies=(), correlation_id=None)
     assert result.kind == "stage"
 
 
@@ -115,9 +111,7 @@ def test_a_stage_scenario_result_should_accept_a_none_correlation_id():
     """Stages constructed with NoCorrelationPolicy / a bridge whose
     fresh() returns None still produce a result. The schema relaxation
     in PRD-012 §1.4.1 (`["string", "null"]`) makes this representable."""
-    result = StageScenarioResult(
-        handles=(), passed=True, replies=(), correlation_id=None
-    )
+    result = StageScenarioResult(handles=(), passed=True, replies=(), correlation_id=None)
     assert result.correlation_id is None
 
 

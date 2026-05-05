@@ -161,9 +161,7 @@ async def test_stage_scenario_should_clean_up_partially_minted_state_when_mint_f
     alpha_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )
-    beta_h = Harness(
-        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
-    )
+    beta_h = Harness(MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"))
     gamma_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )

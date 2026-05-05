@@ -87,9 +87,7 @@ async def connected_stage(two_harnesses: dict[str, Any]):
     """
     from choreo.stage import Stage
 
-    stage = Stage(
-        harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka")
-    )
+    stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()
     try:
         yield stage
@@ -349,12 +347,8 @@ class _FailingMockTransport(MockTransport):
         and the in-flight callback registry is cleared so no further
         delivered messages reach scope subscribers. Test-only API.
         """
-        self._fail_publish = RuntimeError(
-            "transport dropped: cannot publish"
-        )
-        self._fail_unsubscribe = RuntimeError(
-            "transport dropped: cannot unsubscribe"
-        )
+        self._fail_publish = RuntimeError("transport dropped: cannot publish")
+        self._fail_unsubscribe = RuntimeError("transport dropped: cannot unsubscribe")
         self._callbacks.clear()
 
     async def connect(self) -> None:

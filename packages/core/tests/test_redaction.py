@@ -23,10 +23,9 @@ from __future__ import annotations
 import re
 
 import pytest
+from choreo.redaction import REDACTION_VERSION, redact_correlation_id
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-
-from choreo.redaction import REDACTION_VERSION, redact_correlation_id
 
 _REDACTED_PATTERN = re.compile(r"^sha256:[0-9a-f]{16}$")
 

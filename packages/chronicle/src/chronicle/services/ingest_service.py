@@ -164,9 +164,7 @@ class IngestService:
                     if event_tuples:
                         events_by_scenario[db_scenario.id] = event_tuples
                 if events_by_scenario:
-                    await self._run_repo.copy_timeline_events(
-                        run, db_scenarios, events_by_scenario
-                    )
+                    await self._run_repo.copy_timeline_events(run, db_scenarios, events_by_scenario)
 
                 # Register topics for this tenant
                 if normalised.topics:

@@ -275,15 +275,11 @@ def test_recording_after_sealing_should_be_a_silent_no_op():
     so late inbound callbacks (subscriptions still active until
     `__aexit__`) cannot mutate the snapshot's counters or entries."""
     timeline = _Timeline()
-    timeline.record(
-        now=0.0, topic="t", action=TimelineAction.PUBLISHED
-    )
+    timeline.record(now=0.0, topic="t", action=TimelineAction.PUBLISHED)
     assert len(timeline.entries) == 1
 
     timeline.sealed = True
-    timeline.record(
-        now=1.0, topic="t", action=TimelineAction.PUBLISHED
-    )
+    timeline.record(now=1.0, topic="t", action=TimelineAction.PUBLISHED)
     # No new entry, no counter mutation.
     assert len(timeline.entries) == 1
     assert timeline.dropped == 0

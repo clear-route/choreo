@@ -49,9 +49,7 @@ async def test_stage_scenario_result_by_transport_should_contain_only_real_trans
     and one handle each. Both handles' `transport` matches the key
     they hash under.
     """
-    stage = Stage(
-        harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka")
-    )
+    stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()
     try:
         async with stage.scenario("k1") as scope:
@@ -86,16 +84,12 @@ async def test_stage_handle_transport_should_match_the_on_selector(
     not via post-hoc mutation. (F7 verifies the same property in a
     different shape; K2 generalises to multi-transport.)
     """
-    stage = Stage(
-        harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka")
-    )
+    stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()
     try:
         async with stage.scenario("k2") as scope:
             h_nats = scope.expect("topic.n", _PLACEHOLDER_MATCHER, on="nats")
-            h_kafka = scope.expect(
-                "topic.k", _PLACEHOLDER_MATCHER, on="kafka"
-            )
+            h_kafka = scope.expect("topic.k", _PLACEHOLDER_MATCHER, on="kafka")
             # Read immediately — no await, no scheduling, no race.
             assert h_nats.transport == "nats"
             assert h_kafka.transport == "kafka"
@@ -118,9 +112,7 @@ async def test_single_harness_handle_transport_should_be_none(
     the field exists for Stage's per-transport routing only.
     """
     harness = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )
     await harness.connect()
     try:
@@ -146,14 +138,8 @@ async def test_stage_handle_repr_should_include_transport_name(
     name which side of a multi-transport scenario a failing handle
     belongs to without the consumer having to dereference fields.
     """
-    only_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
-    )
-    stage = Stage(
-        harnesses={"only": only_h}, bridge=single_transport_bridge("only")
-    )
+    only_h = Harness(MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"))
+    stage = Stage(harnesses={"only": only_h}, bridge=single_transport_bridge("only"))
     await stage.connect()
     try:
         async with stage.scenario("k4") as scope:

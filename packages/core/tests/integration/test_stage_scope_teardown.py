@@ -52,9 +52,7 @@ def _failing_unsubscribe_stage(
     def _mk_harness(name: str):
         if fail_unsubscribe_on == name:
             transport = _FailingMockTransport(
-                fail_unsubscribe=RuntimeError(
-                    f"unsubscribe failure on transport {name!r}"
-                ),
+                fail_unsubscribe=RuntimeError(f"unsubscribe failure on transport {name!r}"),
                 allowlist_path=allowlist_yaml_path,
                 endpoint="mock://localhost",
             )
@@ -67,10 +65,14 @@ def _failing_unsubscribe_stage(
 
     nats_h = _mk_harness("nats")
     kafka_h = _mk_harness("kafka")
-    return Stage(
-        harnesses={"nats": nats_h, "kafka": kafka_h},
-        bridge=mapped_bridge_for("nats", "kafka"),
-    ), nats_h, kafka_h
+    return (
+        Stage(
+            harnesses={"nats": nats_h, "kafka": kafka_h},
+            bridge=mapped_bridge_for("nats", "kafka"),
+        ),
+        nats_h,
+        kafka_h,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -106,9 +108,7 @@ async def test_stage_scope_aexit_should_complete_when_one_unsubscribe_raises(
     # The WARNING was emitted for the failing transport, with the
     # transport name on the LogRecord.
     teardown_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_scope_unsubscribe_failed"
+        r for r in caplog.records if r.getMessage() == "stage_scope_unsubscribe_failed"
     ]
     assert len(teardown_warnings) == 1
     assert teardown_warnings[0].transport == "nats"
@@ -165,9 +165,7 @@ async def test_stage_scope_aexit_should_complete_even_when_every_unsubscribe_rai
     await stage.disconnect()
 
     teardown_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_scope_unsubscribe_failed"
+        r for r in caplog.records if r.getMessage() == "stage_scope_unsubscribe_failed"
     ]
     assert len(teardown_warnings) == 2
     transports_named = {r.transport for r in teardown_warnings}
@@ -235,9 +233,7 @@ async def test_stage_scope_aexit_should_propagate_a_body_exception_unmodified(
     out of the scope unmodified. Teardown runs (subscribers cleared)
     but does NOT swallow or chain the body exception.
     """
-    stage, _, kafka_h = _failing_unsubscribe_stage(
-        allowlist_yaml_path, fail_unsubscribe_on=None
-    )
+    stage, _, kafka_h = _failing_unsubscribe_stage(allowlist_yaml_path, fail_unsubscribe_on=None)
     await stage.connect()
 
     body_exception = RuntimeError("the test body itself blew up")
@@ -269,18 +265,14 @@ async def test_stage_scope_aexit_should_propagate_a_body_exception_even_when_tea
     exception is the one the user sees; the teardown failure is
     recorded only as a structured log entry.
     """
-    stage, _, _ = _failing_unsubscribe_stage(
-        allowlist_yaml_path, fail_unsubscribe_on="nats"
-    )
+    stage, _, _ = _failing_unsubscribe_stage(allowlist_yaml_path, fail_unsubscribe_on="nats")
     await stage.connect()
 
     body_exception = RuntimeError("body blew up while teardown was unhappy")
 
     with caplog.at_level(logging.WARNING, logger="choreo.stage"):
         try:
-            with pytest.raises(
-                RuntimeError, match="body blew up while teardown was unhappy"
-            ):
+            with pytest.raises(RuntimeError, match="body blew up while teardown was unhappy"):
                 async with stage.scenario("g5") as scope:
                     scope.expect("topic.a", _PLACEHOLDER_MATCHER, on="nats")
                     scope.expect("topic.b", _PLACEHOLDER_MATCHER, on="kafka")
@@ -290,9 +282,7 @@ async def test_stage_scope_aexit_should_propagate_a_body_exception_even_when_tea
 
     # The teardown WARNING was still recorded for the failing transport.
     teardown_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_scope_unsubscribe_failed"
+        r for r in caplog.records if r.getMessage() == "stage_scope_unsubscribe_failed"
     ]
     assert len(teardown_warnings) == 1
     assert teardown_warnings[0].transport == "nats"

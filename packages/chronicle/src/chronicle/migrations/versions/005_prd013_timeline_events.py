@@ -93,18 +93,14 @@ def upgrade() -> None:
             timescaledb.compress_orderby = 'time DESC, offset_ms ASC'
         )
     """)
-    op.execute(
-        "SELECT add_compression_policy('timeline_events', INTERVAL '7 days')"
-    )
+    op.execute("SELECT add_compression_policy('timeline_events', INTERVAL '7 days')")
 
     # Retention: drop chunks older than 90 days. Aligns with the
     # implicit run-retention horizon and avoids unbounded storage
     # growth from orphan timeline_events when runs are deleted at
     # the application layer (no FK cascade since hypertables cannot
     # reference regular tables).
-    op.execute(
-        "SELECT add_retention_policy('timeline_events', INTERVAL '90 days')"
-    )
+    op.execute("SELECT add_retention_policy('timeline_events', INTERVAL '90 days')")
 
 
 def downgrade() -> None:

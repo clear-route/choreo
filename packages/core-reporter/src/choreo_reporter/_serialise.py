@@ -601,9 +601,7 @@ def _serialise_stage_scenario(
             continue
         first_handle = handles_for_transport[0]
         if first_handle.correlation_id is not None:
-            correlation_ids[transport] = redact_correlation_id(
-                first_handle.correlation_id
-            )
+            correlation_ids[transport] = redact_correlation_id(first_handle.correlation_id)
 
     # PRD-012 §1.4: `bridge_class` is populated by the Stage scope at
     # result construction (advisory-tier audit field, regex-validated

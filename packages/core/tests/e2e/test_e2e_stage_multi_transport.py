@@ -138,8 +138,7 @@ async def test_a_stage_over_nats_and_kafka_should_round_trip_a_cross_transport_r
 
     # The expectation resolved with the AUT's echo.
     assert final_handle.outcome is Outcome.PASS, (
-        f"final handle did not pass: outcome={final_handle.outcome}, "
-        f"reason={final_handle.reason!r}"
+        f"final handle did not pass: outcome={final_handle.outcome}, reason={final_handle.reason!r}"
     )
     assert final_handle.message["from"] == 42
     assert final_handle.transport == "nats"
@@ -189,9 +188,7 @@ async def test_a_stage_should_roll_back_real_transports_when_one_fails_to_connec
     from choreo.stage import StageConnectError
     from choreo.transports import KafkaTransport, NatsTransport
 
-    nats_h = Harness(
-        NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path)
-    )
+    nats_h = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
     bad_kafka_h = Harness(
         # An address NOT in the allowlist — connect() raises
         # HostNotInAllowlist before any socket opens.
@@ -206,9 +203,7 @@ async def test_a_stage_should_roll_back_real_transports_when_one_fails_to_connec
             "kafka": lambda logical: f"kafka-{logical}",
         }
     )
-    stage = Stage(
-        harnesses={"nats": nats_h, "kafka": bad_kafka_h}, bridge=bridge
-    )
+    stage = Stage(harnesses={"nats": nats_h, "kafka": bad_kafka_h}, bridge=bridge)
 
     with pytest.raises(StageConnectError) as excinfo:
         await stage.connect()
@@ -242,9 +237,7 @@ async def test_a_stage_should_resolve_handles_as_timeout_when_a_real_transport_d
     """
     from choreo.transports import KafkaTransport, NatsTransport
 
-    nats_h = Harness(
-        NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path)
-    )
+    nats_h = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
     kafka_h = Harness(
         KafkaTransport(
             bootstrap_servers=[kafka_bootstrap],

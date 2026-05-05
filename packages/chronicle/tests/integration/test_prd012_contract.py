@@ -185,10 +185,5 @@ def schema_v1_1() -> dict:
     import json
     from pathlib import Path
 
-    schema_path = (
-        Path(__file__).resolve().parents[4]
-        / "docs"
-        / "schemas"
-        / "test-report-v1.1.json"
-    )
+    schema_path = Path(__file__).resolve().parents[4] / "docs" / "schemas" / "test-report-v1.1.json"
     return json.loads(schema_path.read_text(encoding="utf-8"))

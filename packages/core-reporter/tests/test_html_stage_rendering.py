@@ -563,10 +563,7 @@ def test_a_timeline_entry_source_should_round_trip_into_the_inlined_json():
     html = _render(_stage_report_json())
     soup = BeautifulSoup(html, "html.parser")
     inlined = json.loads(soup.find("script", id="harness-results").string)
-    sources = [
-        e.get("source")
-        for e in inlined["tests"][0]["scenarios"][0]["timeline"]
-    ]
+    sources = [e.get("source") for e in inlined["tests"][0]["scenarios"][0]["timeline"]]
     assert sources == [
         "publish",
         "reply",
@@ -681,12 +678,8 @@ def test_a_malicious_transport_name_should_not_break_out_of_the_inlined_json_or_
       execution is verified by the Playwright suite (deferred).
     """
     payload = _stage_report_json()
-    payload["tests"][0]["scenarios"][0]["handles"][0]["transport"] = (
-        "<script>alert(1)</script>"
-    )
-    payload["tests"][0]["scenarios"][0]["stage"]["transports"] = [
-        "<script>alert(1)</script>"
-    ]
+    payload["tests"][0]["scenarios"][0]["handles"][0]["transport"] = "<script>alert(1)</script>"
+    payload["tests"][0]["scenarios"][0]["stage"]["transports"] = ["<script>alert(1)</script>"]
     payload["run"]["transports"] = ["<script>alert(1)</script>"]
     html = _render(payload)
 
@@ -778,9 +771,7 @@ def test_the_lifecycle_css_should_distinguish_status_with_distinct_colours():
     subtle paths visually."""
     html = _render(_stage_report_json())
     for status in ("ok", "no", "failed", "skipped", "na"):
-        assert f'data-stage-status="{status}"' in html, (
-            f"missing CSS rule for status {status!r}"
-        )
+        assert f'data-stage-status="{status}"' in html, f"missing CSS rule for status {status!r}"
 
 
 # ---------------------------------------------------------------------------

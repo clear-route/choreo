@@ -126,9 +126,7 @@ async def test_stage_cross_transport_reply_should_emit_response_on_other_transpo
                 build=lambda trig: {"status": "ok", "from": trig["id"]},
             )
             # Expect the response to land on NATS.
-            response_handle = scope.expect(
-                "orders.processed", _PLACEHOLDER_MATCHER, on="nats"
-            )
+            response_handle = scope.expect("orders.processed", _PLACEHOLDER_MATCHER, on="nats")
             # Publish the trigger on Kafka — this is the AUT-stand-in
             # in the test (a real bridge AUT would be sending this).
             scope.publish("orders.new", {"id": 42}, on="kafka")
@@ -317,11 +315,7 @@ async def test_stage_same_transport_reply_should_emit_on_the_same_transport(
     `response_transport` are equal. The cross-transport machinery
     handles this case without a special path.
     """
-    only_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
-    )
+    only_h = Harness(MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"))
     stage = Stage(
         harnesses={"only": only_h},
         bridge=single_transport_bridge("only"),
@@ -334,9 +328,7 @@ async def test_stage_same_transport_reply_should_emit_on_the_same_transport(
                 on="only",
                 build=lambda trig: {"status": "ok", "echo": trig["id"]},
             )
-            response_handle = scope.expect(
-                "orders.processed", _PLACEHOLDER_MATCHER, on="only"
-            )
+            response_handle = scope.expect("orders.processed", _PLACEHOLDER_MATCHER, on="only")
             scope.publish("orders.new", {"id": 7}, on="only")
             result = await scope.await_all(timeout_ms=30)
     finally:
@@ -383,15 +375,11 @@ async def test_stage_cross_transport_reply_should_use_response_context_correlati
     from choreo.correlation import DictFieldPolicy
 
     nats_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     kafka_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        ),
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
         correlation=DictFieldPolicy(field="correlation_id"),
     )
     stage = Stage(

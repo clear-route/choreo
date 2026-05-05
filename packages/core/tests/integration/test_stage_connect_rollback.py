@@ -51,9 +51,7 @@ async def test_stage_connect_should_disconnect_already_connected_siblings_when_a
     alpha_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )
-    beta_h = Harness(
-        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
-    )
+    beta_h = Harness(MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"))
     gamma_h = _harness_over(
         _FailingMockTransport(
             fail_connect=RuntimeError("gamma broker unreachable"),
@@ -182,9 +180,7 @@ async def test_stage_connect_should_surface_the_original_connect_error_when_roll
     # The rollback's disconnect failure is recorded as a structured WARNING
     # with the transport name on the LogRecord.
     sibling_warnings = [
-        r
-        for r in caplog.records
-        if r.getMessage() == "stage_rollback_sibling_disconnect_failed"
+        r for r in caplog.records if r.getMessage() == "stage_rollback_sibling_disconnect_failed"
     ]
     assert len(sibling_warnings) == 1
     assert sibling_warnings[0].transport == "alpha"

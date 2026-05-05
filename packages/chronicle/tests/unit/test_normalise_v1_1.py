@@ -51,9 +51,7 @@ def _minimal_run(**overrides: Any) -> dict[str, Any]:
 
 
 def _make_request(run: dict[str, Any], tests: list[dict[str, Any]] | None = None) -> IngestRequest:
-    return IngestRequest(
-        schema_version="1.1", run=run, tests=tests or []
-    )
+    return IngestRequest(schema_version="1.1", run=run, tests=tests or [])
 
 
 def test_normalise_should_accept_null_transport_when_transports_is_present():

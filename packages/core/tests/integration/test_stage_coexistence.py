@@ -49,19 +49,13 @@ async def test_stage_and_harness_should_coexist_in_one_process(
     """
     # Stage path: single-transport Stage.
     stage_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )
-    stage = Stage(
-        harnesses={"only": stage_h}, bridge=single_transport_bridge("only")
-    )
+    stage = Stage(harnesses={"only": stage_h}, bridge=single_transport_bridge("only"))
 
     # Standalone Harness path: separate MockTransport instance.
     standalone_h = Harness(
-        MockTransport(
-            allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"
-        )
+        MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
     )
 
     await stage.connect()
@@ -69,9 +63,7 @@ async def test_stage_and_harness_should_coexist_in_one_process(
     try:
         # Stage scenario: publish-and-expect on the only transport.
         async with stage.scenario("stage-side") as stage_scope:
-            stage_handle = stage_scope.expect(
-                "topic", _PLACEHOLDER_MATCHER, on="only"
-            )
+            stage_handle = stage_scope.expect("topic", _PLACEHOLDER_MATCHER, on="only")
             stage_scope.publish("topic", {"status": "ok"}, on="only")
             stage_result = await stage_scope.await_all(timeout_ms=20)
 
