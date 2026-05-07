@@ -25,12 +25,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from choreo import Harness
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import MappedBridge, Stage
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import MappedBridge, Stage
+from admiral.transports import MockTransport
 
 
 async def test_stage_canonical_round_trip_should_complete_in_under_fifteen_lines(

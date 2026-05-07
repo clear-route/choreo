@@ -18,11 +18,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import Stage
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import Stage
+from admiral.transports import MockTransport
 
 from .conftest import mapped_bridge_for, single_transport_bridge
 

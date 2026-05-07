@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from choreo_reporter._redact import (
+from admiral_reporter._redact import (
     REDACTED,
     RedactionStats,
     _clear_consumer_redactors_for_test,

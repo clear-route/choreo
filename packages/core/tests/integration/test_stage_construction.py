@@ -8,7 +8,7 @@ Stage's `__init__` is responsible for catching before the user can call
 Each test maps to one ADR-0027 §Validation success metric (or one of the
 25 review items, R1-R25). The mapping is named in the test docstring.
 
-These tests assume `from choreo.stage import Stage, ...` resolves. Until
+These tests assume `from admiral.stage import Stage, ...` resolves. Until
 the production code lands, every test in this module is expected to fail
 with `ImportError` — that is the TDD red state.
 """
@@ -36,7 +36,7 @@ def test_stage_construction_should_reject_an_empty_harness_mapping() -> None:
 
     Covers ADR-0027 §Implementation Stage.__init__ early guard.
     """
-    from choreo.stage import IdentityBridge, Stage
+    from admiral.stage import IdentityBridge, Stage
 
     with pytest.raises(ValueError, match="at least one harness"):
         Stage(harnesses={}, bridge=IdentityBridge())
@@ -61,7 +61,7 @@ def test_stage_construction_should_reject_a_bridge_that_collides_on_the_smoke_te
     Covers R6 (smoke-test claim weakened but still fires);
     ADR-0027 §Validation "BridgeAmbiguityError at startup smoke test".
     """
-    from choreo.stage import BridgeAmbiguityError, Stage
+    from admiral.stage import BridgeAmbiguityError, Stage
 
     with pytest.raises(BridgeAmbiguityError) as excinfo:
         Stage(harnesses=two_harnesses, bridge=_CollidingBridge())
@@ -79,7 +79,7 @@ def test_stage_construction_should_accept_a_mapped_bridge_advertising_transports
     a frozenset) must NOT trip BridgeTransportMismatchError when the
     names match. The Stage coerces the advertised set before comparing.
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     class _ListAdvertisingBridge:
         @property
@@ -115,7 +115,7 @@ def test_stage_construction_should_reject_a_mapped_bridge_missing_a_registered_t
 
     Covers ADR-0027 §Validation "BridgeTransportMismatchError for MappedBridge".
     """
-    from choreo.stage import BridgeTransportMismatchError, Stage
+    from admiral.stage import BridgeTransportMismatchError, Stage
 
     bridge = make_mapped_bridge(forwards={"nats": lambda logical: f"n-{logical}"})
 
@@ -137,7 +137,7 @@ def test_stage_construction_should_reject_a_mapped_bridge_with_an_extra_transpor
     """A4. Symmetric to A3: bridge knows about a transport the Stage does
     not have. Same typed error; both sets present on the attributes.
     """
-    from choreo.stage import BridgeTransportMismatchError, Stage
+    from admiral.stage import BridgeTransportMismatchError, Stage
 
     bridge = make_mapped_bridge(
         forwards={
@@ -170,7 +170,7 @@ def test_stage_construction_should_wrap_a_bridge_to_wire_exception_during_smoke_
     Covers R19 (.original attribute populated);
     ADR-0027 §Validation "BridgeTranslationError carries .original".
     """
-    from choreo.stage import BridgeTranslationError, Stage
+    from admiral.stage import BridgeTranslationError, Stage
 
     injected = RuntimeError("bridge said no")
     bridge = _RaisingBridge(raise_on="to_wire", exc=injected)
@@ -210,7 +210,7 @@ def test_stage_construction_should_reject_a_bridge_to_wire_returning_a_non_strin
     Covers R9 (return-type validation);
     ADR-0027 §Validation "to_wire return-type validation".
     """
-    from choreo.stage import BridgeTranslationError, Stage
+    from admiral.stage import BridgeTranslationError, Stage
 
     bridge = _TypeBrokenBridge(returns=bad_return)
 
@@ -233,7 +233,7 @@ def test_stage_construction_should_reject_a_bridge_to_wire_returning_an_empty_st
     empty value silently collides on the inbound match path. Rejected with
     the same typed error as the non-string returns.
     """
-    from choreo.stage import BridgeTranslationError, Stage
+    from admiral.stage import BridgeTranslationError, Stage
 
     bridge = _TypeBrokenBridge(returns="")
 
@@ -258,7 +258,7 @@ def test_stage_construction_should_reject_a_bridge_to_wire_returning_an_oversize
 
     Covers R16 (bounds enforcement).
     """
-    from choreo.stage import _MAX_WIRE_ID_LEN, BridgeTranslationError, Stage
+    from admiral.stage import _MAX_WIRE_ID_LEN, BridgeTranslationError, Stage
 
     oversized = "x" * (_MAX_WIRE_ID_LEN + 1)
     bridge = _TypeBrokenBridge(returns=oversized)
@@ -285,7 +285,7 @@ def test_redact_should_quote_short_strings_unredacted_and_truncate_long_ones() -
     ones unmodified. Boundary: strings of length head+tail+3 or less are
     treated as short. The +3 is the literal `...` separator's length.
     """
-    from choreo.stage import _redact
+    from admiral.stage import _redact
 
     # Short string: returned via repr() (quoted, unredacted).
     assert _redact("short") == "'short'"
@@ -311,11 +311,11 @@ def test_stage_construction_should_emit_an_audit_log_naming_the_bridge_class(
     """
     import logging
 
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     bridge = make_mapped_bridge()  # MappedBridge over the canonical pair
 
-    with caplog.at_level(logging.INFO, logger="choreo.stage"):
+    with caplog.at_level(logging.INFO, logger="admiral.stage"):
         Stage(harnesses=two_harnesses, bridge=bridge)
 
     init_records = [r for r in caplog.records if r.getMessage() == "stage_initialised"]
@@ -340,7 +340,7 @@ def test_stage_construction_should_accept_a_bridge_to_wire_at_exactly_the_length
     the distinctness check, we use a per-transport-suffixed bridge so the
     smoke-test distinctness passes and only the length check is in play.
     """
-    from choreo.stage import _MAX_WIRE_ID_LEN, Stage
+    from admiral.stage import _MAX_WIRE_ID_LEN, Stage
 
     base = "x" * (_MAX_WIRE_ID_LEN - 5)  # leave room for "-nats" / "-kafka"
 

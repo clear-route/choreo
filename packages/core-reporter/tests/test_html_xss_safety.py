@@ -12,8 +12,8 @@ from __future__ import annotations
 import re
 
 import pytest
+from admiral_reporter._template import escape_for_inline_json, render_html
 from bs4 import BeautifulSoup
-from choreo_reporter._template import escape_for_inline_json, render_html
 
 # ---------------------------------------------------------------------------
 # Unit tests of the escape helper

@@ -16,7 +16,7 @@ import pytest
 def _mock_transport(allowlist_yaml_path: Path, **kwargs):
     """Local helper: builds a MockTransport with the shipped allowlist and
     any extra fields the specific test needs."""
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     defaults = {
         "allowlist_path": allowlist_yaml_path,
@@ -34,7 +34,7 @@ def _mock_transport(allowlist_yaml_path: Path, **kwargs):
 async def test_a_newly_constructed_harness_should_be_disconnected(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     assert not harness.is_connected()
@@ -43,7 +43,7 @@ async def test_a_newly_constructed_harness_should_be_disconnected(
 async def test_a_connected_harness_should_report_itself_as_connected(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -56,7 +56,7 @@ async def test_a_connected_harness_should_report_itself_as_connected(
 async def test_disconnecting_an_already_disconnected_harness_should_not_raise(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -70,7 +70,7 @@ async def test_connecting_an_already_connected_harness_should_not_re_enter_trans
     """Double-connect must be a no-op. A transport whose `connect()` is not
     idempotent (many real backends aren't) would misbehave if the Harness
     called it twice."""
-    from choreo import Harness
+    from admiral import Harness
 
     transport = _mock_transport(allowlist_yaml_path)
     connect_calls = 0
@@ -99,7 +99,7 @@ async def test_force_disconnect_should_call_transport_disconnect_when_connect_fa
     it always invokes `transport.disconnect()` and always clears
     subscriptions, regardless of harness state.
     """
-    from choreo import Harness
+    from admiral import Harness
 
     transport = _mock_transport(allowlist_yaml_path)
 
@@ -138,7 +138,7 @@ async def test_force_disconnect_should_be_a_no_op_on_a_never_connected_harness(
     even attempted connect — it is the cleanup primitive a coordinator
     calls in `finally` blocks without state checks of its own.
     """
-    from choreo import Harness
+    from admiral import Harness
 
     transport = _mock_transport(allowlist_yaml_path)
     harness = Harness(transport)
@@ -157,7 +157,7 @@ async def test_force_disconnect_should_propagate_transport_disconnect_failures(
     via `finally`, preserving the "after force_disconnect, harness is
     no longer usable" invariant.
     """
-    from choreo import Harness
+    from admiral import Harness
 
     transport = _mock_transport(allowlist_yaml_path)
 
@@ -182,7 +182,7 @@ async def test_disconnect_should_leave_harness_unusable_even_when_transport_rais
     to disconnected — otherwise `_connected` stays True and a subsequent
     `publish()` would sail past the guard while the transport is torn down.
     The exception propagates so the caller sees it."""
-    from choreo import Harness
+    from admiral import Harness
 
     transport = _mock_transport(allowlist_yaml_path)
 
@@ -214,7 +214,7 @@ async def test_a_message_published_on_a_subscribed_topic_should_reach_the_subscr
 ) -> None:
     import asyncio
 
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -232,7 +232,7 @@ async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages(
 ) -> None:
     import asyncio
 
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -257,7 +257,7 @@ async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages(
 async def test_disconnecting_a_harness_should_release_every_subscription(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -272,7 +272,7 @@ async def test_the_harness_should_not_be_pickleable(
 ) -> None:
     import pickle
 
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     with pytest.raises((TypeError, pickle.PicklingError)):
@@ -286,7 +286,7 @@ async def test_the_harness_should_not_be_pickleable(
 
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
-    from choreo import Harness
+    from admiral import Harness
 
     h = Harness(_mock_transport(allowlist_yaml_path))
     await h.connect()
@@ -317,7 +317,7 @@ async def test_the_session_scoped_harness_should_expose_its_correlation_policy(
     """A consumer can introspect the active policy. The library default is
     `NoCorrelationPolicy`; this harness is constructed without an explicit
     policy, so it is no-op (ADR-0019)."""
-    from choreo import NoCorrelationPolicy
+    from admiral import NoCorrelationPolicy
 
     assert isinstance(harness.correlation, NoCorrelationPolicy)
     assert await harness.correlation.new_id() is None
@@ -331,8 +331,8 @@ async def test_the_session_scoped_harness_should_expose_its_correlation_policy(
 async def test_harness_should_default_to_json_codec(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.codecs import JSONCodec
+    from admiral import Harness
+    from admiral.codecs import JSONCodec
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     assert isinstance(harness.codec, JSONCodec)
@@ -341,8 +341,8 @@ async def test_harness_should_default_to_json_codec(
 async def test_harness_should_accept_a_custom_codec(
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.codecs import RawCodec
+    from admiral import Harness
+    from admiral.codecs import RawCodec
 
     raw = RawCodec()
     harness = Harness(_mock_transport(allowlist_yaml_path), codec=raw)
@@ -357,7 +357,7 @@ async def test_publishing_a_memoryview_should_pass_through_without_codec_encodin
     """
     import asyncio
 
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()
@@ -375,7 +375,7 @@ async def test_publishing_a_bytearray_should_pass_through_without_codec_encoding
 ) -> None:
     import asyncio
 
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(_mock_transport(allowlist_yaml_path))
     await harness.connect()

@@ -39,10 +39,10 @@ async def test_two_concurrent_scenarios_on_the_same_redis_channel_should_only_fu
 
     Opts into `test_namespace()` — ADR-0019 makes correlation routing
     opt-in; the library default is broadcast."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import RedisTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import RedisTransport
 
     channel = _channel("concurrent")
     harness = Harness(
@@ -83,8 +83,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
     """Redis guarantees per-connection FIFO. The reader task dispatches
     messages in arrival order, so a burst of 50 publishes on one channel
     must land on the subscriber in the order they went out."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel = _channel("burst")
     count = 50
@@ -116,10 +116,10 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
 ) -> None:
     """Opts into `test_namespace()` — this test exercises the correlation
     filter itself, which ADR-0019 makes opt-in."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import RedisTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import RedisTransport
 
     channel = _channel("foreign_corr")
     harness = Harness(
@@ -156,8 +156,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     """Unsubscribe must send the UNSUBSCRIBE command so the server stops
     delivering to this connection. A regression that just drops the
     callback dict entry would leak subscriptions server-side."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel = _channel("unsub")
     first_arrived = asyncio.Event()
@@ -200,8 +200,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
 ) -> None:
     """One broken callback must not kill the pubsub reader loop — a silent
     wedge would mean every subsequent message is lost."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel = _channel("bad_cb")
     good_got: list[bytes] = []
@@ -240,8 +240,8 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel_x = _channel("iso_x")
     channel_y = _channel("iso_y")
@@ -274,7 +274,7 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
 async def test_connecting_to_an_unreachable_redis_port_should_raise_a_transport_error(
     _redis_available: bool,
 ) -> None:
-    from choreo.transports import RedisTransport, TransportError
+    from admiral.transports import RedisTransport, TransportError
 
     transport = RedisTransport(
         url="redis://127.0.0.1:1/0",
@@ -298,9 +298,9 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     """Redis has no hard ceiling on message size (proto-max-bulk-len is
     512 MiB by default); 64 KiB forces multiple TCP segments and catches
     any framing bug in the bridge."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import RedisTransport
 
     channel = _channel("large")
     big = "x" * 65_536
@@ -332,8 +332,8 @@ async def test_publishing_to_a_channel_with_no_subscribers_should_not_raise(
     message (zero here). The transport must not treat zero-recipients as
     an error — this is an intentional property of fire-and-forget
     pub/sub."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel = _channel("no_subscriber")
     harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
@@ -362,8 +362,8 @@ async def test_multiple_channels_on_one_connection_should_each_receive_only_thei
     Three channels on the same pubsub must stay isolated — a cross-wire
     would mean the reader dispatches by order or by last-subscribed
     rather than by message.channel."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channels = [_channel(f"multi_{k}") for k in ("a", "b", "c")]
     harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))
@@ -407,8 +407,8 @@ async def test_three_harnesses_subscribed_to_a_shared_channel_should_all_receive
     """Redis PUBLISH broadcasts to every client subscribed to the
     channel. Three harnesses on the same broker, same channel, must each
     see the single publish."""
-    from choreo import Harness
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.transports import RedisTransport
 
     channel = _channel("shared")
     subs = [
@@ -453,10 +453,10 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
 ) -> None:
     """Opts into `test_namespace()` because the late publish echoes
     `s.correlation_id` (ADR-0019)."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import RedisTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import RedisTransport
 
     channel = _channel("late")
     harness = Harness(
@@ -497,9 +497,9 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     redis_url: str,
     _redis_available: bool,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import RedisTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import RedisTransport
 
     channel = _channel("churn")
     harness = Harness(RedisTransport(url=redis_url, allowlist_path=allowlist_yaml_path))

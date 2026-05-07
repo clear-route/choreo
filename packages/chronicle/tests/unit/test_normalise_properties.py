@@ -137,7 +137,7 @@ def report_strategy(draw: st.DrawFn) -> dict:
                 "name": "test_generated",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 1.0,
                 "traceback": None,

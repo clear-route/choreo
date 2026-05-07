@@ -6,7 +6,7 @@ Covers test-plan items G1-G5 from
 `_StageScenarioScope.__aexit__` per-child unsubscribe loop is isolated
 by per-pair try/except so a single failing unsubscribe does not abort
 the rest. Same isolation pattern as the single-transport scope at
-`packages/core/src/choreo/scenario.py:1302-1310`.
+`packages/core/src/admiral/scenario.py:1302-1310`.
 
 R1 in the comprehensive review was the most-flagged item: the previous
 draft did not isolate per-child unsubscribe, so one failing
@@ -20,7 +20,7 @@ import logging
 from pathlib import Path
 
 import pytest
-from choreo.matchers import field_equals
+from admiral.matchers import field_equals
 
 from .conftest import (
     _FailingMockTransport,
@@ -46,8 +46,8 @@ def _failing_unsubscribe_stage(
     `unsubscribe`. `fail_unsubscribe_on` names the transport that
     raises; pass None to get a stage where neither fails.
     """
-    from choreo.stage import Stage
-    from choreo.transports import MockTransport
+    from admiral.stage import Stage
+    from admiral.transports import MockTransport
 
     def _mk_harness(name: str):
         if fail_unsubscribe_on == name:
@@ -97,7 +97,7 @@ async def test_stage_scope_aexit_should_complete_when_one_unsubscribe_raises(
     )
     await stage.connect()
 
-    with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+    with caplog.at_level(logging.WARNING, logger="admiral.stage"):
         async with stage.scenario("g1") as scope:
             scope.expect("topic.a", _PLACEHOLDER_MATCHER, on="nats")
             scope.expect("topic.b", _PLACEHOLDER_MATCHER, on="kafka")
@@ -135,7 +135,7 @@ async def test_stage_scope_aexit_should_complete_even_when_every_unsubscribe_rai
     returns without raising, and TWO WARNINGs are emitted (one per
     transport).
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     nats_h = _harness_over(
         _FailingMockTransport(
@@ -157,7 +157,7 @@ async def test_stage_scope_aexit_should_complete_even_when_every_unsubscribe_rai
     )
     await stage.connect()
 
-    with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+    with caplog.at_level(logging.WARNING, logger="admiral.stage"):
         async with stage.scenario("g2") as scope:
             scope.expect("topic.a", _PLACEHOLDER_MATCHER, on="nats")
             scope.expect("topic.b", _PLACEHOLDER_MATCHER, on="kafka")
@@ -270,7 +270,7 @@ async def test_stage_scope_aexit_should_propagate_a_body_exception_even_when_tea
 
     body_exception = RuntimeError("body blew up while teardown was unhappy")
 
-    with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+    with caplog.at_level(logging.WARNING, logger="admiral.stage"):
         try:
             with pytest.raises(RuntimeError, match="body blew up while teardown was unhappy"):
                 async with stage.scenario("g5") as scope:

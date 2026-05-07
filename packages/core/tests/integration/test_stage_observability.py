@@ -21,11 +21,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from choreo import Harness
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.stage import Stage
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.stage import Stage
+from admiral.transports import MockTransport
 
 from .conftest import mapped_bridge_for, two_harnesses  # noqa: F401
 
@@ -54,7 +54,7 @@ async def test_stage_construction_should_emit_a_stage_initialised_audit_log(
     """
     bridge = mapped_bridge_for("nats", "kafka")
 
-    with caplog.at_level(logging.INFO, logger="choreo.stage"):
+    with caplog.at_level(logging.INFO, logger="admiral.stage"):
         Stage(harnesses=two_harnesses, bridge=bridge)
 
     init_records = [r for r in caplog.records if r.getMessage() == "stage_initialised"]
@@ -112,7 +112,7 @@ async def test_stage_should_log_warning_when_from_wire_raises_during_diagnostics
     await stage.connect()
 
     try:
-        with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+        with caplog.at_level(logging.WARNING, logger="admiral.stage"):
             async with stage.scenario("m2") as scope:
                 # Register an expectation; the scope has wire_id
                 # `nats-logical-m2` for this transport.

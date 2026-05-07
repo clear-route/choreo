@@ -44,10 +44,10 @@ async def test_an_authenticated_nats_should_complete_a_round_trip_with_the_suppl
     nats_auth_password: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import NatsTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import NatsTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     topic = _unique_topic("authed.roundtrip")
     transport = NatsTransport(
@@ -77,8 +77,8 @@ async def test_an_authenticated_nats_should_refuse_to_connect_with_the_wrong_cre
     nats_auth_url: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo.transports import NatsTransport, TransportError
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import NatsTransport, TransportError
+    from admiral.transports.nats_auth import NatsAuth
 
     transport = NatsTransport(
         servers=[nats_auth_url],
@@ -101,8 +101,8 @@ async def test_an_authenticated_nats_should_clear_the_descriptor_after_a_success
     nats_auth_password: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo.transports import NatsTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import NatsTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     transport = NatsTransport(
         servers=[nats_auth_url],
@@ -128,10 +128,10 @@ async def test_an_authenticated_nats_with_a_resolver_should_complete_a_round_tri
     nats_auth_password: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import NatsTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import NatsTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     topic = _unique_topic("authed.resolver")
 
@@ -167,10 +167,10 @@ async def test_an_authenticated_nats_with_an_async_resolver_should_complete_a_ro
     nats_auth_password: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import NatsTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import NatsTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     topic = _unique_topic("authed.async_resolver")
 
@@ -204,10 +204,10 @@ async def test_an_authenticated_nats_connect_failure_should_not_leak_credentials
     nats_auth_url: str,
     _nats_auth_available: bool,
 ) -> None:
-    from choreo.transports import NatsTransport, TransportError
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import NatsTransport, TransportError
+    from admiral.transports.nats_auth import NatsAuth
 
-    bad_password = "choreo-e2e-bad-password-sentinel"
+    bad_password = "admiral-e2e-bad-password-sentinel"
     transport = NatsTransport(
         servers=[nats_auth_url],
         allowlist_path=allowlist_yaml_path,

@@ -40,10 +40,10 @@ async def test_two_concurrent_scenarios_on_the_same_topic_should_only_fulfil_the
     single publish to both subscriber callbacks. The scope's correlation
     filter must drop the one whose correlation doesn't match — without that,
     a single test message would fulfil every concurrent scope on the topic."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("concurrent")
     # Per-scope correlation filter is what this test exercises — the
@@ -97,8 +97,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
     """If the async bridge reorders publish coroutines, bursts will show up
     out-of-order at the subscriber. Mock cannot surface this — it dispatches
     synchronously in the publish() call frame."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("burst")
     count = 50
@@ -134,10 +134,10 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
     """Over the wire, any subscriber on a topic receives every publish.
     The scope's correlation filter is the isolation boundary. A foreign
     publish on the scope's topic must not attempt the matcher."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("foreign-corr")
     harness = Harness(
@@ -179,8 +179,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     the client must send an UNSUB line — a regression where unsubscribe is
     scheduled-but-never-awaited would still show the callback firing for
     later publishes."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("unsub")
     first_arrived = asyncio.Event()
@@ -226,8 +226,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
     must still be delivered. Without the try/except in `nats_handler`, an
     uncaught exception on the reader task would silently wedge the
     connection."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("bad-cb")
     good_got: list[bytes] = []
@@ -269,8 +269,8 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     """Impossible to model with MockTransport — there is no broker. Real
     brokers route by subject, so harness X must not observe messages on
     topics it did not subscribe to, even when harness Y publishes them."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic_x = _unique_topic("iso-x")
     topic_y = _unique_topic("iso-y")
@@ -317,8 +317,8 @@ async def test_reconnecting_after_disconnect_should_restore_subscribe_and_publis
     subscription map) must be cleared so a second connect on the same
     instance can open a fresh session. A leaked task or stale nc would
     make the second round of subscribe/publish misbehave."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("reconnect")
     transport = NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path)
@@ -358,7 +358,7 @@ async def test_connecting_to_an_unreachable_nats_port_should_raise_a_transport_e
     """MockTransport never fails to connect. A real transport must surface
     a clear error when the broker is not reachable — tests need the
     distinction between 'wrong config' and 'something weird happened'."""
-    from choreo.transports import NatsTransport, TransportError
+    from admiral.transports import NatsTransport, TransportError
 
     # Port 1 is reserved and will refuse. No allowlist — we are testing the
     # connection failure path, not the guard.
@@ -385,9 +385,9 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     (default 1 MiB). This test sits well below that cap but is large enough
     to force multiple TCP segments, catching any truncation or framing bug
     in the bridge."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("large")
     big_string = "x" * 65_536  # 64 KiB of payload body
@@ -425,10 +425,10 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     Opts into `test_namespace()` because the late publish echoes
     `s.correlation_id` onto its payload, which is only meaningful under a
     routing-capable policy (ADR-0019)."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("late")
     harness = Harness(
@@ -478,8 +478,8 @@ async def test_three_harnesses_should_each_receive_only_messages_on_topics_they_
     subscribes to its own distinct topic and publishes on it. Subject-based
     routing must isolate — harness A must not see harness B's or C's
     traffic. Impossible to exercise with MockTransport (no broker)."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topics = [_unique_topic(f"iso-{k}") for k in ("a", "b", "c")]
     harnesses = [
@@ -526,8 +526,8 @@ async def test_three_harnesses_subscribed_to_a_shared_topic_should_all_receive_a
     """NATS fan-out across distinct client connections. One publish from a
     fourth client must land on every subscribed connection. MockTransport
     cannot model separate-connection delivery at all."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("shared")
     subs = [
@@ -574,10 +574,10 @@ async def test_three_concurrent_scenarios_across_three_harnesses_should_only_ful
     sees the wire message (fan-out), but the correlation filter must
     ensure only the matching scope fulfils. The other two scopes must
     time out."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("three-scopes")
     harnesses = [
@@ -632,8 +632,8 @@ async def test_disconnecting_one_harness_should_not_disrupt_pub_sub_on_the_other
     remaining two must continue subscribing + publishing normally — a
     shared resource leak in one transport's cleanup could wedge the
     whole loop."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("drop-one")
     harnesses = [
@@ -686,10 +686,10 @@ async def test_a_scope_with_three_expectations_and_two_matching_publishes_should
     Only real wire can detect a bug where one subscription's delivery blocks
     another's — MockTransport dispatches sequentially inside the publish
     frame so interleaving is invisible."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic_a = _unique_topic("multi-a")
     topic_b = _unique_topic("multi-b")
@@ -725,10 +725,10 @@ async def test_a_scope_with_three_matching_publishes_should_pass_every_handle(
     """Happy path for the same multi-expectation shape. Confirms that a
     scope can track three async completions in parallel without any one
     stepping on another's future."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import NatsTransport
 
     topic_a = _unique_topic("multi-pass-a")
     topic_b = _unique_topic("multi-pass-b")
@@ -769,9 +769,9 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     iterations on a single harness, `active_subscription_count()` must
     return to zero — a leak that adds one sub per scope would silently eat
     memory and server-side subscription slots over a long test run."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("churn")
     harness = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
@@ -813,8 +813,8 @@ async def test_subscribing_the_same_callback_twice_should_deliver_twice_per_publ
     This pins the contract — changing to set-semantics (dedup) would be a
     silent behaviour change for any consumer that relies on N-way fan-out
     from repeated subscribes."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("double-sub")
     hits: list[bytes] = []
@@ -847,8 +847,8 @@ async def test_unsubscribing_each_duplicate_in_turn_should_reduce_delivery_count
     of the same callback must leave no server-side subscriptions — a
     regression where the second unsubscribe is a no-op would leak an
     orphan NATS subscription that keeps delivering forever."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     topic = _unique_topic("double-unsub")
     hits: list[bytes] = []
@@ -895,8 +895,8 @@ async def shared_nats_harness(allowlist_yaml_path: Path, nats_url: str, _nats_av
     that downstream consumers are expected to write (see CLAUDE.md). Any
     state that leaks between scenarios on the same harness instance will
     surface here."""
-    from choreo import Harness
-    from choreo.transports import NatsTransport
+    from admiral import Harness
+    from admiral.transports import NatsTransport
 
     h = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
     await h.connect()
@@ -915,7 +915,7 @@ async def test_a_shared_nats_harness_should_be_connected_when_received_by_a_test
 async def test_a_shared_nats_harness_should_run_a_scenario_to_completion(
     shared_nats_harness,
 ) -> None:
-    from choreo.matchers import field_equals
+    from admiral.matchers import field_equals
 
     topic = _unique_topic("shared-1")
     async with shared_nats_harness.scenario("shared-1") as s:
@@ -933,7 +933,7 @@ async def test_a_shared_nats_harness_should_carry_no_state_between_scenarios(
     subscriptions, correlation, or pending handles from the first. The
     previous test already ran a scope — if scope cleanup was partial,
     `active_subscription_count()` would be > 0 here."""
-    from choreo.matchers import field_equals
+    from admiral.matchers import field_equals
 
     assert shared_nats_harness.active_subscription_count() == 0
 

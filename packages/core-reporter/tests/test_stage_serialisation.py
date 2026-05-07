@@ -17,7 +17,7 @@ import re
 from typing import Any
 
 import pytest
-from choreo.scenario import (
+from admiral.scenario import (
     Handle,
     Outcome,
     ReplyReport,
@@ -26,14 +26,14 @@ from choreo.scenario import (
     TimelineAction,
     TimelineEntry,
 )
-from choreo.stage import (
+from admiral.stage import (
     StageReplyReport,
     StageReplyState,
     StageScenarioResult,
 )
-from choreo_reporter._collect import Collector
-from choreo_reporter._redact import RedactionStats
-from choreo_reporter._serialise import (
+from admiral_reporter._collect import Collector
+from admiral_reporter._redact import RedactionStats
+from admiral_reporter._serialise import (
     _serialise_reply_state,
     serialise_reply_report,
     serialise_scenario,
@@ -249,7 +249,7 @@ def test_a_stage_block_should_carry_sorted_transports():
 
 def test_stage_block_correlation_ids_should_be_hash_redacted():
     """Per PRD-012 §1.5.1: every per-transport correlation id in the
-    report is redacted via `choreo.redaction.redact_correlation_id`.
+    report is redacted via `admiral.redaction.redact_correlation_id`.
     Shape: `sha256:<16 hex>`."""
     handles = (
         _make_handle(transport="nats", wire_id="nats-3f2a91b8c4d50e1f"),
@@ -644,7 +644,7 @@ def test_a_single_harness_timeline_entry_should_omit_the_transport_key():
     """Byte-identity contract from PRD-012: single-`Harness` entries
     have `transport=None` and the reporter omits the JSON key entirely
     (no surprise `null` regression for v1.1-pinned consumers)."""
-    from choreo_reporter._serialise import serialise_timeline_entry
+    from admiral_reporter._serialise import serialise_timeline_entry
 
     entry = TimelineEntry(
         offset_ms=0.0,
@@ -663,7 +663,7 @@ def test_a_single_harness_timeline_entry_should_omit_the_transport_key():
 def test_a_timeline_entry_should_emit_source_when_set():
     """v1.3 schema field: `source` carries the DSL-surface attribution
     (`publish` / `expect` / `reply` / `scope`). Emitted when set."""
-    from choreo_reporter._serialise import serialise_timeline_entry
+    from admiral_reporter._serialise import serialise_timeline_entry
 
     entry = TimelineEntry(
         offset_ms=0.0,
@@ -682,7 +682,7 @@ def test_a_reply_chain_published_response_should_carry_source_reply_in_the_json(
     into the JSON's `scenario.timeline[].source`. Disambiguates the
     chain's automatic response from a test-side publish on the same
     topic without reading the test code."""
-    from choreo.stage import StageScenarioResult
+    from admiral.stage import StageScenarioResult
 
     handle = _make_handle(transport="kafka")
     test_pub = TimelineEntry(
@@ -733,8 +733,8 @@ def test_an_end_to_end_stage_scenario_should_emit_a_non_empty_timeline_in_the_re
     round-trip through the reporter into the JSON's
     `scenario.timeline[]` array - no longer the v2-era empty-list
     deferral marker."""
-    from choreo.scenario import Outcome
-    from choreo.stage import StageScenarioResult
+    from admiral.scenario import Outcome
+    from admiral.stage import StageScenarioResult
 
     # Construct a result mirroring what the framework produces today
     # for a Stage scope that published once and the matcher accepted.
@@ -791,9 +791,9 @@ def test_a_stage_timeline_should_round_trip_through_the_full_reporter_to_rendere
     between the two boundaries surfaces immediately."""
     import json as _json
 
+    from admiral.stage import StageScenarioResult
+    from admiral_reporter._template import render_html
     from bs4 import BeautifulSoup
-    from choreo.stage import StageScenarioResult
-    from choreo_reporter._template import render_html
 
     publish_entry = TimelineEntry(
         offset_ms=0.0,

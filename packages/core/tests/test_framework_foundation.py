@@ -6,7 +6,7 @@ backward-compat alias to the old underscored name),
 `StageScenarioResult.correlation_id` carrying the scope's logical id,
 and `Harness.transport_name` exposing the transport class name.
 
-Each test names a behaviour the choreo-reporter package depends on.
+Each test names a behaviour the admiral-reporter package depends on.
 The tests construct result objects directly where possible; the
 Stage-scope-teardown integration is exercised in
 `tests/integration/test_stage_result_shape.py`.
@@ -17,12 +17,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from choreo import (
+from admiral import (
     Harness,
     StageScenarioResult,
 )
-from choreo.scenario import ScenarioResult
-from choreo.transports import MockTransport
+from admiral.scenario import ScenarioResult
+from admiral.transports import MockTransport
 
 # ---------------------------------------------------------------------------
 # kind discriminator on ScenarioResult and StageScenarioResult
@@ -69,12 +69,12 @@ def test_kind_should_not_be_settable_at_construction_on_stage_results():
 # ---------------------------------------------------------------------------
 
 
-def test_StageScenarioResult_should_be_publicly_importable_from_choreo():
+def test_StageScenarioResult_should_be_publicly_importable_from_admiral():
     """The reporter imports the public type for isinstance dispatch.
     Must round-trip via the package surface, not just the internal
     module."""
-    from choreo import StageScenarioResult as PublicResult
-    from choreo.stage import StageScenarioResult as ModuleResult
+    from admiral import StageScenarioResult as PublicResult
+    from admiral.stage import StageScenarioResult as ModuleResult
 
     assert PublicResult is ModuleResult
 
@@ -83,7 +83,7 @@ def test_underscored_alias_should_remain_for_backward_compat():
     """In-tree code referring to `_StageScenarioResult` continues to
     import. PRD-012 §2.8 commits to a backward-compat alias for two
     minor versions."""
-    from choreo.stage import StageScenarioResult, _StageScenarioResult
+    from admiral.stage import StageScenarioResult, _StageScenarioResult
 
     assert _StageScenarioResult is StageScenarioResult
 

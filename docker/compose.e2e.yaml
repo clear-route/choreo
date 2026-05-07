@@ -26,7 +26,7 @@ services:
   # do not publish them onto the host's LAN.
   nats:
     image: nats:2.10-alpine
-    container_name: choreo-e2e-nats
+    container_name: admiral-e2e-nats
     profiles: ["all", "nats"]
     ports:
       - "127.0.0.1:4222:4222"   # client protocol
@@ -45,7 +45,7 @@ services:
   # leaks into test output.
   nats-auth:
     image: nats:2.10-alpine
-    container_name: choreo-e2e-nats-auth
+    container_name: admiral-e2e-nats-auth
     profiles: ["all", "nats", "nats-auth"]
     ports:
       - "127.0.0.1:4223:4222"
@@ -57,7 +57,7 @@ services:
       - "--user"
       - "test"
       - "--pass"
-      - "choreo-e2e-password-do-not-log"
+      - "admiral-e2e-password-do-not-log"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
       interval: 2s
@@ -70,7 +70,7 @@ services:
   # one external listener for clients connecting from the host.
   kafka:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: choreo-e2e-kafka
+    container_name: admiral-e2e-kafka
     profiles: ["all", "kafka"]
     ports:
       - "127.0.0.1:9092:9092"
@@ -96,7 +96,7 @@ services:
       # Deterministic cluster id so a container recreate reuses the same
       # KRaft metadata layout. KRaft rejects anything that is not a
       # 22-character base64-url-encoded UUID; the previous value
-      # "choreo-e2e-cluster-id" was not, and the container crash-looped
+      # "admiral-e2e-cluster-id" was not, and the container crash-looped
       # on every `docker compose restart` with
       # "Cluster ID string ... does not appear to be a valid UUID".
       # Value is `base64.urlsafe_b64encode(uuid.UUID(...).bytes).rstrip('=')`
@@ -128,7 +128,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-alpine
-    container_name: choreo-e2e-rabbitmq
+    container_name: admiral-e2e-rabbitmq
     profiles: ["all", "rabbitmq"]
     ports:
       - "127.0.0.1:5672:5672"     # AMQP
@@ -141,7 +141,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: choreo-e2e-redis
+    container_name: admiral-e2e-redis
     profiles: ["all", "redis"]
     ports:
       - "127.0.0.1:6379:6379"

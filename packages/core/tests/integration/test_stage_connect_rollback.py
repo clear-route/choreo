@@ -44,9 +44,9 @@ async def test_stage_connect_should_disconnect_already_connected_siblings_when_a
     Covers ADR-0027 §Validation "Connect rollback cleanly leaves no
     transport up".
     """
-    from choreo import Harness
-    from choreo.stage import Stage, StageConnectError
-    from choreo.transports import MockTransport
+    from admiral import Harness
+    from admiral.stage import Stage, StageConnectError
+    from admiral.transports import MockTransport
 
     alpha_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
@@ -91,9 +91,9 @@ async def test_stage_connect_should_disconnect_the_failing_transport_itself(
     Covers R4; ADR-0027 §Validation "Connect rollback disconnects the
     failing transport too".
     """
-    from choreo import Harness
-    from choreo.stage import Stage, StageConnectError
-    from choreo.transports import MockTransport
+    from admiral import Harness
+    from admiral.stage import Stage, StageConnectError
+    from admiral.transports import MockTransport
 
     sentinel = [0]  # mutable so the transport can mutate from inside connect/disconnect
 
@@ -145,7 +145,7 @@ async def test_stage_connect_should_surface_the_original_connect_error_when_roll
     Covers R15 (rollback isolation); ADR-0027 §Monitoring structured-log
     assertions.
     """
-    from choreo.stage import Stage, StageConnectError
+    from admiral.stage import Stage, StageConnectError
 
     alpha_h = _harness_over(
         _FailingMockTransport(
@@ -168,7 +168,7 @@ async def test_stage_connect_should_surface_the_original_connect_error_when_roll
         bridge=mapped_bridge_for("alpha", "beta"),
     )
 
-    with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+    with caplog.at_level(logging.WARNING, logger="admiral.stage"):
         with pytest.raises(StageConnectError) as excinfo:
             await stage.connect()
 
@@ -203,7 +203,7 @@ async def test_stage_connect_should_log_warning_when_failing_transport_disconnec
 
     Covers R4 + R15.
     """
-    from choreo.stage import Stage, StageConnectError
+    from admiral.stage import Stage, StageConnectError
 
     only_h = _harness_over(
         _FailingMockTransport(
@@ -219,7 +219,7 @@ async def test_stage_connect_should_log_warning_when_failing_transport_disconnec
         bridge=single_transport_bridge("only"),
     )
 
-    with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+    with caplog.at_level(logging.WARNING, logger="admiral.stage"):
         with pytest.raises(StageConnectError):
             await stage.connect()
 
@@ -247,7 +247,7 @@ async def test_stage_connect_should_leave_state_as_new_after_rollback(
 
     Covers R7 + the rollback->NEW state machine property.
     """
-    from choreo.stage import Stage, StageConnectError, StageStateError
+    from admiral.stage import Stage, StageConnectError, StageStateError
 
     only_h = _harness_over(
         _FailingMockTransport(
@@ -284,7 +284,7 @@ async def test_stage_connect_should_attempt_no_further_transports_after_first_fa
 
     Covers ADR-0027 §Implementation "fail-fast" guarantee.
     """
-    from choreo.stage import Stage, StageConnectError
+    from admiral.stage import Stage, StageConnectError
 
     ledger: list[tuple[str, str]] = []
 

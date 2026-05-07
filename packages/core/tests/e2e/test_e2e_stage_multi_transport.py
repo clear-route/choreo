@@ -20,11 +20,11 @@ import uuid
 from pathlib import Path
 
 import pytest
-from choreo import Harness
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import MappedBridge, Stage, StageReplyState
+from admiral import Harness
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import MappedBridge, Stage, StageReplyState
 
 pytestmark = pytest.mark.e2e
 
@@ -67,7 +67,7 @@ async def test_a_stage_over_nats_and_kafka_should_round_trip_a_cross_transport_r
     * `result.by_transport` reports per-transport handle attribution
       reflecting the real-wire round-trip.
     """
-    from choreo.transports import KafkaTransport, NatsTransport
+    from admiral.transports import KafkaTransport, NatsTransport
 
     request_topic = _unique_subject("request")
     response_topic = _unique_subject("response")
@@ -184,9 +184,9 @@ async def test_a_stage_should_roll_back_real_transports_when_one_fails_to_connec
     the Kafka transport's allowlist failure happens before any
     socket is opened.
     """
-    from choreo.environment import HostNotInAllowlist
-    from choreo.stage import StageConnectError
-    from choreo.transports import KafkaTransport, NatsTransport
+    from admiral.environment import HostNotInAllowlist
+    from admiral.stage import StageConnectError
+    from admiral.transports import KafkaTransport, NatsTransport
 
     nats_h = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
     bad_kafka_h = Harness(
@@ -235,7 +235,7 @@ async def test_a_stage_should_resolve_handles_as_timeout_when_a_real_transport_d
     transport-level error. Mirrors Group H's mock-based tests but
     against real brokers.
     """
-    from choreo.transports import KafkaTransport, NatsTransport
+    from admiral.transports import KafkaTransport, NatsTransport
 
     nats_h = Harness(NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path))
     kafka_h = Harness(

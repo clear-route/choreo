@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from choreo.environment import HostNotInAllowlist
-from choreo.transports import RedisTransport, TransportError
+from admiral.environment import HostNotInAllowlist
+from admiral.transports import RedisTransport, TransportError
 
 
 def test_a_redis_transport_constructed_with_no_url_should_raise() -> None:
@@ -43,7 +43,7 @@ async def test_a_redis_transport_should_raise_transport_error_when_redis_is_miss
     with pytest.raises(TransportError) as exc:
         await transport.connect()
     assert "redis" in str(exc.value)
-    assert "choreo[redis]" in str(exc.value)
+    assert "admiral[redis]" in str(exc.value)
 
 
 async def test_a_redis_transport_should_not_leak_credentials_in_connect_errors(

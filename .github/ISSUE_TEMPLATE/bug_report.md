@@ -21,7 +21,7 @@ What should happen.
 
 **Environment**
 - Python version:
-- choreo version:
+- admiral version:
 - Transport (Mock / NATS / Kafka / Rabbit / Redis):
 - OS:
 

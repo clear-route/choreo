@@ -1,4 +1,4 @@
-"""Shared fixtures for choreo-reporter tests.
+"""Shared fixtures for admiral-reporter tests.
 
 Every test uses `pytester` to spin up an isolated inner pytest session
 so the outer session's plugin state is not polluted.
@@ -55,9 +55,9 @@ def tiny_test_module() -> str:
     return f'''
 import pytest_asyncio
 
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.transports import MockTransport
 
 
 _ALLOWLIST_YAML = """{_ALLOWLIST_YAML}"""

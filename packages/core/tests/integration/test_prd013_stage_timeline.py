@@ -35,13 +35,13 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from choreo import Harness
-from choreo import test_namespace as _test_namespace
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.scenario import TimelineAction, TimelineEntry
-from choreo.stage import InvalidTransportNameError, Stage, StageScenarioResult
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral import test_namespace as _test_namespace
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.scenario import TimelineAction, TimelineEntry
+from admiral.stage import InvalidTransportNameError, Stage, StageScenarioResult
+from admiral.transports import MockTransport
 
 from .conftest import mapped_bridge_for
 

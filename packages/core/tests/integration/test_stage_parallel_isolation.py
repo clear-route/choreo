@@ -33,12 +33,12 @@ import json
 from contextlib import AsyncExitStack
 from pathlib import Path
 
-from choreo import Harness
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import MappedBridge, Stage
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import MappedBridge, Stage
+from admiral.transports import MockTransport
 
 # Number of concurrent scopes to exercise. Per the test plan, the
 # headline metric is "no cross-scope match across 100". Tuned high

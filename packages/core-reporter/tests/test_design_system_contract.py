@@ -20,14 +20,14 @@ from __future__ import annotations
 import re
 
 import pytest
+from admiral_reporter._template import render_html
 from bs4 import BeautifulSoup
-from choreo_reporter._template import render_html
 
 _CSS_COLOUR_LITERAL = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgb\s*\(|rgba\s*\(|hsl\s*\(|hsla\s*\(")
 
 
 def _load_css_block() -> str:
-    from choreo_reporter._template import _CSS  # noqa: PLC0415 — intentional
+    from admiral_reporter._template import _CSS  # noqa: PLC0415 — intentional
 
     return _CSS
 

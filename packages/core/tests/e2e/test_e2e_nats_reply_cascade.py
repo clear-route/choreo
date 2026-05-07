@@ -148,10 +148,10 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
     `message_received` propagation) requires a routing-capable policy —
     `test_namespace()` reproduces the pre-ADR-0019 stamping so each hop's
     outbound dict carries the scope's id for the next hop's expect filter."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import contains_fields, field_equals
-    from choreo.scenario import ReplyReportState
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import contains_fields, field_equals
+    from admiral.scenario import ReplyReportState
+    from admiral.transports import NatsTransport
 
     topics = _make_topics()
     transport = NatsTransport(
@@ -281,10 +281,10 @@ async def test_parallel_reply_scopes_over_nats_should_stay_isolated_by_correlati
     This test's whole premise is correlation-based isolation, so it
     configures `test_namespace()` explicitly. Without that opt-in the
     parallel scopes would cross-fire."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import ReplyReportState
-    from choreo.transports import NatsTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import ReplyReportState
+    from admiral.transports import NatsTransport
 
     N_SCOPES = 5
     # Topics shared across every scope — this is what makes the isolation

@@ -1,6 +1,6 @@
 # Chronicle — Longitudinal Test Performance Analytics
 
-A reporting server that ingests [Choreo](../core/) test results over time,
+A reporting server that ingests [Admiral](../core/) test results over time,
 stores them in TimescaleDB, detects latency regressions automatically, and
 serves an interactive dashboard.  It answers questions no single test report
 can: *"Is this topic getting slower?"*, *"What regressed after Tuesday's
@@ -10,16 +10,10 @@ deploy?"*, *"Which topics have the most budget violations this month?"*
 - TimescaleDB for time-series storage with continuous aggregates
 - React + Recharts dashboard (pre-built, included in the wheel — no Node.js needed)
 
-![Runs dashboard — pass rate, failures, and duration over time](../../docs/images/chronicle/runs.png)
-
-![Topic comparison — overlay P50/P95/P99 latency across topics](../../docs/images/chronicle/compare.png)
-
-![Topics list — per-topic latency stats with sorting](../../docs/images/chronicle/topics.png)
-
 ## Install
 
 ```bash
-pip install choreo-chronicle
+pip install admiral-chronicle
 ```
 
 For development from source:
@@ -134,10 +128,10 @@ See `config.py` for the full list.
 
 The React dashboard is pre-built in CI and included in the Python wheel
 via Hatchling `force-include`.  When a consumer runs `pip install
-choreo-chronicle`, they get a working dashboard without Node.js:
+admiral-chronicle`, they get a working dashboard without Node.js:
 
 ```
-choreo_chronicle-0.1.0.whl
+admiral_chronicle-0.1.0.whl
   chronicle/
     app.py, config.py, ...
     static/                ← pre-built React app

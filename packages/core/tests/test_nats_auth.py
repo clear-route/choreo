@@ -12,7 +12,7 @@ import pickle
 from pathlib import Path
 
 import pytest
-from choreo.transports.nats_auth import (
+from admiral.transports.nats_auth import (
     NatsAuth,
     _NatsUserPassword,
 )

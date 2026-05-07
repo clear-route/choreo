@@ -25,7 +25,7 @@ APPENDIX_A_EXAMPLE: dict = {
             "slow": 1,
             "total": 100,
         },
-        "project_name": "choreo",
+        "project_name": "admiral",
         "transport": "MockTransport",
         "allowlist_path": "config/allowlist.yaml",
         "python_version": "3.13.0",

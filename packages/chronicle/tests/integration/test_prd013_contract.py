@@ -3,7 +3,7 @@
 Mirrors `test_prd012_contract.py`'s pattern but for the v1.3 schema
 which adds `timeline_entry.source` (PRD-013 §1.6) on top of v1.2's
 `transport` / `logical_topic` / optional `topic`. The contract under
-test: a v1.3 Stage report emitted by the choreo-reporter must pass
+test: a v1.3 Stage report emitted by the admiral-reporter must pass
 Chronicle's ingest pipeline (Pydantic level 1 + JSON Schema level 2
 + normalisation) without 4xx or 5xx errors, with the optional
 v1.2/v1.3 fields flowing through unchanged.
@@ -79,7 +79,7 @@ def _v1_3_stage_report() -> dict[str, Any]:
                 "name": "test_round_trip",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 12.5,
                 "traceback": None,

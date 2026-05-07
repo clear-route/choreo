@@ -22,7 +22,6 @@ export function Shell() {
         <div className="flex items-center gap-6">
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-subtle">
             Chronicle
-            <span className="font-normal normal-case tracking-normal text-text-subtle/60 ml-1">by <a href="https://github.com/clear-route/choreo" className="text-text-muted hover:text-info transition-colors" target="_blank" rel="noopener noreferrer">Choreo</a></span>
           </span>
           <nav className="flex gap-0.5">
             {navItems.map((item) => (

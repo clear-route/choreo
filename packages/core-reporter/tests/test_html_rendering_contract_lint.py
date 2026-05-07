@@ -16,8 +16,8 @@ from __future__ import annotations
 
 import re
 
+from admiral_reporter._template import FORBIDDEN_JS_SINKS, render_html
 from bs4 import BeautifulSoup
-from choreo_reporter._template import FORBIDDEN_JS_SINKS, render_html
 
 _LINE_COMMENT = re.compile(r"//[^\n]*")
 _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)

@@ -1,8 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/clear-route/choreo/blob/main/docs/schemas/test-report-v1.0.json",
   "title": "Harness test report (v1.0; frozen)",
-  "description": "Structured capture of a single pytest run emitted by choreo-reporter (PRD-007 v1.0). Frozen baseline; PRD-012 supersedes via test-report-v1.1.json. Retained in tree for consumers pinned to v1.0.",
+  "description": "Structured capture of a single pytest run emitted by admiral-reporter (PRD-007 v1.0). Frozen baseline; PRD-012 supersedes via test-report-v1.1.json. Retained in tree for consumers pinned to v1.0.",
   "type": "object",
   "required": ["schema_version", "run", "tests"],
   "additionalProperties": false,
@@ -109,7 +108,7 @@
         "name",
         "class",
         "markers",
-        "choreo_meta",
+        "admiral_meta",
         "outcome",
         "duration_ms",
         "traceback",
@@ -126,7 +125,7 @@
         "name":         { "type": "string" },
         "class":        { "type": ["string", "null"] },
         "markers":      { "type": "array", "items": { "type": "string" } },
-        "choreo_meta":  {
+        "admiral_meta":  {
           "oneOf": [
             { "type": "null" },
             {

@@ -15,7 +15,7 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
-from choreo.scenario import TimelineAction, TimelineEntry, _Timeline
+from admiral.scenario import TimelineAction, TimelineEntry, _Timeline
 
 # ---------------------------------------------------------------------------
 # TimelineEntry: additive `transport` field
@@ -238,7 +238,7 @@ def test_a_timeline_entry_should_truncate_an_oversized_detail_at_construction():
     """Defence-in-depth: detail truncation lives in `_Timeline.record`,
     but `__post_init__` enforces the cap at construction so a future
     direct-construction call site cannot bypass it."""
-    from choreo.scenario import _TIMELINE_DETAIL_MAX_CHARS
+    from admiral.scenario import _TIMELINE_DETAIL_MAX_CHARS
 
     oversized = "a" * (_TIMELINE_DETAIL_MAX_CHARS * 2)
     entry = TimelineEntry(

@@ -9,8 +9,8 @@ import copy
 import logging
 
 import pytest
-from choreo.transports import MockTransport, TransportError
-from choreo.transports.nats_auth import NatsAuth
+from admiral.transports import MockTransport, TransportError
+from admiral.transports.nats_auth import NatsAuth
 
 # ---------------------------------------------------------------------------
 # Resolver failure redaction

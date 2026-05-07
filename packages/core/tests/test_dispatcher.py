@@ -26,7 +26,7 @@ def _make_scope(loop: asyncio.AbstractEventLoop, correlation_id: str) -> _FakeSc
 async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_correlation() -> (
     None
 ):
-    from choreo._internal import Dispatcher, LoopPoster
+    from admiral._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
@@ -54,7 +54,7 @@ async def test_the_dispatcher_should_deliver_inbound_to_the_scope_that_owns_the_
 async def test_an_unrecognised_correlation_should_go_to_the_surprise_log_without_the_payload() -> (
     None
 ):
-    from choreo._internal import Dispatcher, LoopPoster
+    from admiral._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
@@ -84,7 +84,7 @@ async def test_an_unrecognised_correlation_should_go_to_the_surprise_log_without
 async def test_a_message_arriving_after_its_scope_deregisters_should_be_classified_as_timeout_race() -> (
     None
 ):
-    from choreo._internal import Dispatcher, LoopPoster
+    from admiral._internal import Dispatcher, LoopPoster
 
     loop = asyncio.get_running_loop()
     dispatcher = Dispatcher(poster=LoopPoster(loop))
@@ -115,7 +115,7 @@ async def test_registering_an_extractor_that_deserialises_untrusted_data_should_
     """ADR-0004 §Security: extractors are pure parsing functions."""
     import pickle
 
-    from choreo._internal import Dispatcher, LoopPoster
+    from admiral._internal import Dispatcher, LoopPoster
 
     dispatcher = Dispatcher(poster=LoopPoster(asyncio.get_running_loop()))
     with pytest.raises(ValueError):
@@ -127,7 +127,7 @@ async def test_attempts_to_override_the_dispatchers_dispatch_method_should_fail_
 ):
     """Subclassing and overriding `dispatch` breaks the single-dispatch-point invariant.
     The framework must refuse at class creation, not at runtime."""
-    from choreo._internal import Dispatcher
+    from admiral._internal import Dispatcher
 
     with pytest.raises(TypeError):
 
@@ -137,7 +137,7 @@ async def test_attempts_to_override_the_dispatchers_dispatch_method_should_fail_
 
 
 async def test_generated_correlation_ids_should_be_unique() -> None:
-    from choreo import test_namespace
+    from admiral import test_namespace
 
     policy = test_namespace()
     ids = {await policy.new_id() for _ in range(100)}
@@ -145,7 +145,7 @@ async def test_generated_correlation_ids_should_be_unique() -> None:
 
 
 async def test_generated_correlation_ids_should_be_unguessable() -> None:
-    from choreo import test_namespace
+    from admiral import test_namespace
 
     policy = test_namespace()
     for _ in range(10):

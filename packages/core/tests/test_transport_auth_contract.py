@@ -10,8 +10,8 @@ from __future__ import annotations
 import pickle
 
 import pytest
-from choreo.transports import MockTransport, TransportError
-from choreo.transports.nats_auth import NatsAuth, _NatsToken
+from admiral.transports import MockTransport, TransportError
+from admiral.transports.nats_auth import NatsAuth, _NatsToken
 
 # ---------------------------------------------------------------------------
 # Helpers

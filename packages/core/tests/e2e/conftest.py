@@ -60,7 +60,7 @@ async def _nats_available(nats_url: str) -> bool:
         from nats.errors import TimeoutError as NatsTimeoutError
     except ImportError:
         pytest.skip(
-            "nats-py is not installed — run `pip install 'choreo[nats]'` to enable the e2e suite",
+            "nats-py is not installed — run `pip install 'admiral[nats]'` to enable the e2e suite",
             allow_module_level=False,
         )
     try:

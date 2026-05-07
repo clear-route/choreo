@@ -1,8 +1,8 @@
-# Framework Design — Choreo Internal Architecture
+# Framework Design — Admiral Internal Architecture
 
 ## Purpose of this document
 
-This is the internal design reference for Choreo. It covers *how the framework is built*: connection lifecycle, test isolation, timeout enforcement, dispatch, and the design patterns that underpin them.
+This is the internal design reference for Admiral. It covers *how the framework is built*: connection lifecycle, test isolation, timeout enforcement, dispatch, and the design patterns that underpin them.
 
 Related documents:
 
@@ -50,8 +50,8 @@ The `Harness` is the session-scoped facade. One instance per pytest run, shared 
 
 ```python
 from pathlib import Path
-from choreo import Harness
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.transports import MockTransport
 
 transport = MockTransport(allowlist_path=Path("config/allowlist.yaml"))
 harness = Harness(transport)
@@ -91,8 +91,8 @@ Without this, the Harness and the tests run on different loops, producing `Runti
 import os
 from pathlib import Path
 import pytest_asyncio
-from choreo import Harness
-from choreo.transports import MockTransport   # or NatsTransport, or your own
+from admiral import Harness
+from admiral.transports import MockTransport   # or NatsTransport, or your own
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness():
@@ -180,7 +180,7 @@ This is the thread-safety bridge. Without it, race conditions arise that are tim
 
 ### Adding a new backend
 
-Write a module under `packages/core/src/choreo/transports/` implementing the five methods above. The `connect()` implementation owns allowlist enforcement, credential handling, and socket setup. The Harness never sees those details.
+Write a module under `packages/core/src/admiral/transports/` implementing the five methods above. The `connect()` implementation owns allowlist enforcement, credential handling, and socket setup. The Harness never sees those details.
 
 ---
 
@@ -222,7 +222,7 @@ on_message callback (expect) / on_trigger callback (reply)
 
 ### Surprise log
 
-Messages the Dispatcher cannot route are recorded in a surprise log. Each entry carries only metadata — topic, correlation ID, payload size, and a classification string — never the raw payload. This prevents test-generated payloads (which may include sensitive data such as API keys or personal identifiers in an IoT or e-commerce context) from appearing in logs. Redaction scope beyond these defaults is a consumer-repo concern (see SECURITY.md).
+Messages the Dispatcher cannot route are recorded in a surprise log. Each entry carries only metadata — topic, correlation ID, payload size, and a classification string — never the raw payload. This prevents test-generated payloads (which may include sensitive data such as API keys or personal identifiers in an IoT or e-commerce context) from appearing in logs. Redaction scope beyond these defaults is a consumer-repo concern.
 
 Classifications:
 
@@ -455,7 +455,7 @@ A matcher is a frozen dataclass with a `description` string and a `match(payload
 
 ```python
 from dataclasses import dataclass
-from choreo.matchers import MatchResult
+from admiral.matchers import MatchResult
 
 @dataclass(frozen=True)
 class HasSagaStatus:
@@ -684,7 +684,7 @@ The timeline is bounded at 256 entries per scope. Overflow drops the oldest entr
 No payload content appears in logs. The surprise log carries metadata only (topic, correlation ID, size, classification). Builder errors in replies record the exception class name only. The HTML reporter passes all payload text through a pluggable redactor chain before rendering:
 
 ```python
-from choreo_reporter import register_redactor
+from admiral_reporter import register_redactor
 import re
 
 def mask_tokens(text: str) -> str:

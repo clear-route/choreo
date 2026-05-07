@@ -38,10 +38,10 @@ one `Stage`.
 ## Quickstart: NATS ↔ Kafka round-trip
 
 ```python
-from choreo import Harness, MappedBridge, Stage
-from choreo.correlation import DictFieldPolicy
-from choreo.matchers import field_equals
-from choreo.transports import KafkaTransport, NatsTransport
+from admiral import Harness, MappedBridge, Stage
+from admiral.correlation import DictFieldPolicy
+from admiral.matchers import field_equals
+from admiral.transports import KafkaTransport, NatsTransport
 
 # Per-transport correlation policy. Without this the wire id never
 # round-trips through the message and parallel-isolation breaks down
@@ -394,7 +394,7 @@ suspect:
 
 ## Reading the test report
 
-The `choreo-reporter` package emits `test-report/results.json` and
+The `admiral-reporter` package emits `test-report/results.json` and
 `test-report/index.html` per PRD-007;
 PRD-012 extends both
 surfaces with Stage-specific fields.
@@ -503,14 +503,14 @@ The v1.2 additions (still in effect) are: optional `transport`
 omit the field). The HTML report adds a Stage timeline banner,
 per-transport swim lanes, cross-transport reply arrows, and
 virtualisation for cap-saturated workloads. See PRD-013 for the
-full specification and the choreo-reporter README for the consumer
+full specification and the admiral-reporter README for the consumer
 contract.
 
 ### Wire-id redaction
 
 Stage per-transport correlation ids (framework: "wire ids") are
 hash-redacted at the report boundary via
-`choreo.redaction.redact_correlation_id` (SHA-256 truncated to 16
+`admiral.redaction.redact_correlation_id` (SHA-256 truncated to 16
 hex chars, prefixed `sha256:`). The framework's in-process `_redact()`
 for short-lived error messages is unchanged. Algorithm version is
 exposed in `run.redactions.redaction_version` (currently `"v1"`).
@@ -526,4 +526,4 @@ see ADR-0027 §Security Considerations.
 ## See also
 - [framework-design.md §12 — Multi-transport scenarios (Stage)](../framework-design.md#12-multi-transport-scenarios-stage)
 - [Test plan: 0027-stage-integration-tests.md](../test-plans/0027-stage-integration-tests.md)
-- [`choreo-reporter` README](../../packages/core-reporter/README.md) — full `data-*` tier table
+- [`admiral-reporter` README](../../packages/core-reporter/README.md) — full `data-*` tier table

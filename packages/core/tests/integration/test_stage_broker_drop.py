@@ -22,11 +22,11 @@ from pathlib import Path
 from typing import NamedTuple
 
 import pytest
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import Stage
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import Stage
+from admiral.transports import MockTransport
 
 from .conftest import (
     _FailingMockTransport,
@@ -166,7 +166,7 @@ async def test_stage_scope_aexit_should_complete_when_unsubscribe_raises_due_to_
     pair = _stage_with_droppable(allowlist_yaml_path)
     await pair.stage.connect()
     try:
-        with caplog.at_level(logging.WARNING, logger="choreo.stage"):
+        with caplog.at_level(logging.WARNING, logger="admiral.stage"):
             async with pair.stage.scenario("h3") as scope:
                 scope.expect("topic.x", _PLACEHOLDER_MATCHER, on="nats")
                 _drop(pair.droppable)

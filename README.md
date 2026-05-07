@@ -1,30 +1,23 @@
-<p align="center">
-  <img src="docs/logo.png" alt="Choreo" width="200">
-</p>
+<h1 align="center">Admiral</h1>
 
-<h1 align="center">Choreo</h1>
 
-<p align="center">
-  <strong>Python 3.11+</strong>&ensp;|&ensp;<strong>Apache 2.0</strong>&ensp;|&ensp;<a href="https://github.com/clear-route/choreo/actions/workflows/ci.yml">CI</a>&ensp;|&ensp;<a href="https://clear-route.github.io/choreo/">Live Test Report</a>
-</p>
-
-<p align="center"><em>Distributed systems need a choreographer.</em></p>
+<p align="center"><em>Distributed systems need a commander.</em></p>
 
 ---
 
-Choreo is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
+Admiral is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
 
 Supporting natively: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
 
 ---
 
-## When to use Choreo
+## When to use Admiral
 
-Use Choreo when your system is message-driven and your tests need to assert on what comes back over the wire: event pipelines, pub/sub fan-out, request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS read models.
+Use Admiral when your system is message-driven and your tests need to assert on what comes back over the wire: event pipelines, pub/sub fan-out, request/reply services, sagas, workflow orchestrators, IoT telemetry, CQRS read models.
 
 **Not a good fit for:** pure unit tests with no I/O, HTTP request/response testing (use `httpx` + `respx`), or synchronous Python-only fakes.
 
-Three things Choreo does that you will not find combined in any other Python test framework today.
+Three things Admiral does that you will not find combined in any other Python test framework today.
 
 ### Near-miss diagnostics: did the message arrive, or was it wrong?
 
@@ -93,9 +86,9 @@ Some services exist to translate between transports: an HTTP listener that pushe
 `Stage` is a coordinator that wraps a named registry of harnesses. One scenario can publish on transport A, register a reactive reply on transport B, and assert on transport A again, in a single deadline-bounded block.
 
 ```python
-from choreo import Stage, Harness, MappedBridge
-from choreo.transports import NatsTransport, KafkaTransport
-from choreo.correlation import DictFieldPolicy
+from admiral import Stage, Harness, MappedBridge
+from admiral.transports import NatsTransport, KafkaTransport
+from admiral.correlation import DictFieldPolicy
 
 stage = Stage(
     harnesses={
@@ -125,19 +118,19 @@ The full bridge round-trip in 13 lines of scenario body. Each transport keeps it
 ## Install
 
 ```bash
-pip install choreo-harness
+pip install admiral-harness
 
 # Add the broker extra(s) you need
-pip install 'choreo-harness[nats]'      # NATS
-pip install 'choreo-harness[kafka]'     # Kafka
-pip install 'choreo-harness[rabbitmq]'  # RabbitMQ
-pip install 'choreo-harness[redis]'     # Redis
+pip install 'admiral-harness[nats]'      # NATS
+pip install 'admiral-harness[kafka]'     # Kafka
+pip install 'admiral-harness[rabbitmq]'  # RabbitMQ
+pip install 'admiral-harness[redis]'     # Redis
 
 # Optional: pytest reporter plugin (HTML + JSON output)
-pip install choreo-reporter
+pip install admiral-reporter
 
 # Optional: longitudinal analytics server (TimescaleDB + React dashboard)
-pip install choreo-chronicle
+pip install admiral-chronicle
 ```
 
 - Python 3.11+
@@ -161,7 +154,7 @@ docker compose -f docker/compose.e2e.yaml --profile nats up -d
 
 ### 2. Allow the endpoint
 
-Choreo refuses to connect to anything that is not on an explicit allowlist. This is a safety guard
+Admiral refuses to connect to anything that is not on an explicit allowlist. This is a safety guard
 
 Create `config/allowlist.yaml`:
 
@@ -176,9 +169,9 @@ Create `tests/test_happy_path.py`:
 ```python
 from pathlib import Path
 
-from choreo import Harness
-from choreo.transports import NatsTransport
-from choreo.matchers import contains_fields, gt
+from admiral import Harness
+from admiral.transports import NatsTransport
+from admiral.matchers import contains_fields, gt
 
 
 async def test_a_created_order_should_be_processed_with_a_positive_count():
@@ -210,21 +203,6 @@ pytest tests/
 That is the whole loop. `pytest-asyncio` runs in `auto` mode with a session-scoped event loop, so `async def` tests need no decorator. Swap `NatsTransport` for `KafkaTransport`, `RabbitTransport`, or `RedisTransport` and nothing above the transport constructor changes.
 
 For real consumer repos, wrap `Harness` in a session-scoped `pytest_asyncio` fixture. See [Downstream consumer pattern](#downstream-consumer-pattern) below.
-
----
-
-## Examples
-
-Self-contained, runnable projects in [examples/](examples/):
-
-- **[examples/01-hello-world/](examples/01-hello-world/)**: the minimum useful test. Publish, expect, assert.
-- **[examples/02-request-reply/](examples/02-request-reply/)**: stage a fake upstream service inside the test with `on(trigger).publish(reply)`.
-- **[examples/03-parallel-isolation/](examples/03-parallel-isolation/)**: opt into a `CorrelationPolicy` so parallel scenarios don't cross-match.
-- **[examples/04-transport-auth/](examples/04-transport-auth/)**: wire a typed `auth=` descriptor into a transport, see credential lifecycle and redaction in action.
-- **[examples/05-auth-resolver/](examples/05-auth-resolver/)**: fetch credentials at `connect()` time via sync/async resolvers (env vars, Vault, Secrets Manager pattern).
-- **[examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/)**: testing a service that bridges two transports with `Stage` — a vendor-protocol adapter into the energy domain, a vendor → domain → vendor round-trip, and a dispatch orchestrator fanning out commands to multiple connected devices.
-
-Each example ships its own `README.md` explaining what it shows. Run any of them with `pytest examples/<dir>/`.
 
 ---
 
@@ -387,7 +365,7 @@ async with stage.scenario("bridge") as s:
     )
 ```
 
-The framework picks the trigger up on the Kafka harness, runs the builder, and emits the response on the NATS harness — correlation translation between the two is handled by the `CorrelationBridge` configured on the `Stage`. See [Multi-transport bridges (Stage)](#multi-transport-bridges-stage) and the worked example in [examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/).
+The framework picks the trigger up on the Kafka harness, runs the builder, and emits the response on the NATS harness — correlation translation between the two is handled by the `CorrelationBridge` configured on the `Stage`. See [Multi-transport bridges (Stage)](#multi-transport-bridges-stage).
 
 ---
 
@@ -398,7 +376,7 @@ stamped onto outbound messages, and read from inbound ones. The library
 ships three profiles:
 
 ```python
-from choreo import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
+from admiral import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
 
 #
 Harness(transport)
@@ -416,9 +394,6 @@ Harness(transport, correlation=DictFieldPolicy(field="trace_id"))
 | Downstream systems filter test traffic on `TEST-` | `test_namespace()` |
 | Correlation lives in a header, not the payload | Custom `CorrelationPolicy` |
 
-
-A working demonstration of parallel isolation with and without a policy
-lives in [examples/03-parallel-isolation/](examples/03-parallel-isolation/).
 
 ### When you also have a `CorrelationBridge`
 
@@ -438,21 +413,20 @@ onto each outbound message and reads it back on inbound, keeping
 concurrent scopes from cross-matching even on shared brokers.
 
 See the [Stage user guide](docs/guides/stage.md) for the full
-relationship and [examples/06-multi-transport-bridge/](examples/06-multi-transport-bridge/)
-for a worked example.
+relationship.
 
 ---
 
 ## Matchers
 
-Matchers live in `choreo.matchers`. They compose into expressive predicates
+Matchers live in `admiral.matchers`. They compose into expressive predicates
 over decoded payloads. See [docs/guides/matchers.md](docs/guides/matchers.md)
 for the full cookbook.
 
 ### Flat field matchers
 
 ```python
-from choreo.matchers import (
+from admiral.matchers import (
     field_equals, field_ne, field_in, field_gt, field_lt,
     field_exists, field_matches,
 )
@@ -489,7 +463,7 @@ Paths come in three forms:
 Leaves can be literals or other matchers.
 
 ```python
-from choreo.matchers import contains_fields, eq, ne, in_, gt, lt, matches, exists, all_of, not_
+from admiral.matchers import contains_fields, eq, ne, in_, gt, lt, matches, exists, all_of, not_
 
 s.expect("events.processed", contains_fields({
     "event": {
@@ -507,7 +481,7 @@ s.expect("events.processed", contains_fields({
 ### Composition and list quantifiers
 
 ```python
-from choreo.matchers import all_of, any_of, not_, every, any_element
+from admiral.matchers import all_of, any_of, not_, every, any_element
 
 all_of(field_equals("kind", "CREATE"), field_gt("count", 0))
 any_of(field_equals("status", "COMPLETED"), field_equals("status", "PART_COMPLETED"))
@@ -537,7 +511,7 @@ you have a decoded dict or string, use `field_matches` / `contains_fields`
 instead.
 
 ```python
-from choreo.matchers import payload_contains
+from admiral.matchers import payload_contains
 
 s.expect("frames.echo", payload_contains(b"MAGIC"))
 ```
@@ -564,12 +538,12 @@ you actually construct one.
 
 ```python
 from pathlib import Path
-from choreo.transports import NatsTransport
+from admiral.transports import NatsTransport
 
 transport = NatsTransport(
     servers=["nats://localhost:4222"],
     allowlist_path=Path("config/allowlist.yaml"),
-    name="my-suite",           # reported to broker (default: "choreo")
+    name="my-suite",           # reported to broker (default: "admiral")
     connect_timeout_s=5.0,     # total connect budget
 )
 ```
@@ -588,7 +562,7 @@ the `mock_endpoints` allowlist category.
 
 ```python
 from pathlib import Path
-from choreo.transports import MockTransport
+from admiral.transports import MockTransport
 
 transport = MockTransport(
     allowlist_path=Path("config/allowlist.yaml"),   # optional
@@ -608,7 +582,7 @@ from memory after `connect()` returns and never appear in `repr()`,
 `pickle`, error messages, or pytest assertion diffs.
 
 ```python
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 # Literal: credentials in source (fine for local dev / CI).
 transport = NatsTransport(
@@ -640,7 +614,7 @@ Vault and AWS Secrets Manager, and the consumer fixture pattern.
 ### Writing your own transport
 
 Drop a module under
-[packages/core/src/choreo/transports/](packages/core/src/choreo/transports/)
+[packages/core/src/admiral/transports/](packages/core/src/admiral/transports/)
 implementing the `Transport` Protocol. The `connect()` implementation is
 where your allowlist enforcement, credential handling, and socket setup
 all live. The Harness never sees those details.
@@ -667,8 +641,8 @@ class Transport(Protocol):
     def clear_subscriptions(self) -> None: ...
 ```
 
-Follow the pattern in [nats.py](packages/core/src/choreo/transports/nats.py)
-(asyncio-native) or [mock.py](packages/core/src/choreo/transports/mock.py)
+Follow the pattern in [nats.py](packages/core/src/admiral/transports/nats.py)
+(asyncio-native) or [mock.py](packages/core/src/admiral/transports/mock.py)
 (synchronous). The `on_sent` callback is how you report post-wire
 timing to the timeline. Fire it after the message is on the wire, on
 the asyncio loop thread.
@@ -677,9 +651,8 @@ the asyncio loop thread.
 
 ## Test report
 
-**[View the live test report →](https://clear-route.github.io/choreo/)**
 
-The **choreo-reporter** package is a pytest plugin that writes an
+The **admiral-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every
 pytest run.
 
@@ -719,7 +692,7 @@ What the report includes:
   output, and lets consumers layer on domain rules:
 
   ```python
-  from choreo_reporter import register_redactor
+  from admiral_reporter import register_redactor
 
   def mask_api_keys(text: str) -> str:
       return re.sub(r"sk-[A-Za-z0-9]{32}", "sk-REDACTED", text)
@@ -727,8 +700,7 @@ What the report includes:
   register_redactor(mask_api_keys)
   ```
 
-  Redaction is best-effort. See [SECURITY.md](SECURITY.md) for the
-  scope and the recommended posture for PII-heavy test suites.
+  Redaction is best-effort.
 
 - **pytest-xdist support.** Each worker writes partial JSON; the reporter
   merges them at session end.
@@ -758,7 +730,7 @@ reference, and deployment instructions.
 **Try it locally:**
 
 ```bash
-pip install choreo-chronicle
+pip install admiral-chronicle
 docker compose -f docker/compose.chronicle.yaml up -d
 DATABASE_URL=postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle \
   python -m chronicle migrate
@@ -826,11 +798,3 @@ ruff format packages/         # format
 ruff format --check packages/ # verify formatting without rewriting
 ```
 
----
-
-## Contributing
-
-Issues, bug reports, and pull requests are welcome. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
-[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community norms. The project
-is Apache 2.0 licensed.

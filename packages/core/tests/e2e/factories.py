@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from choreo.transports.base import TransportCapabilities
+from admiral.transports.base import TransportCapabilities
 
 # -- URL / endpoint resolution from env --------------------------------------
 
@@ -34,7 +34,7 @@ from choreo.transports.base import TransportCapabilities
 NATS_URL = os.environ.get("NATS_URL", "nats://localhost:4222")
 NATS_AUTH_URL = os.environ.get("NATS_AUTH_URL", "nats://localhost:4223")
 NATS_AUTH_USER = "test"
-NATS_AUTH_PASSWORD = "choreo-e2e-password-do-not-log"
+NATS_AUTH_PASSWORD = "admiral-e2e-password-do-not-log"
 KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
 AMQP_URL = os.environ.get("AMQP_URL", "amqp://guest:guest@localhost:5672/")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
@@ -97,7 +97,7 @@ class NatsFactory(TransportFactory):
             from nats.errors import TimeoutError as NatsTimeoutError
         except ImportError:
             return (
-                "nats-py is not installed — run `pip install 'choreo[nats]'` to "
+                "nats-py is not installed — run `pip install 'admiral[nats]'` to "
                 "enable the NATS contract tests"
             )
         try:
@@ -116,7 +116,7 @@ class NatsFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from choreo.transports import NatsTransport
+        from admiral.transports import NatsTransport
 
         return NatsTransport(servers=[NATS_URL], allowlist_path=allowlist_path)
 
@@ -148,7 +148,7 @@ class NatsAuthFactory(TransportFactory):
             from nats.errors import TimeoutError as NatsTimeoutError
         except ImportError:
             return (
-                "nats-py is not installed — run `pip install 'choreo[nats]'` to "
+                "nats-py is not installed — run `pip install 'admiral[nats]'` to "
                 "enable the NATS auth contract tests"
             )
         try:
@@ -169,8 +169,8 @@ class NatsAuthFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from choreo.transports import NatsTransport
-        from choreo.transports.nats_auth import NatsAuth
+        from admiral.transports import NatsTransport
+        from admiral.transports.nats_auth import NatsAuth
 
         return NatsTransport(
             servers=[NATS_AUTH_URL],
@@ -199,7 +199,7 @@ class KafkaFactory(TransportFactory):
             from aiokafka.errors import KafkaConnectionError, KafkaError
         except ImportError:
             return (
-                "aiokafka is not installed — run `pip install 'choreo[kafka]'` "
+                "aiokafka is not installed — run `pip install 'admiral[kafka]'` "
                 "to enable the Kafka contract tests"
             )
         producer = AIOKafkaProducer(
@@ -222,7 +222,7 @@ class KafkaFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from choreo.transports import KafkaTransport
+        from admiral.transports import KafkaTransport
 
         return KafkaTransport(
             bootstrap_servers=[KAFKA_BOOTSTRAP],
@@ -254,7 +254,7 @@ class RabbitFactory(TransportFactory):
             from aio_pika.exceptions import AMQPConnectionError
         except ImportError:
             return (
-                "aio-pika is not installed — run `pip install 'choreo[rabbitmq]'` "
+                "aio-pika is not installed — run `pip install 'admiral[rabbitmq]'` "
                 "to enable the RabbitMQ contract tests"
             )
         try:
@@ -269,7 +269,7 @@ class RabbitFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from choreo.transports import RabbitTransport
+        from admiral.transports import RabbitTransport
 
         return RabbitTransport(url=AMQP_URL, allowlist_path=allowlist_path)
 
@@ -294,7 +294,7 @@ class RedisFactory(TransportFactory):
             from redis.exceptions import RedisError
         except ImportError:
             return (
-                "redis is not installed — run `pip install 'choreo[redis]'` to "
+                "redis is not installed — run `pip install 'admiral[redis]'` to "
                 "enable the Redis contract tests"
             )
         client = Redis.from_url(REDIS_URL, socket_connect_timeout=2.0)
@@ -314,7 +314,7 @@ class RedisFactory(TransportFactory):
         return None
 
     def build(self, allowlist_path: Path) -> Any:
-        from choreo.transports import RedisTransport
+        from admiral.transports import RedisTransport
 
         return RedisTransport(url=REDIS_URL, allowlist_path=allowlist_path)
 

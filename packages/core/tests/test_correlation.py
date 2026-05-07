@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 import pytest
-from choreo import (
+from admiral import (
     CorrelationIdNotInNamespaceError,
     CorrelationPolicy,
     CorrelationPolicyError,
@@ -20,8 +20,8 @@ from choreo import (
     Harness,
     NoCorrelationPolicy,
 )
-from choreo import test_namespace as _ns
-from choreo.transports import MockTransport
+from admiral import test_namespace as _ns
+from admiral.transports import MockTransport
 
 
 def _mock_transport(allowlist_yaml_path: Path) -> MockTransport:
@@ -214,7 +214,7 @@ async def test_no_op_policy_against_mock_transport_should_not_warn(
         _mock_transport(allowlist_yaml_path),
         correlation=NoCorrelationPolicy(),
     )
-    with caplog.at_level(logging.WARNING, logger="choreo.harness"):
+    with caplog.at_level(logging.WARNING, logger="admiral.harness"):
         await harness.connect()
         try:
             pass
@@ -249,7 +249,7 @@ async def test_no_op_policy_against_non_mock_transport_should_warn(
             return 0
 
     harness = Harness(_FakeTransport(), correlation=NoCorrelationPolicy())  # type: ignore[arg-type]
-    with caplog.at_level(logging.WARNING, logger="choreo.harness"):
+    with caplog.at_level(logging.WARNING, logger="admiral.harness"):
         await harness.connect()
     messages = [r.getMessage() for r in caplog.records]
     assert any("correlator_noop_against_real_transport" in m for m in messages)
@@ -267,7 +267,7 @@ async def test_scenario_under_test_namespace_should_stamp_outbound_payloads(
     """End-to-end: with `test_namespace()` explicitly configured, a
     scenario publish stamps the configured dict field. This reproduces
     the pre-ADR-0019 captive behaviour."""
-    from choreo.matchers import payload_contains
+    from admiral.matchers import payload_contains
 
     harness = Harness(_mock_transport(allowlist_yaml_path), correlation=_ns())
     await harness.connect()
@@ -294,7 +294,7 @@ async def test_scenario_under_no_correlation_policy_should_not_stamp(
     """ADR-0019 core promise: under NoCorrelationPolicy, `s.publish(topic,
     payload)` produces exactly `payload` on the wire. No library-injected
     field."""
-    from choreo.matchers import payload_contains
+    from admiral.matchers import payload_contains
 
     harness = Harness(
         _mock_transport(allowlist_yaml_path),
@@ -362,7 +362,7 @@ async def test_a_broken_policy_write_should_raise_correlation_policy_error(
     """ADR-0019 §Security Considerations §Consumer-supplied policy trust
     boundary: a policy exception must surface as CorrelationPolicyError
     naming the policy class, not a bare RuntimeError."""
-    from choreo.matchers import payload_contains
+    from admiral.matchers import payload_contains
 
     harness = Harness(
         _mock_transport(allowlist_yaml_path),

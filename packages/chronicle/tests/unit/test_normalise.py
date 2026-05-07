@@ -73,7 +73,7 @@ class TestNormaliseScenarios:
                 "name": "test_baz",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 5.0,
                 "traceback": None,

@@ -37,10 +37,10 @@ async def test_two_concurrent_scenarios_on_the_same_kafka_topic_should_only_fulf
     """Both scenarios subscribe to the same topic; Kafka broadcasts to each
     consumer group. The scope's correlation filter must drop the one whose
     correlation doesn't match."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import KafkaTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import KafkaTransport
 
     topic = _topic("concurrent")
     # DictFieldPolicy is what exercises the per-scope correlation filter;
@@ -88,8 +88,8 @@ async def test_rapid_consecutive_publishes_should_arrive_at_the_subscriber_in_or
     """Kafka guarantees per-partition ordering. The auto-created topics in
     this suite have a single partition (cp-kafka's default), so every
     publish-to-the-same-topic sequence must arrive in order."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic = _topic("burst")
     count = 30
@@ -126,10 +126,10 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
 ) -> None:
     """Any subscriber on a topic receives every publish to it; the scope's
     correlation filter is the only isolation boundary."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import KafkaTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import KafkaTransport
 
     topic = _topic("foreign_corr")
     # See note above on DictFieldPolicy — this test exists specifically to
@@ -168,8 +168,8 @@ async def test_unsubscribing_should_stop_further_deliveries_over_the_wire(
     """Unsubscribe must tear down the AIOKafkaConsumer, not just remove the
     callback from a dict. A regression where the consumer keeps polling
     would still invoke the callback for later publishes."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic = _topic("unsub")
     first_arrived = asyncio.Event()
@@ -214,8 +214,8 @@ async def test_a_callback_that_raises_should_not_prevent_later_messages_from_bei
 ) -> None:
     """An exception in one callback must not kill the reader task or block
     another subscriber's delivery."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic = _topic("bad_cb")
     good_got: list[bytes] = []
@@ -259,8 +259,8 @@ async def test_two_independent_harnesses_on_the_same_broker_should_not_see_each_
     """Kafka routes by topic, so an AIOKafkaConsumer subscribed to topic X
     must not receive any record on topic Y even when both harnesses share
     the broker."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic_x = _topic("iso_x")
     topic_y = _topic("iso_y")
@@ -300,7 +300,7 @@ async def test_connecting_to_an_unreachable_kafka_port_should_raise_a_transport_
     """A real transport must surface a clear error when the broker is not
     reachable — tests need the distinction between 'wrong config' and
     'something weird happened'."""
-    from choreo.transports import KafkaTransport, TransportError
+    from admiral.transports import KafkaTransport, TransportError
 
     transport = KafkaTransport(
         bootstrap_servers=["127.0.0.1:1"],
@@ -324,9 +324,9 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     """Kafka's default max.message.bytes is 1 MiB; 64 KiB sits well below
     that but is large enough to force multiple TCP segments and exercise
     any truncation / framing bug in the aiokafka bridge."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import KafkaTransport
 
     topic = _topic("large")
     big = "x" * 65_536
@@ -362,8 +362,8 @@ async def test_a_subscriber_joining_after_a_publish_should_not_replay_the_earlie
     switched the consumer to ``earliest``, a subscribe following a publish
     would suddenly replay old records — breaking every test that assumes
     a silent topic means timeout."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic = _topic("late_sub")
     harness = Harness(
@@ -411,8 +411,8 @@ async def test_two_subscribes_on_one_harness_should_each_receive_every_message(
     broadcast fan-out matches NATS/Redis. Without that, two subscribes would
     share a single group and split partitions — only one callback would see
     each message."""
-    from choreo import Harness
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.transports import KafkaTransport
 
     topic = _topic("fanout")
     harness = Harness(
@@ -454,10 +454,10 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
 
     Opts into `test_namespace()` because the late publish echoes
     `s.correlation_id` onto its payload (ADR-0019)."""
-    from choreo import Harness, test_namespace
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
-    from choreo.transports import KafkaTransport
+    from admiral import Harness, test_namespace
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
+    from admiral.transports import KafkaTransport
 
     topic = _topic("late")
     harness = Harness(
@@ -503,9 +503,9 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     """Kafka consumers are heavy; a leak would pile up consumer groups
     server-side and AIOKafkaConsumer instances client-side. Fewer iterations
     than the NATS equivalent because each Kafka sub takes ~500ms to join."""
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.transports import KafkaTransport
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.transports import KafkaTransport
 
     topic = _topic("churn")
     harness = Harness(

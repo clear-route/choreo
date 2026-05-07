@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 import pytest
-from choreo_reporter._xdist import (
+from admiral_reporter._xdist import (
     PARTIAL_SUBDIR,
     cleanup_partial_dir,
     merge_partials,

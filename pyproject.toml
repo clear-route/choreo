@@ -1,12 +1,13 @@
 # Root-level pytest config only.
 #
 # The actual packages live under `packages/`:
-#   - packages/core           (the harness library)
-#   - packages/core-reporter  (pytest plugin, PRD-007)
+#   - packages/core           (the harness library — admiral-harness)
+#   - packages/core-reporter  (pytest plugin — admiral-reporter)
+#   - packages/chronicle      (reporting server — admiral-chronicle)
 #
-# Running `pytest` from the repo root picks up both suites. Each package also
-# has its own `pyproject.toml` with the same config so you can `cd packages/<name>
-# && pytest` for a focused run.
+# Running `pytest` from the repo root picks up all three suites. Each package
+# also has its own `pyproject.toml` with the same config so you can `cd
+# packages/<name> && pytest` for a focused run.
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -19,17 +20,17 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 markers = [
     "e2e: requires docker-compose services (NATS, Kafka, RabbitMQ, Redis). Run with `pytest -m e2e`; excluded by default via `pytest -m 'not e2e'`.",
-    "choreo(timeout_ms, tags): scenario metadata surfaced in the test report. timeout_ms sets the default await budget; tags are string labels for filtering and grouping.",
+    "admiral(timeout_ms, tags): scenario metadata surfaced in the test report. timeout_ms sets the default await budget; tags are string labels for filtering and grouping.",
     "chronicle_db: requires TimescaleDB via docker compose (docker/compose.chronicle.yaml). Run with `pytest -m chronicle_db`; excluded by default.",
 ]
 # Default addopts:
 #   --harness-report-disable: keep the reporter plugin quiet during the core
-#     suite; individual choreo-reporter tests opt into reporting via their own
+#     suite; individual admiral-reporter tests opt into reporting via their own
 #     pytester sessions.
 #   -n auto: pytest-xdist parallelism across logical CPUs. Tests are isolated
-#     by scope correlation IDs (ADR-0002) and UUID-suffixed topics in e2e, so
-#     parallel is safe. Override with `-n 0` (serial) or `-p no:xdist` when
-#     debugging a single failure and you want deterministic stdout order.
+#     by scope correlation IDs and UUID-suffixed topics in e2e, so parallel is
+#     safe. Override with `-n 0` (serial) or `-p no:xdist` when debugging a
+#     single failure and you want deterministic stdout order.
 addopts = "--harness-report-disable -n auto -m 'not chronicle_db'"
 
 # Ruff: single source of truth for lint + format across the monorepo.

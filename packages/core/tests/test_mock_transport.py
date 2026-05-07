@@ -13,7 +13,7 @@ import pytest
 
 
 async def test_a_mock_transport_should_tolerate_repeated_connect_calls() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -22,7 +22,7 @@ async def test_a_mock_transport_should_tolerate_repeated_connect_calls() -> None
 
 
 async def test_a_mock_transport_should_tolerate_repeated_disconnect_calls() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -31,7 +31,7 @@ async def test_a_mock_transport_should_tolerate_repeated_disconnect_calls() -> N
 
 
 async def test_publishing_should_deliver_the_payload_to_a_subscribed_callback() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -49,7 +49,7 @@ async def test_publishing_should_deliver_the_payload_to_a_subscribed_callback() 
 
 
 async def test_publishing_should_fan_out_to_every_callback_on_the_topic() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -67,7 +67,7 @@ async def test_publishing_should_fan_out_to_every_callback_on_the_topic() -> Non
 
 
 async def test_publishing_to_a_topic_with_no_subscribers_should_not_raise() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -77,7 +77,7 @@ async def test_publishing_to_a_topic_with_no_subscribers_should_not_raise() -> N
 
 
 async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -102,7 +102,7 @@ async def test_an_unsubscribed_callback_should_not_receive_subsequent_messages()
 
 
 async def test_a_disconnected_transport_should_reject_further_publishes() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -114,7 +114,7 @@ async def test_a_disconnected_transport_should_reject_further_publishes() -> Non
 
 
 async def test_a_mock_transport_should_record_every_publish_for_later_assertion() -> None:
-    from choreo.transports import MockTransport
+    from admiral.transports import MockTransport
 
     t = MockTransport()
     await t.connect()
@@ -140,15 +140,15 @@ async def test_a_mock_transport_given_an_auth_descriptor_should_log_a_warning_an
 ):
     import logging
 
-    from choreo.transports import MockTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import MockTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     t = MockTransport(auth=NatsAuth.token("test"))
     # caplog is not available in plain tests; use a manual handler
     records: list[logging.LogRecord] = []
     handler = logging.Handler()
     handler.emit = lambda r: records.append(r)  # type: ignore[assignment]
-    logger = logging.getLogger("choreo.transports.mock")
+    logger = logging.getLogger("admiral.transports.mock")
     logger.addHandler(handler)
     logger.setLevel(logging.WARNING)
     try:
@@ -164,8 +164,8 @@ async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_
     None
 ):
     """The clear runs before the WARNING so the payload cannot reference secrets."""
-    from choreo.transports import MockTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import MockTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     ba = bytearray(b"SECRET")
     descriptor = NatsAuth.nkey(ba)
@@ -180,7 +180,7 @@ async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_before_
 async def test_a_mock_transport_given_a_wrong_variant_descriptor_should_raise_the_same_way_a_real_transport_does() -> (
     None
 ):
-    from choreo.transports import MockTransport, TransportError
+    from admiral.transports import MockTransport, TransportError
 
     # Pass a non-descriptor via a resolver
     t = MockTransport(auth=lambda: "not-a-descriptor")  # type: ignore[arg-type]
@@ -189,8 +189,8 @@ async def test_a_mock_transport_given_a_wrong_variant_descriptor_should_raise_th
 
 
 async def test_a_mock_transport_given_an_auth_descriptor_should_clear_it_after_connect() -> None:
-    from choreo.transports import MockTransport
-    from choreo.transports.nats_auth import NatsAuth
+    from admiral.transports import MockTransport
+    from admiral.transports.nats_auth import NatsAuth
 
     t = MockTransport(auth=NatsAuth.token("ephemeral"))
     await t.connect()

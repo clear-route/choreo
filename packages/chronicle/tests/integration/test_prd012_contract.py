@@ -1,7 +1,7 @@
 """PRD-012 Phase 1 contract test: reporter → Chronicle round-trip.
 
 The contract under test is the Phase 1 exit gate (PRD-012 Implementation
-Plan §Phase 1): a v1.1 Stage report emitted by the choreo-reporter
+Plan §Phase 1): a v1.1 Stage report emitted by the admiral-reporter
 must pass Chronicle's ingest pipeline (Pydantic level 1, then
 normalisation, then repository writes) without 4xx or 5xx errors,
 preserving per-handle transport for downstream queries.
@@ -78,7 +78,7 @@ def _v1_1_stage_report() -> dict[str, Any]:
         "name": "test_round_trip",
         "class": None,
         "markers": [],
-        "choreo_meta": None,
+        "admiral_meta": None,
         "outcome": "passed",
         "duration_ms": 12.5,
         "traceback": None,

@@ -1,10 +1,10 @@
-"""Tests for `choreo.redaction` — report-boundary redaction (PRD-012 §1.5.1).
+"""Tests for `admiral.redaction` — report-boundary redaction (PRD-012 §1.5.1).
 
 The framework's in-process `_redact()` (head=8, tail=4, length annotation)
 is preserved for short-lived error messages. The on-disk `results.json`
 boundary uses a stricter hash-based redaction here: SHA-256 truncated
 to 16 hex chars, prefixed `sha256:`. Single source of truth — the
-choreo-reporter imports from this module rather than re-implementing.
+admiral-reporter imports from this module rather than re-implementing.
 
 Properties asserted:
 
@@ -23,7 +23,7 @@ from __future__ import annotations
 import re
 
 import pytest
-from choreo.redaction import REDACTION_VERSION, redact_correlation_id
+from admiral.redaction import REDACTION_VERSION, redact_correlation_id
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 

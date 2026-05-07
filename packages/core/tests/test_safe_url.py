@@ -9,7 +9,7 @@ appear in exception tracebacks, which reach CI logs and captured test output.
 
 from __future__ import annotations
 
-from choreo.transports.base import safe_url
+from admiral.transports.base import safe_url
 
 
 def test_safe_url_should_redact_both_user_and_password() -> None:

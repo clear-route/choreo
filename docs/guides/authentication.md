@@ -15,7 +15,7 @@ ADR-0020.
 ## The 30-second version
 
 ```python
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 # Literal — credentials in source (fine for local dev / CI).
 transport = NatsTransport(
@@ -68,7 +68,7 @@ broker.
 ### User/password
 
 ```python
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 transport = NatsTransport(
     servers=["nats://broker:4222"],
@@ -173,7 +173,7 @@ transport = NatsTransport(
 
 ```python
 import os
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 transport = NatsTransport(
     servers=["nats://broker:4222"],
@@ -188,7 +188,7 @@ transport = NatsTransport(
 
 ```python
 import hvac
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 async def vault_resolver():
     # hvac is sync; run in executor if latency matters.
@@ -208,7 +208,7 @@ transport = NatsTransport(
 ```python
 import json
 import aioboto3
-from choreo.transports import NatsTransport, NatsAuth
+from admiral.transports import NatsTransport, NatsAuth
 
 async def aws_resolver():
     session = aioboto3.Session()
@@ -237,8 +237,8 @@ from pathlib import Path
 
 import pytest_asyncio
 
-from choreo import Harness
-from choreo.transports import NatsTransport, NatsAuth
+from admiral import Harness
+from admiral.transports import NatsTransport, NatsAuth
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -273,13 +273,13 @@ shape (wrong variant = loud error), clears it, and emits a
   by changing one line.
 
 ```python
-from choreo.transports import MockTransport, NatsAuth
+from admiral.transports import MockTransport, NatsAuth
 
 # Works — shape-validated and discarded.
 transport = MockTransport(auth=NatsAuth.token("ignored"))
 
 # Fails loudly — wrong variant type.
-from choreo.transports.nats_auth import _NatsToken
+from admiral.transports.nats_auth import _NatsToken
 transport = MockTransport(auth="not-a-descriptor")  # TransportError
 ```
 

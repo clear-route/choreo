@@ -11,7 +11,7 @@ from __future__ import annotations
 
 
 def test_field_equals_should_emit_a_mismatch_failure_when_values_differ() -> None:
-    from choreo.matchers import MatchFailure, field_equals
+    from admiral.matchers import MatchFailure, field_equals
 
     result = field_equals("status", "PASS").match({"status": "FAIL"})
     assert result.matched is False
@@ -21,7 +21,7 @@ def test_field_equals_should_emit_a_mismatch_failure_when_values_differ() -> Non
 
 
 def test_field_equals_should_emit_a_missing_failure_when_the_field_is_absent() -> None:
-    from choreo.matchers import MatchFailure, field_equals
+    from admiral.matchers import MatchFailure, field_equals
 
     result = field_equals("status", "PASS").match({})
     assert result.matched is False
@@ -29,7 +29,7 @@ def test_field_equals_should_emit_a_missing_failure_when_the_field_is_absent() -
 
 
 def test_field_equals_should_not_emit_a_failure_when_matched() -> None:
-    from choreo.matchers import field_equals
+    from admiral.matchers import field_equals
 
     result = field_equals("status", "PASS").match({"status": "PASS"})
     assert result.matched is True
@@ -37,7 +37,7 @@ def test_field_equals_should_not_emit_a_failure_when_matched() -> None:
 
 
 def test_field_in_should_emit_a_predicate_failure_when_value_is_outside_the_set() -> None:
-    from choreo.matchers import MatchFailure, field_in
+    from admiral.matchers import MatchFailure, field_in
 
     result = field_in("reason", ("CREDIT", "LIMIT")).match({"reason": "OTHER"})
     assert result.failure == MatchFailure(
@@ -49,7 +49,7 @@ def test_field_in_should_emit_a_predicate_failure_when_value_is_outside_the_set(
 
 
 def test_field_gt_should_emit_a_predicate_failure_when_value_is_not_greater() -> None:
-    from choreo.matchers import MatchFailure, field_gt
+    from admiral.matchers import MatchFailure, field_gt
 
     result = field_gt("qty", 100).match({"qty": 99})
     assert result.failure == MatchFailure(
@@ -58,7 +58,7 @@ def test_field_gt_should_emit_a_predicate_failure_when_value_is_not_greater() ->
 
 
 def test_field_gt_should_emit_a_type_mismatch_failure_when_values_are_incomparable() -> None:
-    from choreo.matchers import MatchFailure, field_gt
+    from admiral.matchers import MatchFailure, field_gt
 
     result = field_gt("qty", 100).match({"qty": "not-a-number"})
     assert result.failure == MatchFailure(
@@ -70,7 +70,7 @@ def test_field_gt_should_emit_a_type_mismatch_failure_when_values_are_incomparab
 
 
 def test_field_lt_should_emit_a_predicate_failure_when_value_is_not_less() -> None:
-    from choreo.matchers import MatchFailure, field_lt
+    from admiral.matchers import MatchFailure, field_lt
 
     result = field_lt("qty", 100).match({"qty": 100})
     assert result.failure == MatchFailure(
@@ -79,7 +79,7 @@ def test_field_lt_should_emit_a_predicate_failure_when_value_is_not_less() -> No
 
 
 def test_field_exists_should_emit_a_missing_failure_when_the_key_is_absent() -> None:
-    from choreo.matchers import MatchFailure, field_exists
+    from admiral.matchers import MatchFailure, field_exists
 
     result = field_exists("booking_id").match({})
     assert result.failure == MatchFailure(
@@ -88,7 +88,7 @@ def test_field_exists_should_emit_a_missing_failure_when_the_key_is_absent() -> 
 
 
 def test_payload_contains_should_emit_a_predicate_failure_when_substring_is_absent() -> None:
-    from choreo.matchers import MatchFailure, payload_contains
+    from admiral.matchers import MatchFailure, payload_contains
 
     # R5 normalisation: `actual` carries the raw payload bytes directly (every
     # other matcher's `actual` is a scalar); reporter hex-encodes for display.
@@ -102,14 +102,14 @@ def test_payload_contains_should_emit_a_predicate_failure_when_substring_is_abse
 
 
 def test_eq_should_emit_a_mismatch_failure_against_the_whole_payload() -> None:
-    from choreo.matchers import MatchFailure, eq
+    from admiral.matchers import MatchFailure, eq
 
     result = eq(42).match(7)
     assert result.failure == MatchFailure(kind="mismatch", path="<root>", expected=42, actual=7)
 
 
 def test_in_should_emit_a_predicate_failure_when_value_is_outside_the_set() -> None:
-    from choreo.matchers import MatchFailure, in_
+    from admiral.matchers import MatchFailure, in_
 
     result = in_(("A", "B")).match("C")
     assert result.failure == MatchFailure(
@@ -118,7 +118,7 @@ def test_in_should_emit_a_predicate_failure_when_value_is_outside_the_set() -> N
 
 
 def test_gt_should_emit_a_type_mismatch_failure_for_incomparable_payloads() -> None:
-    from choreo.matchers import MatchFailure, gt
+    from admiral.matchers import MatchFailure, gt
 
     result = gt(10).match("x")
     assert result.failure == MatchFailure(
@@ -127,7 +127,7 @@ def test_gt_should_emit_a_type_mismatch_failure_for_incomparable_payloads() -> N
 
 
 def test_all_of_should_emit_a_composed_failure_carrying_the_first_failing_child() -> None:
-    from choreo.matchers import MatchFailure, all_of, field_equals
+    from admiral.matchers import MatchFailure, all_of, field_equals
 
     result = all_of(field_equals("a", 1), field_equals("b", 2)).match({"a": 1, "b": 99})
     assert result.failure is not None
@@ -140,7 +140,7 @@ def test_all_of_should_emit_a_composed_failure_carrying_the_first_failing_child(
 
 
 def test_any_of_should_emit_a_composed_failure_carrying_every_child() -> None:
-    from choreo.matchers import MatchFailure, any_of, field_equals
+    from admiral.matchers import MatchFailure, any_of, field_equals
 
     result = any_of(field_equals("a", 1), field_equals("a", 2)).match({"a": 99})
     assert result.failure is not None
@@ -156,7 +156,7 @@ def test_any_of_should_emit_a_composed_failure_carrying_every_child() -> None:
 
 
 def test_not_should_emit_a_predicate_failure_when_the_inner_matches() -> None:
-    from choreo.matchers import MatchFailure, field_equals, not_
+    from admiral.matchers import MatchFailure, field_equals, not_
 
     result = not_(field_equals("status", "PASS")).match({"status": "PASS"})
     assert result.failure == MatchFailure(
@@ -168,7 +168,7 @@ def test_not_should_emit_a_predicate_failure_when_the_inner_matches() -> None:
 
 
 def test_contains_fields_should_emit_a_mismatch_failure_with_the_walked_path() -> None:
-    from choreo.matchers import MatchFailure, contains_fields
+    from admiral.matchers import MatchFailure, contains_fields
 
     result = contains_fields({"item": {"status": "COMPLETED"}}).match({"item": {"status": "PART"}})
     assert result.failure == MatchFailure(
@@ -177,14 +177,14 @@ def test_contains_fields_should_emit_a_mismatch_failure_with_the_walked_path() -
 
 
 def test_contains_fields_should_emit_a_missing_failure_when_a_spec_key_is_absent() -> None:
-    from choreo.matchers import MatchFailure, contains_fields
+    from admiral.matchers import MatchFailure, contains_fields
 
     result = contains_fields({"item": {"status": "COMPLETED"}}).match({"item": {}})
     assert result.failure == MatchFailure(kind="missing", path="item.status", expected="COMPLETED")
 
 
 def test_contains_fields_should_reroot_an_embedded_matchers_failure_under_the_walked_path() -> None:
-    from choreo.matchers import MatchFailure, contains_fields, gt
+    from admiral.matchers import MatchFailure, contains_fields, gt
 
     result = contains_fields({"item": {"qty": gt(0)}}).match({"item": {"qty": -1}})
     assert result.failure == MatchFailure(
@@ -196,7 +196,7 @@ def test_contains_fields_should_reroot_an_embedded_matchers_failure_under_the_wa
 
 
 def test_contains_fields_should_emit_a_type_mismatch_failure_when_payload_is_wrong_shape() -> None:
-    from choreo.matchers import MatchFailure, contains_fields
+    from admiral.matchers import MatchFailure, contains_fields
 
     result = contains_fields({"item": {"status": "COMPLETED"}}).match({"item": "not-a-dict"})
     assert result.failure == MatchFailure(
@@ -220,7 +220,7 @@ def test_contains_fields_should_emit_a_type_mismatch_failure_when_payload_is_wro
 def test_contains_fields_should_reroot_children_of_a_composed_failure_from_a_user_matcher() -> None:
     from dataclasses import dataclass
 
-    from choreo.matchers import MatchFailure, MatchResult, contains_fields
+    from admiral.matchers import MatchFailure, MatchResult, contains_fields
 
     @dataclass(frozen=True)
     class UserComposite:
@@ -272,7 +272,7 @@ def test_contains_fields_should_reroot_a_user_matcher_whose_outer_path_is_not_ro
     of the actual walked position."""
     from dataclasses import dataclass
 
-    from choreo.matchers import MatchFailure, MatchResult, contains_fields
+    from admiral.matchers import MatchFailure, MatchResult, contains_fields
 
     @dataclass(frozen=True)
     class UserCompositeWithOwnPath:
@@ -316,7 +316,7 @@ def test_expected_shape_should_emit_a_debug_log_when_the_user_hook_raises(caplog
     import logging
     from dataclasses import dataclass
 
-    from choreo.matchers import MatchResult, _expected_shape
+    from admiral.matchers import MatchResult, _expected_shape
 
     @dataclass
     class Buggy:
@@ -328,7 +328,7 @@ def test_expected_shape_should_emit_a_debug_log_when_the_user_hook_raises(caplog
         def expected_shape(self):
             raise RuntimeError("kaboom")
 
-    with caplog.at_level(logging.DEBUG, logger="choreo.matchers"):
+    with caplog.at_level(logging.DEBUG, logger="admiral.matchers"):
         assert _expected_shape(Buggy()) is None
 
     # Some record names the matcher and the exception type. We do not assert

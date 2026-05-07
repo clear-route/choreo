@@ -1,4 +1,4 @@
-# choreo — Choreo test harness library
+# admiral — Admiral test harness library
 
 An async Python test framework for message-driven systems. Write tests that
 declare *"when I publish X, I expect Y"* and the harness handles routing,
@@ -13,20 +13,20 @@ works against all of them.
 - No runtime dependencies; `pytest`, `pytest-asyncio`, and `pyyaml` are test
   extras only.
 - Transport client libraries ship as optional extras
-  (`pip install 'choreo[nats]'`, `choreo[kafka]`, `choreo[rabbitmq]`, `choreo[redis]`).
+  (`pip install 'admiral[nats]'`, `admiral[kafka]`, `admiral[rabbitmq]`, `admiral[redis]`).
 
 ## Install
 
 ```bash
-pip install choreo               # library only
-pip install 'choreo[nats]'         # + NATS client for the e2e suite
-pip install 'choreo[nats,test]'    # + pytest + pytest-asyncio + pyyaml
+pip install admiral               # library only
+pip install 'admiral[nats]'         # + NATS client for the e2e suite
+pip install 'admiral[nats,test]'    # + pytest + pytest-asyncio + pyyaml
 ```
 
 Pair with the companion reporter plugin for HTML + JSON test output:
 
 ```bash
-pip install choreo-reporter
+pip install admiral-reporter
 ```
 
 ## Correlation policy
@@ -34,7 +34,7 @@ pip install choreo-reporter
 The library ships with three correlation profiles (ADR-0019):
 
 ```python
-from choreo import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
+from admiral import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace
 
 # Default — transparent passthrough. Payloads are unchanged; every live scope
 # on a topic sees every message (broadcast fallback). Safe on dedicated or
@@ -65,8 +65,8 @@ A, register a reactive reply on transport B, and assert on transport
 A again, all under one deadline.
 
 ```python
-from choreo import DictFieldPolicy, Harness, MappedBridge, Stage
-from choreo.transports import KafkaTransport, NatsTransport
+from admiral import DictFieldPolicy, Harness, MappedBridge, Stage
+from admiral.transports import KafkaTransport, NatsTransport
 
 stage = Stage(
     harnesses={
@@ -85,31 +85,3 @@ adds correlation translation and per-transport routing concepts that
 cost nothing on the multi-transport path but are unnecessary noise
 for a single-transport test.
 
-See `examples/06-multi-transport-bridge/` and the
-[Stage user guide](https://github.com/clear-route/choreo/blob/main/docs/guides/stage.md)
-for the full pattern.
-
-## Examples
-
-Runnable example projects live in the repo's `examples/` directory:
-
-- `examples/01-hello-world/` — minimum useful test.
-- `examples/02-request-reply/` — staging a fake upstream with `on().publish()`.
-- `examples/03-parallel-isolation/` — opting into a `CorrelationPolicy`.
-- `examples/04-transport-auth/` — wiring a typed `auth=` descriptor into a transport.
-- `examples/05-auth-resolver/` — fetching credentials at `connect()` time via sync / async resolvers.
-- `examples/06-multi-transport-bridge/` — testing a multi-transport bridge / orchestrator with `Stage`.
-
-```bash
-pytest examples/01-hello-world/
-```
-
-## Documentation
-
-See the project README at
-<https://github.com/clear-route/choreo> for architecture, the Scenario DSL,
-matchers, transports, and the downstream-consumer fixture pattern.
-
-## Licence
-
-Apache-2.0. See [LICENSE](LICENSE).

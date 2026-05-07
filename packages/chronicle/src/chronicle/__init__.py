@@ -1,3 +1,3 @@
-"""Chronicle — longitudinal reporting server for Choreo test performance analytics."""
+"""Chronicle — longitudinal reporting server for Admiral test performance analytics."""
 
 __all__: list[str] = []

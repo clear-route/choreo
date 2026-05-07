@@ -1,6 +1,6 @@
-# Project conventions — Choreo
+# Project conventions — Admiral
 
-This file captures project-specific conventions enforced in code review. Global style ([docs/context.md](docs/context.md) §15) still applies on top: UK English, no em-dashes in code, banned weasel words (`leverage`, `seamless`, `robust` as praise, `well-understood`, `easy to X`).
+This file captures project-specific conventions enforced in code review. Global style: UK English, no em-dashes in code, banned weasel words (`leverage`, `seamless`, `robust` as praise, `well-understood`, `easy to X`).
 
 ## Test style
 
@@ -35,7 +35,7 @@ A test asserts one thing. "Transport connects and disconnects idempotently" is t
 
 ### The library is a pure tool
 
-`choreo.Harness` is a transport-agnostic coordinator. The **transport** owns its
+`admiral.Harness` is a transport-agnostic coordinator. The **transport** owns its
 own config, its own connection logic, and its own allowlist enforcement. The
 library doesn't know or care whether you're talking to NATS, Kafka, RabbitMQ,
 Redis, or a mock.
@@ -44,9 +44,9 @@ Redis, or a mock.
 
 ```python
 from pathlib import Path
-from choreo import Harness
-from choreo.transports import MockTransport, NatsTransport
-from choreo.codecs import JSONCodec                         # default; or RawCodec, or yours
+from admiral import Harness
+from admiral.transports import MockTransport, NatsTransport
+from admiral.codecs import JSONCodec                         # default; or RawCodec, or yours
 
 transport = MockTransport(
     allowlist_path=Path("config/allowlist.yaml"),
@@ -68,10 +68,10 @@ The Harness never sees these; it just delegates `connect()` / `subscribe()` /
 
 ### Adding a new queue backend
 
-Write a module under `choreo/transports/` implementing the five-method `Transport`
+Write a module under `admiral/transports/` implementing the five-method `Transport`
 Protocol. Your `connect()` is responsible for any allowlist enforcement,
 credential handling, and socket opening specific to that backend. Follow the
-pattern in [packages/core/src/choreo/transports/mock.py](packages/core/src/choreo/transports/mock.py).
+pattern in [packages/core/src/admiral/transports/mock.py](packages/core/src/admiral/transports/mock.py).
 
 ### Allowlist files
 
@@ -129,7 +129,7 @@ dev:
 
 ## Downstream consumer usage
 
-The `choreo` package is designed to be installed by separate repos that test
+The `admiral` package is designed to be installed by separate repos that test
 their own services. Those repos build their own pytest fixture around the
 Harness — the library itself does not ship fixtures or read env vars.
 
@@ -142,8 +142,8 @@ from pathlib import Path
 
 import pytest_asyncio
 
-from choreo import Harness
-from choreo.transports import MockTransport     # or NatsTransport / KafkaTransport / ...
+from admiral import Harness
+from admiral.transports import MockTransport     # or NatsTransport / KafkaTransport / ...
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -192,7 +192,7 @@ exposes:
 - `handle.within_ms(budget_ms)` — declare a latency budget before `publish()`.
   Matched-but-over-budget resolves as `Outcome.SLOW`.
 
-Matchers live in `choreo.matchers`: `eq`, `in_`, `gt`, `lt`, `field_equals`,
+Matchers live in `admiral.matchers`: `eq`, `in_`, `gt`, `lt`, `field_equals`,
 `field_in`, `field_gt`, `field_lt`, `field_exists`, `payload_contains`,
 `all_of`, `any_of`, `not_`, and `contains_fields` (the shape-matcher used in
 the canonical consumer example above).
@@ -207,9 +207,9 @@ publish on transport A, register a reactive reply on transport B, and
 assert on transport A again, in a single deadline-bounded block.
 
 ```python
-from choreo import Harness, MappedBridge, Stage
-from choreo.correlation import DictFieldPolicy
-from choreo.transports import NatsTransport, KafkaTransport
+from admiral import Harness, MappedBridge, Stage
+from admiral.correlation import DictFieldPolicy
+from admiral.transports import NatsTransport, KafkaTransport
 
 stage = Stage(
     harnesses={
@@ -315,7 +315,7 @@ a non-default NATS instance — remember to add the URL to the allowlist's
 ## Chronicle — Reporting Server
 
 Chronicle is a FastAPI reporting server in `packages/chronicle/` that ingests
-Choreo `test-report-v1` JSON, stores it in TimescaleDB, runs anomaly detection,
+Admiral `test-report-v1` JSON, stores it in TimescaleDB, runs anomaly detection,
 and exposes a dashboard.
 
 ### Architecture: Repository + Service Layer
@@ -478,5 +478,4 @@ All conventions from the core library apply (§Test style above), plus:
 
 ## Related docs
 
-- [docs/context.md](docs/context.md) §15 — global writing style rules
 - [docs/framework-design.md](docs/framework-design.md) — architecture overview

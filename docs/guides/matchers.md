@@ -9,14 +9,14 @@ This guide is task-oriented: pick the shape of what you want to check,
 find the matching section, copy the pattern. For the rationale behind the
 design, see ADR-0013. For the
 exact signatures, the docstrings on
-[packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) are canonical.
+[packages/core/src/admiral/matchers.py](../../packages/core/src/admiral/matchers.py) are canonical.
 
 ---
 
 ## The 30-second version
 
 ```python
-from choreo.matchers import (
+from admiral.matchers import (
     field_equals, field_in, field_gt,
     contains_fields, eq, gt, in_, exists, matches,
     all_of, any_of, not_, every, any_element,
@@ -52,7 +52,7 @@ Every `field_*` matcher takes a path and a value. Paths traverse dicts
 with `.` and index into lists with integers:
 
 ```python
-from choreo.matchers import (
+from admiral.matchers import (
     field_equals, field_ne, field_in, field_gt, field_lt,
     field_exists, field_matches,
 )
@@ -107,7 +107,7 @@ your spec must appear in the payload at the same position; extra keys
 anywhere in the payload are fine.
 
 ```python
-from choreo.matchers import contains_fields
+from admiral.matchers import contains_fields
 
 contains_fields({
     "item": {
@@ -137,7 +137,7 @@ This is how you do comparisons, ranges, or set-membership without
 flattening everything back to top-level `all_of(field_*(...), ...)`.
 
 ```python
-from choreo.matchers import contains_fields, eq, gt, lt, in_, all_of, not_
+from admiral.matchers import contains_fields, eq, gt, lt, in_, all_of, not_
 
 contains_fields({
     "item": {
@@ -169,7 +169,7 @@ Five combinators work at any level — top-level or embedded inside
 `contains_fields`:
 
 ```python
-from choreo.matchers import all_of, any_of, not_, every, any_element
+from admiral.matchers import all_of, any_of, not_, every, any_element
 
 all_of(m1, m2, m3)      # every child must match
 any_of(m1, m2)          # at least one child must match
@@ -223,7 +223,7 @@ payload for some reason (wrong codec, binary handshake, garbled test
 fixture). It searches the raw bytes before any decode step.
 
 ```python
-from choreo.matchers import payload_contains
+from admiral.matchers import payload_contains
 
 payload_contains(b"MAGIC-HEADER")      # protocol-level probe
 ```
@@ -248,7 +248,7 @@ the canonical shape; any object matching the duck-type will work
 
 ```python
 from dataclasses import dataclass
-from choreo.matchers import MatchResult, contains_fields
+from admiral.matchers import MatchResult, contains_fields
 
 @dataclass(frozen=True)
 class IsEven:
@@ -366,7 +366,7 @@ that contains `"."` or to disambiguate a string key from a list index).
   pattern, what was considered, what the Protocol contract is.
   become PASS/FAIL/TIMEOUT outcomes on Handles.
   how `expect → publish → await_all` threads matchers into the scenario.
-- [packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) — the source.
+- [packages/core/src/admiral/matchers.py](../../packages/core/src/admiral/matchers.py) — the source.
   Every matcher is a short frozen dataclass; reading one is the fastest
   way to see how to write another.
 - [packages/core/tests/test_matchers.py](../../packages/core/tests/test_matchers.py) — one

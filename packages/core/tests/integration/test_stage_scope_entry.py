@@ -43,7 +43,7 @@ async def test_stage_scenario_should_raise_translation_error_when_fresh_raises(
     Covers R19; ADR-0027 §Validation "BridgeTranslationError wraps
     consumer-bridge exceptions".
     """
-    from choreo.stage import BridgeTranslationError, Stage
+    from admiral.stage import BridgeTranslationError, Stage
 
     injected = RuntimeError("fresh said no")
     bridge = _RaisingBridge(raise_on="fresh", exc=injected)
@@ -82,7 +82,7 @@ async def test_stage_scenario_should_raise_translation_error_when_to_wire_raises
 
     Covers R8 (eager mint), R19 (.original).
     """
-    from choreo.stage import BridgeTranslationError, Stage
+    from admiral.stage import BridgeTranslationError, Stage
 
     bridge = _PerTransportRaisingBridge(raises_for="kafka")
     stage = Stage(harnesses=two_harnesses, bridge=bridge)
@@ -116,7 +116,7 @@ async def test_stage_scenario_should_raise_ambiguity_error_when_real_logical_id_
     Covers R6 (smoke-test claim weakened — the second pass is what
     actually defends against in-flight collisions).
     """
-    from choreo.stage import BridgeAmbiguityError, Stage
+    from admiral.stage import BridgeAmbiguityError, Stage
 
     bridge = _SmokeTestEscapeBridge()
     stage = Stage(harnesses=two_harnesses, bridge=bridge)
@@ -154,9 +154,9 @@ async def test_stage_scenario_should_clean_up_partially_minted_state_when_mint_f
     Covers R8 (eager mint cleanup path); ADR-0027 §Implementation
     `_StageScenarioScope._teardown` on `__aenter__` failure.
     """
-    from choreo import Harness
-    from choreo.stage import BridgeTranslationError, Stage
-    from choreo.transports import MockTransport
+    from admiral import Harness
+    from admiral.stage import BridgeTranslationError, Stage
+    from admiral.transports import MockTransport
 
     alpha_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost")
@@ -215,7 +215,7 @@ async def test_stage_scenario_scope_should_not_be_re_entrant(
 
     Covers ADR-0027 §Validation "StageScenarioScope not re-entrant".
     """
-    from choreo.stage import Stage, StageStateError
+    from admiral.stage import Stage, StageStateError
 
     stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()

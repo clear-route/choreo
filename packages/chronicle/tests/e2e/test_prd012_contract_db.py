@@ -71,7 +71,7 @@ def _v1_1_stage_report() -> dict[str, Any]:
                 "name": "test_round_trip",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 12.5,
                 "traceback": None,

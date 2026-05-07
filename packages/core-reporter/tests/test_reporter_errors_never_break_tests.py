@@ -17,7 +17,7 @@ def test_a_broken_observer_should_not_break_the_outer_pytest_run(
 
         @pytest.fixture(autouse=True)
         def _register_broken_observer():
-            from choreo._reporting import register_observer, unregister_observer
+            from admiral._reporting import register_observer, unregister_observer
             def bad_cb(result, nodeid, completed_normally):
                 raise RuntimeError('observer blew up')
             register_observer(bad_cb)
@@ -26,9 +26,9 @@ def test_a_broken_observer_should_not_break_the_outer_pytest_run(
         """,
         test_broken_observer_scenario="""
 import pytest_asyncio
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -67,7 +67,7 @@ def test_when_serialisation_fails_the_session_exit_code_should_be_unaffected(
     pytester.makepyfile(
         conftest="""
         def pytest_sessionstart(session):
-            from choreo_reporter import _safepath
+            from admiral_reporter import _safepath
 
             original = _safepath.atomic_write_text
 

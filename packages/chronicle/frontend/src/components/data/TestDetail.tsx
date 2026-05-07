@@ -27,7 +27,7 @@ export function TestDetail({ test }: TestDetailProps) {
         </pre>
       ) : (
         <div className={`${caption} py-4 italic`}>
-          No Choreo scenarios in this test.
+          No Admiral scenarios in this test.
         </div>
       )}
     </div>

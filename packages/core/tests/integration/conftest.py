@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from choreo.transports import MockTransport
+from admiral.transports import MockTransport
 
 # ---------------------------------------------------------------------------
 # Harness construction helper
@@ -37,7 +37,7 @@ def _mock_harness(allowlist_yaml_path: Path, endpoint: str = "mock://localhost")
     the integration suite self-contained and to give us room to vary the
     transport without touching the unit-suite helper.
     """
-    from choreo import Harness
+    from admiral import Harness
 
     transport = MockTransport(
         allowlist_path=allowlist_yaml_path,
@@ -53,7 +53,7 @@ def _harness_over(transport: Any):
     resource-leaking, recording, droppable). The Harness construction is
     otherwise identical to `_mock_harness`.
     """
-    from choreo import Harness
+    from admiral import Harness
 
     return Harness(transport)
 
@@ -85,7 +85,7 @@ async def connected_stage(two_harnesses: dict[str, Any]):
     before yield and disconnected on teardown. Bridge is the canonical
     `mapped_bridge_for("nats", "kafka")`.
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()
@@ -105,7 +105,7 @@ async def open_scope(two_harnesses: dict[str, Any]):
     because it is not asserted on. Tests that need a custom bridge
     or transport set construct their own Stage inline.
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     stage = Stage(harnesses=two_harnesses, bridge=mapped_bridge_for("nats", "kafka"))
     await stage.connect()
@@ -192,7 +192,7 @@ class _SmokeTestEscapeBridge:
 
     Drives Group E scenario E3: the per-scope re-validation must catch
     bridges that pass startup distinctness but collide on the real
-    `bridge.fresh()` value. Imports `_SMOKE_INPUT` from `choreo.stage`
+    `bridge.fresh()` value. Imports `_SMOKE_INPUT` from `admiral.stage`
     so the synthetic-recognition logic stays pinned to the production
     constant — no silent drift if the production synthetic rotates.
     """
@@ -201,7 +201,7 @@ class _SmokeTestEscapeBridge:
         return "real-logical-id-collides"
 
     def to_wire(self, logical: Any, transport: str) -> str:
-        from choreo.stage import _SMOKE_INPUT
+        from admiral.stage import _SMOKE_INPUT
 
         if logical == _SMOKE_INPUT:
             return f"smoke-{transport}"  # distinct per transport
@@ -217,7 +217,7 @@ class _PerTransportRaisingBridge:
 
     Drives Group E scenarios where the failure point must be the eager
     mint at `__aenter__`, not the construction-time smoke test. Imports
-    `_SMOKE_INPUT` from `choreo.stage` so the smoke-test path stays
+    `_SMOKE_INPUT` from `admiral.stage` so the smoke-test path stays
     pinned to the production constant.
     """
 
@@ -231,7 +231,7 @@ class _PerTransportRaisingBridge:
         return "logical-per-transport"
 
     def to_wire(self, logical: Any, transport: str) -> str:
-        from choreo.stage import _SMOKE_INPUT
+        from admiral.stage import _SMOKE_INPUT
 
         if logical == _SMOKE_INPUT:
             # Construction-time smoke test: return distinct values so
@@ -259,7 +259,7 @@ def make_mapped_bridge(
     """Construct a MappedBridge with sensible default forwards for the
     canonical {nats, kafka} pair. Tests override `forwards` to drive
     transport-set mismatch scenarios."""
-    from choreo.stage import MappedBridge
+    from admiral.stage import MappedBridge
 
     if forwards is None:
         forwards = {
@@ -273,7 +273,7 @@ def single_transport_bridge(name: str):
     """Construct a MappedBridge for a single named transport. The forward
     function returns a name-prefixed wire id so distinctness is trivially
     satisfied; tests asserting failure modes do not need to vary it."""
-    from choreo.stage import MappedBridge
+    from admiral.stage import MappedBridge
 
     return MappedBridge(forwards={name: lambda logical: f"{name}-{logical}"})
 
@@ -284,7 +284,7 @@ def mapped_bridge_for(*names: str):
     function so the smoke-test distinctness check passes uniformly.
     Use this when the test cares about Stage behaviour across multiple
     transports but does not need bespoke bridge translation logic."""
-    from choreo.stage import MappedBridge
+    from admiral.stage import MappedBridge
 
     return MappedBridge(
         forwards={name: (lambda logical, n=name: f"{n}-{logical}") for name in names}

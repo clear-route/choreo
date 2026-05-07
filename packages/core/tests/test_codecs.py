@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from choreo.codecs import JSONCodec, RawCodec
+from admiral.codecs import JSONCodec, RawCodec
 
 # ---------------------------------------------------------------------------
 # JSONCodec

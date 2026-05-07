@@ -44,9 +44,9 @@ async def test_stage_disconnect_should_raise_exception_group_when_one_transport_
     Covers R11 (ExceptionGroup); ADR-0027 §Validation
     "StageDisconnectError is an ExceptionGroup".
     """
-    from choreo import Harness
-    from choreo.stage import Stage, StageDisconnectError
-    from choreo.transports import MockTransport
+    from admiral import Harness
+    from admiral.stage import Stage, StageDisconnectError
+    from admiral.transports import MockTransport
 
     only_h = _harness_over(
         _FailingMockTransport(
@@ -89,7 +89,7 @@ async def test_stage_disconnect_should_raise_exception_group_when_multiple_trans
 
     Covers R11.
     """
-    from choreo.stage import Stage, StageDisconnectError
+    from admiral.stage import Stage, StageDisconnectError
 
     alpha_h = _harness_over(
         _FailingMockTransport(
@@ -144,7 +144,7 @@ async def test_stage_disconnect_should_attempt_every_transport_even_when_one_fai
     Covers R11; ADR-0027 §Implementation "disconnect best-effort across
     all transports".
     """
-    from choreo.stage import Stage, StageDisconnectError
+    from admiral.stage import Stage, StageDisconnectError
 
     ledger: list[tuple[str, str]] = []
 
@@ -197,7 +197,7 @@ def _failing_disconnect_stage(allowlist_yaml_path: Path):
     """Local helper: a single-transport Stage whose only transport's
     disconnect always raises. Used by D4a / D4b to remove construction
     boilerplate when the failure mode is the same."""
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     only_h = _harness_over(
         _FailingMockTransport(
@@ -222,7 +222,7 @@ async def test_stage_disconnect_should_be_idempotent_after_a_disconnect_failure(
 
     Covers R7.
     """
-    from choreo.stage import Stage, StageDisconnectError
+    from admiral.stage import Stage, StageDisconnectError
 
     stage = _failing_disconnect_stage(allowlist_yaml_path)
     assert isinstance(stage, Stage)
@@ -246,7 +246,7 @@ async def test_stage_connect_should_be_rejected_after_a_disconnect_failure(
     Covers R7; the lifecycle invariant that disconnect failure does
     NOT leave the Stage retry-eligible.
     """
-    from choreo.stage import StageDisconnectError, StageStateError
+    from admiral.stage import StageDisconnectError, StageStateError
 
     stage = _failing_disconnect_stage(allowlist_yaml_path)
     await stage.connect()

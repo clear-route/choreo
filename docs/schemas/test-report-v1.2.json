@@ -1,8 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/clear-route/choreo/blob/main/docs/schemas/test-report-v1.2.json",
   "title": "Harness test report (v1.2)",
-  "description": "Structured capture of a single pytest run emitted by choreo-reporter (PRD-007 v1.2, with Stage scenario timeline capture per PRD-013). Additive over v1.1: schema_version bumps from '1.1' to '1.2'; timeline_entry.topic relaxed to optional (omitted for scope-level events such as DEADLINE, see PRD-013 §D-3); new optional timeline_entry.transport with regex pattern; new optional timeline_entry.logical_topic for cross-transport bridge translation. Single-Harness entries continue to omit the new optional fields entirely (byte-identity preserved per PRD-012 §1.5). Reply state enum is unchanged.",
+  "description": "Structured capture of a single pytest run emitted by admiral-reporter (PRD-007 v1.2, with Stage scenario timeline capture per PRD-013). Additive over v1.1: schema_version bumps from '1.1' to '1.2'; timeline_entry.topic relaxed to optional (omitted for scope-level events such as DEADLINE, see PRD-013 §D-3); new optional timeline_entry.transport with regex pattern; new optional timeline_entry.logical_topic for cross-transport bridge translation. Single-Harness entries continue to omit the new optional fields entirely (byte-identity preserved per PRD-012 §1.5). Reply state enum is unchanged.",
   "type": "object",
   "required": ["schema_version", "run", "tests"],
   "additionalProperties": false,
@@ -96,7 +95,7 @@
             "fields": { "type": "integer", "minimum": 0 },
             "stream_matches": { "type": "integer", "minimum": 0 },
             "redaction_version": {
-              "description": "Algorithm version emitted by choreo.redaction.redact_wire_id. Bumps if the algorithm tightens. Absent for v1.0-style reports that did not emit hash-redacted wire ids.",
+              "description": "Algorithm version emitted by admiral.redaction.redact_wire_id. Bumps if the algorithm tightens. Absent for v1.0-style reports that did not emit hash-redacted wire ids.",
               "type": "string",
               "pattern": "^v[0-9]+$"
             }
@@ -128,7 +127,7 @@
         "name",
         "class",
         "markers",
-        "choreo_meta",
+        "admiral_meta",
         "outcome",
         "duration_ms",
         "traceback",
@@ -145,7 +144,7 @@
         "name":         { "type": "string" },
         "class":        { "type": ["string", "null"] },
         "markers":      { "type": "array", "items": { "type": "string" } },
-        "choreo_meta":  {
+        "admiral_meta":  {
           "oneOf": [
             { "type": "null" },
             {
@@ -216,7 +215,7 @@
               }
             },
             "correlation_ids": {
-              "description": "Map of transport name to the per-transport correlation id stamped onto outbound messages by the bridge. Keys mirror the `transports` array (transport names; same regex). Values are HASH-REDACTED via `choreo.redaction.redact_correlation_id` (SHA-256 truncated to 16 hex chars, prefixed `sha256:`). Each Stage handle's `correlation_id` field carries the same redacted form for its transport.",
+              "description": "Map of transport name to the per-transport correlation id stamped onto outbound messages by the bridge. Keys mirror the `transports` array (transport names; same regex). Values are HASH-REDACTED via `admiral.redaction.redact_correlation_id` (SHA-256 truncated to 16 hex chars, prefixed `sha256:`). Each Stage handle's `correlation_id` field carries the same redacted form for its transport.",
               "type": "object",
               "propertyNames": {
                 "pattern": "^[a-zA-Z0-9_-]{1,64}$"

@@ -38,7 +38,7 @@ async def test_stage_connect_should_raise_state_error_when_called_twice(
     Covers R7 (explicit state machine);
     ADR-0027 §Validation "State machine rejects re-use".
     """
-    from choreo.stage import Stage, StageStateError
+    from admiral.stage import Stage, StageStateError
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
     await stage.connect()
@@ -63,7 +63,7 @@ async def test_stage_connect_should_raise_state_error_when_called_after_disconne
 
     Covers R7.
     """
-    from choreo.stage import Stage, StageStateError
+    from admiral.stage import Stage, StageStateError
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
     await stage.connect()
@@ -88,7 +88,7 @@ def test_stage_scenario_should_raise_state_error_when_called_before_connect(
     Covers R7;
     ADR-0027 §Validation "stage.scenario() rejects pre-connect".
     """
-    from choreo.stage import Stage, StageStateError
+    from admiral.stage import Stage, StageStateError
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
 
@@ -109,7 +109,7 @@ async def test_stage_scenario_should_raise_state_error_when_called_after_disconn
 
     Covers R7.
     """
-    from choreo.stage import Stage, StageStateError
+    from admiral.stage import Stage, StageStateError
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
     await stage.connect()
@@ -135,7 +135,7 @@ async def test_stage_disconnect_should_not_raise_when_called_a_second_time(
     Covers R7;
     ADR-0027 §Validation "disconnect() is idempotent".
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
     await stage.connect()
@@ -160,7 +160,7 @@ async def test_stage_disconnect_should_not_re_invoke_harness_disconnect_on_secon
 
     Covers R7; complements B5a with the call-count observable.
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     ledger: list[tuple[str, str]] = []
     nats_h = _harness_over(
@@ -208,7 +208,7 @@ async def test_stage_disconnect_should_be_idempotent_when_never_connected(
 
     Covers R7.
     """
-    from choreo.stage import Stage
+    from admiral.stage import Stage
 
     stage = Stage(harnesses=two_harnesses, bridge=make_mapped_bridge())
 

@@ -28,11 +28,11 @@ import json
 from pathlib import Path
 from typing import NamedTuple
 
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import Stage, StageReplyState
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import Stage, StageReplyState
+from admiral.transports import MockTransport
 
 from .conftest import (
     _FailingMockTransport,
@@ -372,7 +372,7 @@ async def test_stage_cross_transport_reply_should_use_response_context_correlati
     introduced the `DictFieldPolicy` configuration this assertion
     requires.
     """
-    from choreo.correlation import DictFieldPolicy
+    from admiral.correlation import DictFieldPolicy
 
     nats_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),

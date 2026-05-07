@@ -13,21 +13,21 @@ import pytest
 
 
 def test_a_fresh_handle_should_report_pending_outcome() -> None:
-    from choreo.scenario import Handle, Outcome
+    from admiral.scenario import Handle, Outcome
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     assert h.outcome is Outcome.PENDING
 
 
 def test_was_fulfilled_should_be_false_before_resolution() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     assert h.was_fulfilled() is False
 
 
 def test_reading_message_before_resolution_should_raise() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     with pytest.raises(RuntimeError):
@@ -35,7 +35,7 @@ def test_reading_message_before_resolution_should_raise() -> None:
 
 
 def test_reading_latency_before_resolution_should_raise() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     with pytest.raises(RuntimeError):
@@ -43,7 +43,7 @@ def test_reading_latency_before_resolution_should_raise() -> None:
 
 
 def test_the_handle_repr_should_not_contain_the_payload() -> None:
-    from choreo.scenario import Handle, Outcome
+    from admiral.scenario import Handle, Outcome
 
     h = Handle(topic="orders.booked", matcher_description="m", correlation_id="c")
     h._message = {"isin": "US91282CJW46", "qty": 1_000_000}
@@ -55,7 +55,7 @@ def test_the_handle_repr_should_not_contain_the_payload() -> None:
 
 
 def test_the_handle_should_not_be_pickleable() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     with pytest.raises((TypeError, pickle.PicklingError)):
@@ -63,7 +63,7 @@ def test_the_handle_should_not_be_pickleable() -> None:
 
 
 def test_was_fulfilled_should_be_true_when_outcome_is_pass() -> None:
-    from choreo.scenario import Handle, Outcome
+    from admiral.scenario import Handle, Outcome
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     h.outcome = Outcome.PASS
@@ -71,7 +71,7 @@ def test_was_fulfilled_should_be_true_when_outcome_is_pass() -> None:
 
 
 def test_was_fulfilled_should_be_false_when_outcome_is_timeout() -> None:
-    from choreo.scenario import Handle, Outcome
+    from admiral.scenario import Handle, Outcome
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     h.outcome = Outcome.TIMEOUT
@@ -79,7 +79,7 @@ def test_was_fulfilled_should_be_false_when_outcome_is_timeout() -> None:
 
 
 def test_was_fulfilled_should_be_false_when_outcome_is_fail() -> None:
-    from choreo.scenario import Handle, Outcome
+    from admiral.scenario import Handle, Outcome
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     h.outcome = Outcome.FAIL
@@ -92,14 +92,14 @@ def test_was_fulfilled_should_be_false_when_outcome_is_fail() -> None:
 
 
 def test_a_fresh_handle_should_report_no_last_mismatch_payload() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     assert h.last_mismatch_payload is None
 
 
 def test_a_fresh_handle_should_report_no_matcher_expected_shape() -> None:
-    from choreo.scenario import Handle
+    from admiral.scenario import Handle
 
     h = Handle(topic="t", matcher_description="m", correlation_id="c")
     assert h.matcher_expected is None

@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from choreo.environment import HostNotInAllowlist
-from choreo.transports import KafkaTransport, TransportError
+from admiral.environment import HostNotInAllowlist
+from admiral.transports import KafkaTransport, TransportError
 
 
 def test_a_kafka_transport_constructed_with_no_bootstrap_servers_should_raise() -> None:
@@ -47,4 +47,4 @@ async def test_a_kafka_transport_should_raise_transport_error_when_aiokafka_is_m
     with pytest.raises(TransportError) as exc:
         await transport.connect()
     assert "aiokafka" in str(exc.value)
-    assert "choreo[kafka]" in str(exc.value)
+    assert "admiral[kafka]" in str(exc.value)

@@ -129,7 +129,7 @@ def make_report(
                 "name": "test_bar",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 10.0,
                 "traceback": None,

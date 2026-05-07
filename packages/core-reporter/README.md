@@ -1,6 +1,6 @@
-# choreo-reporter — pytest plugin for Choreo
+# admiral-reporter — pytest plugin for Admiral
 
-Interactive HTML + JSON test reports for the [`choreo`](https://pypi.org/project/choreo/)
+Interactive HTML + JSON test reports for the [`admiral`](https://pypi.org/project/admiral/)
 message-driven test harness.
 
 Installing this package registers a pytest plugin that, at suite exit, emits a
@@ -14,7 +14,7 @@ Installing this package registers a pytest plugin that, at suite exit, emits a
   denylisted field names such as `password` / `token` / `api_key`).
 - Hash-based redaction of multi-transport (`Stage`) per-transport
   correlation ids at the report boundary via
-  `choreo.redaction.redact_correlation_id`. Internally
+  `admiral.redaction.redact_correlation_id`. Internally
   the framework calls these "wire ids" (the bridge's `to_wire` output);
   at the report boundary they surface as `correlation_id` for
   consistency with `Handle.correlation_id`.
@@ -23,7 +23,7 @@ Installing this package registers a pytest plugin that, at suite exit, emits a
 ## Install
 
 ```bash
-pip install choreo-reporter
+pip install admiral-reporter
 ```
 
 Once installed, the plugin loads automatically on the next `pytest` run.
@@ -37,7 +37,7 @@ addopts = --harness-report=test-report
 ```
 
 Disable with `--harness-report-disable`. Register a custom redactor for
-domain-specific payload shapes via `choreo_reporter.register_redactor(...)`.
+domain-specific payload shapes via `admiral_reporter.register_redactor(...)`.
 
 ## DSL-source attribution on timeline entries — PRD-013 v1.3
 
@@ -264,9 +264,9 @@ Consumer reliance on advisory-tier attributes is at consumer risk.
 ### Wire-id redaction at the report boundary
 
 The framework's in-process `_redact()` (head=8, tail=4, length annotation;
-defined in `choreo.stage`) is preserved for short-lived error messages.
+defined in `admiral.stage`) is preserved for short-lived error messages.
 The on-disk `results.json` boundary uses **hash-based redaction** via
-`choreo.redaction.redact_wire_id` — SHA-256 truncated to 16 hex chars,
+`admiral.redaction.redact_wire_id` — SHA-256 truncated to 16 hex chars,
 prefixed `sha256:`. The two are deliberately decoupled: error messages
 need to be human-debuggable in the moment; archived reports need to
 resist greppable correlation across months of retention.
@@ -281,14 +281,3 @@ entropy. The shipped `IdentityBridge` and `MappedBridge` use
 custom bridge that derives `fresh()` from low-entropy sources (request
 id, sequence number, customer id) defeats redaction — see ADR-0027
 §Security Considerations.
-
-## Documentation
-
-See the project README at
-<https://github.com/clear-route/choreo> for the full architecture, the
-Scenario DSL, and the report schema.
-- [Stage user guide](../../docs/guides/stage.md) — §"Reading the test report"
-
-## Licence
-
-Apache-2.0. See [LICENSE](LICENSE).

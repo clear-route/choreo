@@ -1,7 +1,7 @@
 """Behavioural tests for the scenario observer seam (PRD-007 §2).
 
-The observer registry in `choreo._reporting` is the single library-surface
-contact point between `core` and the future external `choreo-reporter`
+The observer registry in `admiral._reporting` is the single library-surface
+contact point between `core` and the future external `admiral-reporter`
 package. Tests here assert behaviours observable by a reporter: emission
 timing, payload content, isolation, and failure containment.
 """
@@ -17,8 +17,8 @@ import pytest_asyncio
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness(allowlist_yaml_path: Path):
-    from choreo import Harness
-    from choreo.transports import MockTransport
+    from admiral import Harness
+    from admiral.transports import MockTransport
 
     transport = MockTransport(
         allowlist_path=allowlist_yaml_path,
@@ -35,11 +35,11 @@ async def harness(allowlist_yaml_path: Path):
 @pytest.fixture(autouse=True)
 def _clean_observer_registry():
     """Snapshot any pre-existing observers (e.g. those a surrounding
-    choreo-reporter plugin registered) and restore them after the test.
+    admiral-reporter plugin registered) and restore them after the test.
     The test body sees an empty registry so its assertions about
     registration/notification are deterministic, but the outer session's
     observer is not poisoned."""
-    from choreo._reporting import _observers
+    from admiral._reporting import _observers
 
     snapshot = list(_observers)
     _observers.clear()
@@ -56,7 +56,7 @@ def _clean_observer_registry():
 
 
 def test_registering_an_observer_twice_should_only_keep_one_copy() -> None:
-    from choreo._reporting import _observers, register_observer
+    from admiral._reporting import _observers, register_observer
 
     def cb(result, nodeid, completed_normally):
         pass
@@ -67,7 +67,7 @@ def test_registering_an_observer_twice_should_only_keep_one_copy() -> None:
 
 
 def test_unregistering_an_unknown_observer_should_be_a_no_op() -> None:
-    from choreo._reporting import unregister_observer
+    from admiral._reporting import unregister_observer
 
     def cb(result, nodeid, completed_normally):
         pass
@@ -83,8 +83,8 @@ def test_unregistering_an_unknown_observer_should_be_a_no_op() -> None:
 async def test_a_registered_observer_should_receive_the_result_from_await_all(
     harness,
 ) -> None:
-    from choreo._reporting import register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import register_observer
+    from admiral.matchers import field_equals
 
     received: list[tuple] = []
 
@@ -108,8 +108,8 @@ async def test_a_registered_observer_should_receive_the_result_from_await_all(
 async def test_an_observer_should_receive_the_nodeid_from_the_contextvar(
     harness,
 ) -> None:
-    from choreo._reporting import current_test_nodeid, register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import current_test_nodeid, register_observer
+    from admiral.matchers import field_equals
 
     received_nodeid: list[str | None] = []
 
@@ -133,8 +133,8 @@ async def test_an_observer_should_receive_the_nodeid_from_the_contextvar(
 async def test_an_observer_should_receive_none_nodeid_when_no_test_context_is_set(
     harness,
 ) -> None:
-    from choreo._reporting import current_test_nodeid, register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import current_test_nodeid, register_observer
+    from admiral.matchers import field_equals
 
     received_nodeid: list[str | None] = []
 
@@ -143,7 +143,7 @@ async def test_an_observer_should_receive_none_nodeid_when_no_test_context_is_se
 
     register_observer(cb)
 
-    # An upstream plugin (e.g. choreo-reporter when installed) may have
+    # An upstream plugin (e.g. admiral-reporter when installed) may have
     # set the contextvar for the outer test. Reset it to exercise the
     # no-context branch of `_emit`.
     token = current_test_nodeid.set(None)
@@ -161,8 +161,8 @@ async def test_an_observer_should_receive_none_nodeid_when_no_test_context_is_se
 async def test_an_observer_that_raises_should_not_break_the_scenario(
     harness,
 ) -> None:
-    from choreo._reporting import register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import register_observer
+    from admiral.matchers import field_equals
 
     def bad_cb(result, nodeid, completed_normally):
         raise RuntimeError("observer blew up")
@@ -182,8 +182,8 @@ async def test_an_observer_that_raises_should_not_break_the_scenario(
 async def test_unregistering_an_observer_should_stop_future_notifications(
     harness,
 ) -> None:
-    from choreo._reporting import register_observer, unregister_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import register_observer, unregister_observer
+    from admiral.matchers import field_equals
 
     received: list = []
 
@@ -220,8 +220,8 @@ async def test_a_scope_that_raises_before_await_all_should_emit_a_partial(
     the reporter would otherwise see nothing. A partial `ScenarioResult`
     is emitted with `completed_normally=False` so the report can still
     show what happened (PRD-007 Decision #24)."""
-    from choreo._reporting import register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import register_observer
+    from admiral.matchers import field_equals
 
     received: list[tuple] = []
 
@@ -247,8 +247,8 @@ async def test_a_scope_that_raises_after_await_all_should_not_emit_a_second_time
 ) -> None:
     """If `await_all` already ran, the observer was already notified. A
     subsequent raise in the scope body must not double-emit."""
-    from choreo._reporting import register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import register_observer
+    from admiral.matchers import field_equals
 
     received: list = []
 
@@ -278,8 +278,8 @@ async def test_concurrent_scenarios_should_each_see_their_own_nodeid(
     """Two scenarios run under different contextvar values; each observer
     call carries the nodeid that was active when that scenario's
     `await_all` fired, not the other scenario's."""
-    from choreo._reporting import current_test_nodeid, register_observer
-    from choreo.matchers import field_equals
+    from admiral._reporting import current_test_nodeid, register_observer
+    from admiral.matchers import field_equals
 
     captured: list[tuple[str, str | None]] = []
 
@@ -315,7 +315,7 @@ async def test_concurrent_scenarios_should_each_see_their_own_nodeid(
 async def test_a_matched_handle_should_expose_the_matchers_expected_shape(
     harness,
 ) -> None:
-    from choreo.matchers import field_equals
+    from admiral.matchers import field_equals
 
     async with harness.scenario("expected-shape") as s:
         handle = s.expect("t.shape", field_equals("qty", 1000))
@@ -331,8 +331,8 @@ async def test_a_rejected_handle_should_capture_the_last_rejected_payload(
     """For FAIL outcomes, the reporter needs the payload that the matcher
     rejected so it can render the actual-side of the expected-vs-actual
     diff. Previously only the reason was retained."""
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
 
     async with harness.scenario("rejection-payload") as s:
         handle = s.expect("t.rej", field_equals("status", "ACCEPTED"))
@@ -352,8 +352,8 @@ async def test_a_rejected_handle_should_capture_the_last_rejected_payload(
 async def test_a_handle_with_no_attempts_should_have_null_last_mismatch_payload(
     harness,
 ) -> None:
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
 
     async with harness.scenario("silent") as s:
         handle = s.expect("never.arrives", field_equals("k", "v"))

@@ -23,8 +23,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from admiral_reporter._template import render_html
 from bs4 import BeautifulSoup
-from choreo_reporter._template import render_html
 
 
 def _stage_report_json() -> dict[str, Any]:
@@ -70,7 +70,7 @@ def _stage_report_json() -> dict[str, Any]:
                 "name": "test_round_trip",
                 "class": None,
                 "markers": [],
-                "choreo_meta": None,
+                "admiral_meta": None,
                 "outcome": "passed",
                 "duration_ms": 12.5,
                 "traceback": None,

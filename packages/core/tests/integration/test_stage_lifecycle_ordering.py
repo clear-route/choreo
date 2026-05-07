@@ -19,7 +19,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from choreo.stage import Stage, StageConnectError
+from admiral.stage import Stage, StageConnectError
 
 from .conftest import (
     _FailingMockTransport,

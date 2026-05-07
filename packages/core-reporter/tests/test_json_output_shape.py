@@ -52,9 +52,9 @@ def test_a_failing_scenario_should_be_reported_with_fail_outcome(
 ) -> None:
     module_src = """
 import pytest_asyncio
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -113,9 +113,9 @@ def test_a_silent_timeout_should_carry_a_silent_timeout_diagnosis(
     in the report data, not inferred from prose."""
     module_src = """
 import pytest_asyncio
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -186,9 +186,9 @@ def test_a_scenario_with_replies_should_carry_reply_reports_and_timeline_events(
     scope's timeline so the HTML renders them inline."""
     module_src = """
 import pytest_asyncio
-from choreo import Harness
-from choreo.matchers import field_equals
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.matchers import field_equals
+from admiral.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -246,8 +246,8 @@ def test_a_scenario_with_a_reply_builder_error_should_report_reply_failed(
 ) -> None:
     module_src = """
 import pytest_asyncio
-from choreo import Harness
-from choreo.transports import MockTransport
+from admiral import Harness
+from admiral.transports import MockTransport
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
@@ -317,10 +317,10 @@ def test_the_project_name_flag_should_override_the_default(
     report_dir = pytester.path / "report"
     pytester.runpytest(
         f"--harness-report={report_dir}",
-        "--harness-report-project-name=choreo",
+        "--harness-report-project-name=admiral",
     )
     doc = json.loads((report_dir / "results.json").read_text())
-    assert doc["run"]["project_name"] == "choreo"
+    assert doc["run"]["project_name"] == "admiral"
 
 
 def test_the_project_name_env_var_should_apply_when_no_flag_is_given(

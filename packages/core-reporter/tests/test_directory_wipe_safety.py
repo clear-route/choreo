@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from choreo_reporter._safepath import (
+from admiral_reporter._safepath import (
     SENTINEL_FILENAME,
     UnsafeReportPath,
     contains_only_known_entries,

@@ -18,9 +18,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from choreo.matchers import field_equals
-from choreo.scenario import Outcome
-from choreo.stage import MissingTransportError, UnknownTransportError
+from admiral.matchers import field_equals
+from admiral.scenario import Outcome
+from admiral.stage import MissingTransportError, UnknownTransportError
 
 # A placeholder matcher used by every DSL-error test. The DSL-error
 # tests do not exercise matching; any value the production code accepts

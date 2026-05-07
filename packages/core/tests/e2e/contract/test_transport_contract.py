@@ -47,7 +47,7 @@ async def test_a_harness_over_the_transport_should_report_itself_connected_after
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(transport_factory.build(allowlist_yaml_path))
     await harness.connect()
@@ -61,7 +61,7 @@ async def test_disconnecting_twice_should_be_idempotent(
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     harness = Harness(transport_factory.build(allowlist_yaml_path))
     await harness.connect()
@@ -78,7 +78,7 @@ async def test_a_published_byte_payload_should_arrive_at_the_subscribed_callback
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     topic = transport_factory.topic("round-trip")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
@@ -112,7 +112,7 @@ async def test_publishing_should_fan_out_to_every_subscriber_on_the_topic(
     if not transport_factory.capabilities.broadcast_fanout:
         pytest.skip(f"{transport_factory.name} does not broadcast fan-out")
 
-    from choreo import Harness
+    from admiral import Harness
 
     topic = transport_factory.topic("fanout")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
@@ -148,7 +148,7 @@ async def test_unsubscribing_should_stop_further_deliveries(
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     topic = transport_factory.topic("unsub")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
@@ -190,8 +190,8 @@ async def test_a_matching_published_message_should_fulfil_the_scenario(
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
+    from admiral import Harness
+    from admiral.matchers import field_equals
 
     topic = transport_factory.topic("happy")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
@@ -213,9 +213,9 @@ async def test_a_silent_topic_should_surface_as_timeout_outcome(
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
 
     topic = transport_factory.topic("silent")
     other = transport_factory.topic("other")
@@ -239,9 +239,9 @@ async def test_a_scope_with_three_expectations_and_two_matching_publishes_should
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
-    from choreo.scenario import Outcome
+    from admiral import Harness
+    from admiral.matchers import field_equals
+    from admiral.scenario import Outcome
 
     topic_a = transport_factory.topic("multi-a")
     topic_b = transport_factory.topic("multi-b")
@@ -278,8 +278,8 @@ async def test_a_large_json_payload_should_round_trip_unchanged(
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
+    from admiral import Harness
+    from admiral.matchers import field_equals
 
     topic = transport_factory.topic("large")
     big = "x" * 65_536
@@ -307,8 +307,8 @@ async def test_running_many_sequential_scopes_should_not_accumulate_subscription
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
-    from choreo.matchers import field_equals
+    from admiral import Harness
+    from admiral.matchers import field_equals
 
     topic = transport_factory.topic("churn")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
@@ -342,7 +342,7 @@ async def test_reconnecting_after_disconnect_should_restore_subscribe_and_publis
     transport_factory: TransportFactory,
     allowlist_yaml_path: Path,
 ) -> None:
-    from choreo import Harness
+    from admiral import Harness
 
     topic = transport_factory.topic("reconnect")
     harness = Harness(transport_factory.build(allowlist_yaml_path))
