@@ -3,7 +3,7 @@
 **Status:** Active — Groups A-E shipped, Group F next
 **Date:** 2026-05-04
 **Owner:** Implementing engineer (TDD red phase)
-**Drives:** [PRD-011](../prd/PRD-011-multi-transport-stage.md), [ADR-0027](../adr/0027-stage-multi-transport-coordinator.md)
+**Drives:** PRD-011, ADR-0027
 
 ---
 
@@ -773,11 +773,6 @@ Each group is small enough to land as one PR.
 ---
 
 ## References
-
-- [PRD-011](../prd/PRD-011-multi-transport-stage.md) — requirements
-- [ADR-0027](../adr/0027-stage-multi-transport-coordinator.md) — implementation choices, §Validation §Success Metrics
-- [ADR-0016](../adr/0016-reply-lifecycle.md) — fire-once invariant the cross-transport reply preserves
-- [ADR-0019](../adr/0019-pluggable-correlation-policy.md) — trust-boundary pattern the bridge mirrors
 - `CLAUDE.md` §Test style — naming and assertion conventions
 
 **Last Updated:** 2026-05-04

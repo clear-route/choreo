@@ -232,7 +232,7 @@ Four dancers on the floor:
 
 **Harness**: the session-scoped coordinator. You construct one with a Transport and call `connect()`. The transport runs its allowlist check, opens its socket, and reports ready. When the suite ends, `disconnect()` tears everything down.
 
-**Scenario**: the per-test scope. Opening one owns its expectations, replies, and timeline, and cleans them up on exit (normal or exception). Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the library default is transparent passthrough (`NoCorrelationPolicy`), so `s.publish(topic, payload)` sends `payload` unchanged. Consumers who want the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()` at Harness construction (ADR-0019).
+**Scenario**: the per-test scope. Opening one owns its expectations, replies, and timeline, and cleans them up on exit (normal or exception). Per-scope correlation isolation is opt-in via a `CorrelationPolicy`: the library default is transparent passthrough (`NoCorrelationPolicy`), so `s.publish(topic, payload)` sends `payload` unchanged. Consumers who want the legacy `TEST-`-prefixed stamping pass `correlation=test_namespace()` at Harness construction.
 
 **Dispatcher**: the router. Every inbound message lands here. It pulls the correlation ID out of the payload and hands the message to the scenario that claimed it. Unmatched messages go to a **surprise log** (metadata only; payloads not retained).
 
@@ -283,7 +283,7 @@ After `await_all()` returns, the Handle exposes:
 | `was_fulfilled()` | True iff outcome is `PASS` |
 
 Reading `message` or `latency_ms` while `outcome == PENDING` raises
-`RuntimeError` (ADR-0014).
+`RuntimeError`.
 
 ### `publish(topic, payload) → Scenario`
 
@@ -363,7 +363,7 @@ Rules:
   `Callable[[decoded_trigger], dict | bytes]`.
 - Failures in the builder function are captured as exception **class name
   only** in the report, never `str(e)`, so secrets from a failing builder
-  never leak into the report (ADR-0017).
+  never leak into the report.
 
 Each registered reply produces a `ReplyReport` in `result.replies`:
 

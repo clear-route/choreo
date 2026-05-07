@@ -132,5 +132,5 @@ all cost nothing on the multi-transport path but add concepts you'd
 have to learn for no payoff on a single-transport test.
 
 See [docs/guides/stage.md](../../docs/guides/stage.md) for the full
-guide and [ADR-0027](../../docs/adr/0027-stage-multi-transport-coordinator.md)
+guide and ADR-0027
 for the design rationale.

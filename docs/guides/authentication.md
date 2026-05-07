@@ -8,7 +8,7 @@ transport connects without authentication — the same behaviour as before.
 
 This guide is task-oriented: pick your transport + auth mode, copy the
 pattern.  For the rationale behind the design, see
-[ADR-0020](../adr/0020-transport-auth.md).
+ADR-0020.
 
 ---
 

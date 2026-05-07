@@ -84,13 +84,13 @@ as s`. The scope owns its expectations, reply handlers, and timeline, and tears
 down every subscription it registered on exit. A correlation id is generated
 only if the Harness has a `CorrelationPolicy` that produces one; under the
 default `NoCorrelationPolicy`, `s.correlation_id` is `None` and inbound routing
-falls back to broadcast (ADR-0019).
+falls back to broadcast.
 
 Scenarios follow a strict linear state machine: **BUILDER → EXPECTING → TRIGGERED**.
 `expect()` and `on()` are available in BUILDER and EXPECTING states. `publish()`
 advances to TRIGGERED. `await_all()` is only available in TRIGGERED. Calling a
 method in the wrong state raises `AttributeError` — illegal transitions are caught
-at runtime, not at type-check time (ADR-0012).
+at runtime, not at type-check time.
 
 ### Handle
 
@@ -219,7 +219,7 @@ Reply rules:
   `Callable[[decoded_trigger], dict | bytes]`.
 - Builder exceptions are captured as the exception class name only — never
   `str(e)` — so payload-derived error messages cannot leak into the report
-  (ADR-0017).
+ .
 
 ---
 
@@ -314,25 +314,25 @@ validate only the categories they care about.
 `HostNotInAllowlist` / `AllowlistConfigError`. Every built-in transport calls
 `load_allowlist` in `connect()` when `allowlist_path` is supplied.
 
-**Production endpoints must not appear in any checked-in allowlist** (ADR-0006).
+**Production endpoints must not appear in any checked-in allowlist**.
 The `TEST-` correlation prefix that downstream ingress filters historically
 matched on is a property of the opt-in `test_namespace()` policy under
 ADR-0019; it is not a library default. Consumers whose downstream systems rely
 on the prefix for ingress filtering must configure `correlation=test_namespace()`
 (or equivalent) on their Harness — the supersession is documented in
-[ADR-0019](adr/0019-pluggable-correlation-policy.md) and amended into ADR-0006.
+ADR-0019 and amended into ADR-0006.
 
 ---
 
 ## 7. Concurrency model
 
 Choreo runs on a single `asyncio` event loop, pinned at session scope by
-`pytest-asyncio` (ADR-0005). All matcher callbacks, reply handlers, and timeline
+`pytest-asyncio`. All matcher callbacks, reply handlers, and timeline
 recordings execute on the loop thread. Scenarios run concurrently with
 `pytest-xdist` (`-n auto` by default in `addopts`).
 
 Cross-scope isolation is pluggable, not hardcoded. The Harness takes a
-`CorrelationPolicy` (ADR-0019); the policy decides how a correlation id is
+`CorrelationPolicy`; the policy decides how a correlation id is
 generated on scope entry, stamped onto outbound messages, and extracted from
 inbound ones. Under the default `NoCorrelationPolicy` there is no stamping, no
 extraction, and no filter — every live scope on a shared topic receives every
@@ -376,10 +376,3 @@ the same reason.
   operating modes, and the package layout
 - [docs/guides/matchers.md](guides/matchers.md) — full matcher cookbook with
   examples across multiple domains
-- [docs/adr/](adr/) — architectural decision records; numbered sequentially.
-  Key decisions: ADR-0001 (single session harness), ADR-0006 (environment
-  boundary), ADR-0012 (type-state scenario builder), ADR-0013 (matcher
-  strategy), ADR-0014 (handle result model), ADR-0015 (deadline timeouts),
-  ADR-0016 (reply lifecycle), ADR-0017 (reply reporting and secrets)
-- [docs/prd/](prd/) — product requirements documents that drove each feature
-  increment

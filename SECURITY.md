@@ -22,7 +22,7 @@ Credit is offered at the reporter's choice.
 Choreo is a **test-time framework**. It runs inside developer laptops and CI pipelines, opens connections to pub/sub brokers, and emits test reports. The threats we care about:
 
 1. **Information disclosure via test reports** — payloads, error strings, and stack traces can end up in CI artefacts. See *Redaction scope* below.
-2. **Accidental production connection** — tests should not reach production brokers. The allowlist guard at `Transport.connect()` (see [ADR-0006](docs/adr/0006-environment-boundary-enforcement.md)) is the primary defence.
+2. **Accidental production connection** — tests should not reach production brokers. The allowlist guard at `Transport.connect()` is the primary defence.
 3. **Supply-chain** — the framework itself should not be a way to inject code into downstream projects' test suites.
 
 We do **not** model:

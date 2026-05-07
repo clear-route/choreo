@@ -54,6 +54,6 @@ behaviour; ships as the `test_namespace()` factory for convenience.
 | Downstream systems filter test traffic on `TEST-` prefix | `test_namespace()`. |
 | Your schema carries correlation in a header, not the payload | Write a `CorrelationPolicy` subclass — the shape (`new_id` / `write` / `read`) works for payload or header equally. |
 
-See [ADR-0019](../../docs/adr/0019-pluggable-correlation-policy.md) for
+See ADR-0019 for
 the full protocol contract and the trust-boundary rules (consumer code
 running inside the harness hot path).

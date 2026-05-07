@@ -4,7 +4,7 @@ Thanks for looking at Choreo. This file captures the rules that keep the codebas
 
 ## Before opening a PR
 
-1. Open an issue or a discussion first if the change is more than a typo fix. Architectural changes deserve an ADR — see [docs/adr/README.md](docs/adr/README.md).
+1. Open an issue or a discussion first if the change is more than a typo fix. Architectural changes deserve an ADR — see docs/adr/README.md.
 2. Read [CLAUDE.md](CLAUDE.md) (project conventions, enforced in review) and [docs/context.md §15](docs/context.md) (global writing style).
 3. Run the full suite locally before pushing:
    ```
@@ -30,7 +30,7 @@ Write an ADR if the change:
 - introduces a dependency that downstream work relies on;
 - has security implications.
 
-Use [docs/adr/template.md](docs/adr/template.md). ADRs are reviewed on the same PR as the code change that implements them. Don't land code that contradicts an Accepted ADR without superseding it.
+Use docs/adr/template.md. ADRs are reviewed on the same PR as the code change that implements them. Don't land code that contradicts an Accepted ADR without superseding it.
 
 ## Commit hygiene
 

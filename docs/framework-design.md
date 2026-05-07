@@ -7,7 +7,6 @@ This is the internal design reference for Choreo. It covers *how the framework i
 Related documents:
 
 - [context.md](context.md) — writing style and global conventions
-- [docs/adr/](adr/) — individual architectural decisions (source of truth for each choice)
 - [README.md](../README.md) — outward-facing description, install, quick start
 
 ---
@@ -37,17 +36,17 @@ Related documents:
 Locked in before any design work:
 
 - **Language:** Python 3.11+. `asyncio.timeout_at` and `asyncio.timeout` (3.11 additions) are used directly.
-- **Async model:** `asyncio`, with `asyncio.Future` per expectation. All callbacks must run on the asyncio loop thread (ADR-0005).
-- **Transports:** one long-lived transport instance per process, shared across all tests (ADR-0001). The transport owns its own config; the Harness does not.
-- **DSL shape:** fluent builder — `scenario → expect/on → publish → await_all`. Expect-before-publish is a structural guarantee, not a convention (ADR-0012).
-- **Test isolation:** per-scenario scope cleanup, correlation-ID routing for parallelism (ADR-0002).
+- **Async model:** `asyncio`, with `asyncio.Future` per expectation. All callbacks must run on the asyncio loop thread.
+- **Transports:** one long-lived transport instance per process, shared across all tests. The transport owns its own config; the Harness does not.
+- **DSL shape:** fluent builder — `scenario → expect/on → publish → await_all`. Expect-before-publish is a structural guarantee, not a convention.
+- **Test isolation:** per-scenario scope cleanup, correlation-ID routing for parallelism.
 - **No runtime dependencies.** The library does not pull in any queue SDK at import time. `nats-py` is an optional extra; Kafka / NATS / anything else beyond that is consumer-supplied.
 
 ---
 
 ## 2. Harness lifecycle
 
-The `Harness` is the session-scoped facade (ADR-0001). One instance per pytest run, shared across all tests via a session-scoped `pytest_asyncio` fixture in the consumer's `conftest.py`.
+The `Harness` is the session-scoped facade. One instance per pytest run, shared across all tests via a session-scoped `pytest_asyncio` fixture in the consumer's `conftest.py`.
 
 ```python
 from pathlib import Path
@@ -70,9 +69,9 @@ Creating a transport connection on every test is expensive. NATS takes tens of m
 - `connect()` is idempotent. Calling it on an already-connected Harness is a no-op.
 - `disconnect()` is idempotent regardless of whether the transport raises. If the transport's `disconnect()` raises, the Harness still marks itself disconnected and clears subscriptions so the next call is a clean no-op. The exception propagates.
 - `publish()` on a disconnected Harness raises `RuntimeError` immediately — no attempt to reconnect.
-- The Harness is not pickleable. Transports hold live sockets and may hold credentials that must not cross a process boundary (ADR-0001).
+- The Harness is not pickleable. Transports hold live sockets and may hold credentials that must not cross a process boundary.
 
-### pytest-asyncio integration (ADR-0005)
+### pytest-asyncio integration
 
 Session-scoped async fixtures require a session-scoped event loop:
 
@@ -177,7 +176,7 @@ def _fire_callbacks(self, topic: str, payload: bytes) -> None:
         cb(topic, payload)
 ```
 
-This is the thread-safety bridge (ADR-0003). Without it, race conditions arise that are timing-sensitive and vanish under a debugger.
+This is the thread-safety bridge. Without it, race conditions arise that are timing-sensitive and vanish under a debugger.
 
 ### Adding a new backend
 
@@ -187,7 +186,7 @@ Write a module under `packages/core/src/choreo/transports/` implementing the fiv
 
 ## 4. Dispatcher and correlation mediation
 
-The `Dispatcher` (ADR-0004) is the single routing point for all inbound messages. It implements the Mediator pattern: decouples the transport's raw callback from the scenario's expectation resolution.
+The `Dispatcher` is the single routing point for all inbound messages. It implements the Mediator pattern: decouples the transport's raw callback from the scenario's expectation resolution.
 
 ### How routing works
 
@@ -238,7 +237,7 @@ A high count of `timeout_race` entries indicates the system under test is slow r
 
 ### Extractor registration
 
-Extractors are pure parsing functions. The Dispatcher refuses extractors that execute payload-supplied code (pickle, marshal, unsafe yaml.load) as a defence against injection via a malicious or corrupted message payload (ADR-0004 §Security).
+Extractors are pure parsing functions. The Dispatcher refuses extractors that execute payload-supplied code (pickle, marshal, unsafe yaml.load) as a defence against injection via a malicious or corrupted message payload.
 
 ### Single dispatch point invariant
 
@@ -317,7 +316,7 @@ Under `pytest-xdist`, each worker is a separate Python process. A session-scoped
 
 ## 6. Scenario builder (type-state)
 
-The scenario DSL enforces expect-before-publish structurally (ADR-0012). The `Scenario` object maintains a `_state` flag and raises `AttributeError` when a method is called in the wrong state. This means an IDE or type checker surfaces the violation before the test runs, not at runtime.
+The scenario DSL enforces expect-before-publish structurally. The `Scenario` object maintains a `_state` flag and raises `AttributeError` when a method is called in the wrong state. This means an IDE or type checker surfaces the violation before the test runs, not at runtime.
 
 ### States
 
@@ -345,14 +344,14 @@ TRIGGERED
 
 ```
 AttributeError: 'Scenario' in 'builder' state has no attribute 'publish' —
-register at least one expectation first (ADR-0012)
+register at least one expectation first
 ```
 
 `expect()` does not exist on a `TRIGGERED`-state scenario. Attempting it raises:
 
 ```
 AttributeError: 'Scenario' in 'triggered' state has no attribute 'expect' —
-register expectations before publish() (ADR-0012)
+register expectations before publish()
 ```
 
 ### Why a single class rather than separate types
@@ -399,7 +398,7 @@ result.assert_passed()
 
 ## 7. Matchers
 
-Matchers implement the Strategy pattern (ADR-0013). Any object satisfying the `Matcher` Protocol can be used with `expect()`:
+Matchers implement the Strategy pattern. Any object satisfying the `Matcher` Protocol can be used with `expect()`:
 
 ```python
 class Matcher(Protocol):
@@ -481,7 +480,7 @@ Custom matchers compose with the built-ins via `all_of`, `any_of`, and `not_`.
 
 ## 8. Reply primitive
 
-The `on().publish()` primitive (ADR-0016, ADR-0017, ADR-0018) lets a test react to inbound messages and publish a response. Its purpose is to stage a fake upstream service inside a single test without standing up a second process.
+The `on().publish()` primitive lets a test react to inbound messages and publish a response. Its purpose is to stage a fake upstream service inside a single test without standing up a second process.
 
 ```python
 async with harness.scenario("approve-then-ship") as s:
@@ -507,9 +506,9 @@ In this pattern the test is acting as the approval service. The system under tes
 
 ### Rules
 
-**Registration before publish (ADR-0016).** Replies must be registered before `publish()` is called. The scenario enforces this via the type-state machine: `on()` is only available in `BUILDER` and `EXPECTING` states. This prevents a race where the trigger message arrives before the reply subscriber is in place.
+**Registration before publish.** Replies must be registered before `publish()` is called. The scenario enforces this via the type-state machine: `on()` is only available in `BUILDER` and `EXPECTING` states. This prevents a race where the trigger message arrives before the reply subscriber is in place.
 
-**Fire-once (ADR-0016).** Each `ReplyChain` fires at most once. If the trigger arrives a second time, the subscriber records the additional candidate but skips the matcher and builder. This prevents a runaway sender from generating unbounded outbound traffic.
+**Fire-once.** Each `ReplyChain` fires at most once. If the trigger arrives a second time, the subscriber records the additional candidate but skips the matcher and builder. This prevents a runaway sender from generating unbounded outbound traffic.
 
 **Single-use chain.** Calling `.publish()` twice on the same `ReplyChain` raises `ReplyAlreadyBoundError`. Register a second reply with a fresh `.on()` call.
 
@@ -518,7 +517,7 @@ In this pattern the test is acting as the approval service. The system under tes
 - `bytes` — passed through verbatim.
 - A `Callable[[decoded_trigger_payload], dict | bytes]` — the builder function. Called once per firing.
 
-**Builder error isolation (ADR-0017).** If the builder raises, the reply is not published, the scenario continues, and the error is recorded as `builder_error` on the `ReplyReport` using the exception class name only — never `str(e)`. This is a deliberate security boundary: a builder that raises may be processing payload-derived content; logging the full exception string could leak that content.
+**Builder error isolation.** If the builder raises, the reply is not published, the scenario continues, and the error is recorded as `builder_error` on the `ReplyReport` using the exception class name only — never `str(e)`. This is a deliberate security boundary: a builder that raises may be processing payload-derived content; logging the full exception string could leak that content.
 
 ### Reply observability
 
@@ -563,7 +562,7 @@ This helper lives in the consumer repo, not in the library. The library does not
 
 ## 9. Deadlines and timeouts
 
-`await_all(timeout_ms=N)` enforces a per-scenario deadline using `asyncio.timeout_at` and `asyncio.wait(return_when=ALL_COMPLETED)` (ADR-0015).
+`await_all(timeout_ms=N)` enforces a per-scenario deadline using `asyncio.timeout_at` and `asyncio.wait(return_when=ALL_COMPLETED)`.
 
 ```python
 loop = asyncio.get_running_loop()
@@ -615,7 +614,7 @@ Any handle that has not resolved by the deadline fires its `DEADLINE` timeline e
 
 ## 10. Error handling and failure recovery
 
-### Harness failure recovery (ADR-0007)
+### Harness failure recovery
 
 The Harness is not a production client. If the transport connection drops mid-suite, the correct response is to fail the remaining tests visibly — not to retry silently and hide the failure. The recovery policy is:
 
@@ -680,7 +679,7 @@ Events:
 
 The timeline is bounded at 256 entries per scope. Overflow drops the oldest entries and increments `timeline_dropped`. A flooded scope pays O(1) per append due to the deque's `maxlen`.
 
-### Credential redaction (ADR-0017; consumer-owned scope)
+### Credential redaction
 
 No payload content appears in logs. The surprise log carries metadata only (topic, correlation ID, size, classification). Builder errors in replies record the exception class name only. The HTML reporter passes all payload text through a pluggable redactor chain before rendering:
 
@@ -711,7 +710,7 @@ register_redactor(mask_tokens)
 
 `assert_passed()` is the canonical assertion. Its error message distinguishes a silent timeout (routing bug) from a near-miss timeout (expectation bug) — the two require different fixes and the message must make that obvious.
 
-`ScenarioResult` is not pickleable. It may carry payload content in Handle fields that must not cross a process boundary (ADR-0017).
+`ScenarioResult` is not pickleable. It may carry payload content in Handle fields that must not cross a process boundary.
 
 ---
 
@@ -719,7 +718,7 @@ register_redactor(mask_tokens)
 
 `Stage` is a coordinator that wraps a named registry of `Harness` instances so a single scenario can publish, expect, and reply across multiple message transports under one global deadline. The motivating case is a bridge AUT — a service that translates between transports (e.g. low-latency NATS request → durable Kafka pipeline → response on NATS). The natural test boundary spans both transports; a single-`Harness` scenario cannot.
 
-See [PRD-011](prd/PRD-011-multi-transport-stage.md) and [ADR-0027](adr/0027-stage-multi-transport-coordinator.md) for the design discussion. This section is a fast architectural read-out.
+See PRD-011 and ADR-0027 for the design discussion. This section is a fast architectural read-out.
 
 ### What Stage owns
 
@@ -749,7 +748,7 @@ For each `stage.scenario(name)` block:
 
 `s.on(trigger_topic, on=A).publish(response_topic, on=B, build=...)` registers a cross-transport reactive reply:
 
-- The reply record (`_StageReply`) lives on the **trigger** child only — single-writer per [ADR-0016](adr/0016-reply-lifecycle.md). The response child has no record. `_StageScenarioResult.replies` reflects this with one `StageReplyReport` per registration.
+- The reply record (`_StageReply`) lives on the **trigger** child only — single-writer per ADR-0016. The response child has no record. `_StageScenarioResult.replies` reflects this with one `StageReplyReport` per registration.
 - Fire-once is preserved across the cross-transport boundary: the trigger callback flips `_StageReply.state` from `ARMED` to `FIRED` BEFORE invoking the build callback. A nested re-entrant publish that re-fires the trigger callback short-circuits at the post-FIRED bypass.
 - On match, `build(payload)` produces the response payload; the response is encoded via the response child's codec, stamped via the response child's `CorrelationPolicy.write` with the **response** child's wire id (the bridge's `to_wire(logical, response_transport)` value), and published via the response harness. Any exception in build/encode/stamp/publish flips the state to `FIRED_BUILDER_ERROR`; `builder_error` is the exception class name only, never `str(exc)`.
 
@@ -774,20 +773,20 @@ The ADRs are the authoritative source of truth for each decision. This section i
 
 | ADR | Title | One-line decision |
 |-----|-------|------------------|
-| [0001](adr/0001-single-session-scoped-harness.md) | Single session-scoped Harness | One Harness per pytest session; shared across all tests |
-| [0002](adr/0002-scoped-registry-test-isolation.md) | Scoped registry + correlation IDs | `async with scenario_scope` teardown + correlation-ID routing |
-| [0003](adr/0003-threadsafe-call-soon-bridge.md) | Thread-safety bridge | `loop.call_soon_threadsafe` via `LoopPoster`; AST CI check; callable whitelist |
-| [0004](adr/0004-dispatcher-correlation-mediator.md) | Dispatcher as Mediator | Single dispatch point; O(1) correlation lookup; subclassing of `dispatch` refused |
-| [0005](adr/0005-pytest-asyncio-session-loop.md) | Session-scoped event loop | `loop_scope="session"` in `pyproject.toml`; requires pytest-asyncio >= 0.24 |
-| [0006](adr/0006-environment-boundary-enforcement.md) | Environment-boundary enforcement | Allowlist YAML at `connect()`; `TEST-` prefix on all outbound; default-deny |
-| [0007](adr/0007-harness-failure-recovery.md) | Harness failure recovery | Quarantine-and-rebuild on detected corruption; no automatic retries |
-| [0012](adr/0012-type-state-scenario-builder.md) | Type-state scenario builder | Runtime state flag with `AttributeError` on illegal calls; `publish` absent until `expect` |
-| [0013](adr/0013-matcher-strategy-pattern.md) | Matcher Strategy pattern | `Matcher` Protocol; built-ins; `all_of`/`any_of`/`not_` composition |
-| [0014](adr/0014-handle-result-model.md) | Handle-based result model | `expect()` returns a Handle; resolved state survives scope teardown; not pickleable |
-| [0015](adr/0015-deadline-based-scenario-timeouts.md) | Deadline-based scenario timeouts | `asyncio.timeout_at` + `asyncio.wait(ALL_COMPLETED)`; collect all results then cancel |
-| [0016](adr/0016-reply-lifecycle.md) | Reply lifecycle | `on()` is a subscription; fire-once; deregister on scope exit; no post-publish registration |
-| [0017](adr/0017-reply-fire-and-forget-results.md) | Reply fire-and-forget results | Replies are not assertions; observability via `ReplyReport`; builder-error class name only |
-| [0018](adr/0018-reply-correlation-scoping.md) | Reply correlation scoping | Same correlation filter as `expect`; scope correlation stamped on reply dict |
+| 0001 | Single session-scoped Harness | One Harness per pytest session; shared across all tests |
+| 0002 | Scoped registry + correlation IDs | `async with scenario_scope` teardown + correlation-ID routing |
+| 0003 | Thread-safety bridge | `loop.call_soon_threadsafe` via `LoopPoster`; AST CI check; callable whitelist |
+| 0004 | Dispatcher as Mediator | Single dispatch point; O(1) correlation lookup; subclassing of `dispatch` refused |
+| 0005 | Session-scoped event loop | `loop_scope="session"` in `pyproject.toml`; requires pytest-asyncio >= 0.24 |
+| 0006 | Environment-boundary enforcement | Allowlist YAML at `connect()`; `TEST-` prefix on all outbound; default-deny |
+| 0007 | Harness failure recovery | Quarantine-and-rebuild on detected corruption; no automatic retries |
+| 0012 | Type-state scenario builder | Runtime state flag with `AttributeError` on illegal calls; `publish` absent until `expect` |
+| 0013 | Matcher Strategy pattern | `Matcher` Protocol; built-ins; `all_of`/`any_of`/`not_` composition |
+| 0014 | Handle-based result model | `expect()` returns a Handle; resolved state survives scope teardown; not pickleable |
+| 0015 | Deadline-based scenario timeouts | `asyncio.timeout_at` + `asyncio.wait(ALL_COMPLETED)`; collect all results then cancel |
+| 0016 | Reply lifecycle | `on()` is a subscription; fire-once; deregister on scope exit; no post-publish registration |
+| 0017 | Reply fire-and-forget results | Replies are not assertions; observability via `ReplyReport`; builder-error class name only |
+| 0018 | Reply correlation scoping | Same correlation filter as `expect`; scope correlation stamped on reply dict |
 
 ADR-0011 (adversarial SUT handling) is planned but not yet written.
 

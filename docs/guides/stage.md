@@ -9,8 +9,8 @@ in a single scenario.
 > A again — under one global deadline. Designed for testing bridge
 > services and protocol translators.
 
-For the design rationale, see [PRD-011](../prd/PRD-011-multi-transport-stage.md)
-and [ADR-0027](../adr/0027-stage-multi-transport-coordinator.md). For
+For the design rationale, see PRD-011
+and ADR-0027. For
 the broader framework context, see [framework-design.md §12](../framework-design.md#12-multi-transport-scenarios-stage).
 
 ---
@@ -395,8 +395,8 @@ suspect:
 ## Reading the test report
 
 The `choreo-reporter` package emits `test-report/results.json` and
-`test-report/index.html` per [PRD-007](../prd/PRD-007-test-report-output.md);
-[PRD-012](../prd/PRD-012-test-report-stage-support.md) extends both
+`test-report/index.html` per PRD-007;
+PRD-012 extends both
 surfaces with Stage-specific fields.
 
 ### `results.json` shape for a Stage scenario
@@ -483,7 +483,7 @@ should rely on stable-tier attributes only.
 
 ### Schema versioning
 
-`schema_version` is `"1.3"` (PRD-013, additive minor over v1.2).
+`schema_version` is `"1.3"`.
 Consumers gating on `schema_version.startswith("1")` continue to work
 across v1.0 through v1.3. Strict-validator consumers update their
 pinned schema document to
@@ -524,11 +524,6 @@ see ADR-0027 §Security Considerations.
 ---
 
 ## See also
-
-- [PRD-011 — Multi-Transport Scenarios](../prd/PRD-011-multi-transport-stage.md)
-- [PRD-012 — Test Report Stage Support](../prd/PRD-012-test-report-stage-support.md)
-- [ADR-0027 — Stage Coordinator](../adr/0027-stage-multi-transport-coordinator.md)
 - [framework-design.md §12 — Multi-transport scenarios (Stage)](../framework-design.md#12-multi-transport-scenarios-stage)
 - [Test plan: 0027-stage-integration-tests.md](../test-plans/0027-stage-integration-tests.md)
-- [ADR-0019 — Pluggable correlation policy](../adr/0019-pluggable-correlation-policy.md) (the per-harness layer the bridge composes)
 - [`choreo-reporter` README](../../packages/core-reporter/README.md) — full `data-*` tier table

@@ -179,7 +179,7 @@ allowlist applies. Those are deployment concerns.
 
 ## Scenario DSL
 
-`expect()` returns a `Handle` (ADR-0014). After `await_all()` the handle
+`expect()` returns a `Handle`. After `await_all()` the handle
 exposes:
 
 - `handle.was_fulfilled()` — True if the matcher accepted a message in time
@@ -202,7 +202,7 @@ the canonical consumer example above).
 ## Multi-transport scenarios (Stage)
 
 For tests that span multiple transports — typically a bridge / protocol
-translator AUT — use `Stage` (ADR-0027 / PRD-011). One scenario can
+translator AUT — use `Stage`. One scenario can
 publish on transport A, register a reactive reply on transport B, and
 assert on transport A again, in a single deadline-bounded block.
 
@@ -316,12 +316,11 @@ a non-default NATS instance — remember to add the URL to the allowlist's
 
 Chronicle is a FastAPI reporting server in `packages/chronicle/` that ingests
 Choreo `test-report-v1` JSON, stores it in TimescaleDB, runs anomaly detection,
-and exposes a dashboard. See [PRD-009](docs/prd/PRD-009-chronicle-reporting-server.md)
-and [ADR-0021](docs/adr/0021-chronicle-api-structure.md) for design documentation.
+and exposes a dashboard.
 
 ### Architecture: Repository + Service Layer
 
-Three layers with strict import direction (ADR-0021):
+Three layers with strict import direction:
 
 ```
 api/           → services/       → repositories/     → models/
@@ -481,7 +480,3 @@ All conventions from the core library apply (§Test style above), plus:
 
 - [docs/context.md](docs/context.md) §15 — global writing style rules
 - [docs/framework-design.md](docs/framework-design.md) — architecture overview
-- [docs/adr/](docs/adr/) — architectural decisions
-- [docs/adr/0021-chronicle-api-structure.md](docs/adr/0021-chronicle-api-structure.md) — Chronicle API architecture
-- [docs/prd/](docs/prd/) — product requirements
-- [docs/prd/PRD-009-chronicle-reporting-server.md](docs/prd/PRD-009-chronicle-reporting-server.md) — Chronicle PRD

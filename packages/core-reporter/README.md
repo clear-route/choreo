@@ -1,7 +1,7 @@
 # choreo-reporter — pytest plugin for Choreo
 
 Interactive HTML + JSON test reports for the [`choreo`](https://pypi.org/project/choreo/)
-message-driven test harness (PRD-007).
+message-driven test harness.
 
 Installing this package registers a pytest plugin that, at suite exit, emits a
 `test-report/` directory containing:
@@ -14,7 +14,7 @@ Installing this package registers a pytest plugin that, at suite exit, emits a
   denylisted field names such as `password` / `token` / `api_key`).
 - Hash-based redaction of multi-transport (`Stage`) per-transport
   correlation ids at the report boundary via
-  `choreo.redaction.redact_correlation_id` (PRD-012 §1.5.1). Internally
+  `choreo.redaction.redact_correlation_id`. Internally
   the framework calls these "wire ids" (the bridge's `to_wire` output);
   at the report boundary they surface as `correlation_id` for
   consistency with `Handle.correlation_id`.
@@ -140,7 +140,7 @@ Three migration scenarios — pick the one that matches your consumer:
 
 ## Multi-transport (`Stage`) scenarios — PRD-012 v1.1
 
-Stage scenarios (multi-transport bridges; see [ADR-0027](../../docs/adr/0027-stage-multi-transport-coordinator.md))
+Stage scenarios (multi-transport bridges; see ADR-0027)
 land in the report as additive optional fields. Single-`Harness` reports are
 byte-identical to the v1.0 emission aside from the `schema_version` value.
 
@@ -194,7 +194,7 @@ maps to `"replied"` and `StageReplyState.FIRED_BUILDER_ERROR` maps to
 `"reply_failed"`. No enum extension.
 
 The framework's `StageReplyReport.response_topic` is serialised under
-the existing `reply_topic` JSON key (PRD-012 §1.2.1) so consumers
+the existing `reply_topic` JSON key so consumers
 already querying `reply_report.reply_topic` continue to work.
 
 ### Migration paths for v1.0 → v1.1
@@ -227,7 +227,7 @@ Three migration scenarios — pick the one that matches your consumer:
 
 ### HTML report — `data-*` contract
 
-The HTML report's `data-*` attributes split into two tiers (PRD-012 §3.6):
+The HTML report's `data-*` attributes split into two tiers:
 
 **Stable tier** (snapshot-tested; changes warrant a deprecation
 process):
@@ -287,9 +287,6 @@ id, sequence number, customer id) defeats redaction — see ADR-0027
 See the project README at
 <https://github.com/clear-route/choreo> for the full architecture, the
 Scenario DSL, and the report schema.
-
-- [PRD-007 — Test Report Output](../../docs/prd/PRD-007-test-report-output.md)
-- [PRD-012 — Test Report Stage Support](../../docs/prd/PRD-012-test-report-stage-support.md)
 - [Stage user guide](../../docs/guides/stage.md) — §"Reading the test report"
 
 ## Licence

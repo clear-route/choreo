@@ -102,7 +102,7 @@ All endpoints under `/api/v1/`.  Interactive docs at `/api/v1/docs`.
 
 ## Architecture
 
-Repository + Service Layer (ADR-0021).  Three layers with strict import
+Repository + Service Layer.  Three layers with strict import
 direction:
 
 ```
@@ -167,7 +167,3 @@ The test suite includes Hypothesis property-based tests and API fuzz
 testing.  DB tests truncate all tables after each test for isolation.
 
 ## Design docs
-
-- [PRD-009](../../docs/prd/PRD-009-chronicle-reporting-server.md) — product requirements
-- [ADR-0021](../../docs/adr/0021-chronicle-api-structure.md) — API architecture
-- [ADR-0025](../../docs/adr/0025-chronicle-topic-drilldown-backend.md) — topic query design

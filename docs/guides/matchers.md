@@ -7,7 +7,7 @@ always gives you a human-readable reason — never a bare `assert False`.
 
 This guide is task-oriented: pick the shape of what you want to check,
 find the matching section, copy the pattern. For the rationale behind the
-design, see [ADR-0013](../adr/0013-matcher-strategy-pattern.md). For the
+design, see ADR-0013. For the
 exact signatures, the docstrings on
 [packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) are canonical.
 
@@ -273,7 +273,7 @@ Two rules for custom matchers, from ADR-0013 §Security Considerations:
 
 An `expected_shape()` method is optional but recommended — it lets the
 test-report writer render a machine-readable version of what you
-expected (PRD-007). This is a separate `Reportable` Protocol, split from
+expected. This is a separate `Reportable` Protocol, split from
 `Matcher` per the interface-segregation principle: a matcher that omits
 `expected_shape()` is a perfectly valid `Matcher`, and the report falls
 back to `description`.
@@ -311,7 +311,7 @@ and the predicate's own description (`> 0`) bubbles up. You know *what*
 failed and *where* without reading the payload.
 
 Near-miss vs. silent timeout is handled one layer up by the Handle
-result model (ADR-0014): if messages arrived on your correlation but
+result model: if messages arrived on your correlation but
 failed every matcher, `ScenarioResult.assert_passed()` tells you it was
 a **near-miss** (expectation bug) rather than a **silent timeout**
 (routing bug).
@@ -363,12 +363,8 @@ that contains `"."` or to disambiguate a string key from a list index).
 ---
 
 ## Where to go next
-
-- [ADR-0013](../adr/0013-matcher-strategy-pattern.md) — why the Strategy
   pattern, what was considered, what the Protocol contract is.
-- [ADR-0014](../adr/0014-handle-result-model.md) — how match results
   become PASS/FAIL/TIMEOUT outcomes on Handles.
-- [docs/prd/PRD-002-scenario-dsl.md](../prd/PRD-002-scenario-dsl.md) —
   how `expect → publish → await_all` threads matchers into the scenario.
 - [packages/core/src/choreo/matchers.py](../../packages/core/src/choreo/matchers.py) — the source.
   Every matcher is a short frozen dataclass; reading one is the fastest
