@@ -13,7 +13,7 @@ interval, compression policy + 7-day retention threshold, no FK to
 regular tables; integrity is enforced application-side by
 `IngestService`).
 
-Three indexes per the PRD:
+Three indexes:
   - (tenant_id, run_id, scenario_id, time DESC) — per-scope lookup
   - (tenant_id, transport, time DESC)           — per-transport rollup
   - (tenant_id, action, time DESC)              — per-action rollup

@@ -402,7 +402,7 @@ def test_a_single_harness_handle_should_omit_the_transport_field():
     )
     handle_out = out["handles"][0]
     # Single-Harness handles MUST OMIT the transport key entirely
-    # (not emit `null`) — keeps JSON byte-identical pre/post 
+    # (not emit `null`) — keeps JSON byte-identical pre/post
     #.
     assert "transport" not in handle_out
 

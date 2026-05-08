@@ -10,9 +10,6 @@ from admiral.matchers import MatchFailure
 
 from ._outcome import Outcome
 
-
-
-
 _FAILURES_MAX = 20
 
 
@@ -140,11 +137,11 @@ class Handle:
         return self._matcher_expected
 
     def __repr__(self) -> str:
-        
-        
-        
-        
-        
+
+
+
+
+
         transport_part = f" transport={self._transport}" if self._transport is not None else ""
         return (
             f"<Handle topic={self.topic}{transport_part} "

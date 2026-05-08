@@ -30,7 +30,7 @@ import pytest
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
     # Reply tests rely on per-scope correlation isolation. Pass
-    # `test_namespace()` explicitly — the library default under 
+    # `test_namespace()` explicitly — the library default under
     # is `NoCorrelationPolicy` (broadcast), which these tests do not want.
     from admiral import Harness, test_namespace
     from admiral.transports import MockTransport

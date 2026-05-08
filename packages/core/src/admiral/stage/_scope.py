@@ -398,7 +398,7 @@ class _StageScenarioScope:
         for exp in all_expectations:
             _resolve_pending_handle(expectation=exp, now_t=now_t, timeout_ms=timeout_ms)
 
-        # Replies live on the TRIGGER child only (per 
+        # Replies live on the TRIGGER child only (per
         # single-writer invariant); response children have empty reply
         # lists by construction.
         all_replies: list[_StageReply] = []
@@ -497,7 +497,7 @@ class StageReplyChain:
 
     The `on=` on the trigger may differ from the `on=` on the response —
     that is the cross-transport bridge case (trigger on Kafka, response
-    on NATS). 
+    on NATS).
     """
 
     def __init__(

@@ -20,9 +20,9 @@ class ScenarioResult:
     timeline: tuple[TimelineEntry, ...] = ()
     timeline_dropped: int = 0
     replies: tuple[ReplyReport, ...] = ()
-    
-    
-    
+
+
+
     kind: Literal["single_harness"] = field(default="single_harness", init=False)
 
     @property

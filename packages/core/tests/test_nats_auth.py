@@ -2,7 +2,7 @@
 
 Each variant is a frozen dataclass.  Tests cover construction, repr safety,
 immutability, pickle refusal, deepcopy refusal, identity-only equality
-(eq=False), and the __init_subclass__ guard.  
+(eq=False), and the __init_subclass__ guard.
 """
 
 from __future__ import annotations

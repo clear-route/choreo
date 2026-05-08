@@ -84,10 +84,10 @@ def _register_expectation(context: _ScenarioContext, topic: str, matcher: Matche
     def on_message(msg_topic: str, raw_payload: bytes) -> None:
         if fulfilled.done():
             return
-        
-        
-        
-        
+
+
+
+
         try:
             payload = codec.decode(raw_payload)
         except Exception as e:
@@ -121,8 +121,8 @@ def _register_expectation(context: _ScenarioContext, topic: str, matcher: Matche
         )
 
         result = matcher.match(payload)
-        
-        
+
+
         done_t = loop.time()
 
         if result.matched:
@@ -154,13 +154,13 @@ def _register_expectation(context: _ScenarioContext, topic: str, matcher: Matche
                 )
             fulfilled.set_result(None)
         else:
-            
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
+
             handle._attempts += 1
             handle._last_mismatch_reason = result.reason
             handle._last_mismatch_payload = payload
@@ -218,16 +218,16 @@ def _register_reply(
     policy = harness.correlation
     codec = harness.codec
     timeline = context.timeline
-    
-    
-    
+
+
+
     loop = asyncio.get_running_loop()
 
     def on_trigger(msg_topic: str, raw_payload: bytes) -> None:
-        
-        
-        
-        
+
+
+
+
         try:
             payload = codec.decode(raw_payload)
         except Exception as e:
@@ -238,7 +238,7 @@ def _register_reply(
             )
             return
 
-        
+
         if scope_corr is not None:
             try:
                 msg_corr = policy.read(Envelope(topic=msg_topic, payload=payload))
@@ -253,8 +253,8 @@ def _register_reply(
             if msg_corr is not None and msg_corr != scope_corr:
                 return
 
-        
-        
+
+
         recv_t = loop.time()
         timeline.record(
             now=recv_t,
@@ -263,10 +263,10 @@ def _register_reply(
             detail=f"reply:{reply_topic}",
         )
 
-        
+
         reply.candidate_count += 1
 
-        
+
         if reply.state is not _ReplyState.ARMED:
             return
 
@@ -275,19 +275,19 @@ def _register_reply(
             if not match_result.matched:
                 return
 
-        
-        
+
+
         if reply.state is not _ReplyState.ARMED:
             return
 
         reply.match_count += 1
 
-        
-        
-        
-        
-        
-        
+
+
+
+
+
+
         reply.state = _ReplyState.REPLIED
 
         try:
@@ -296,14 +296,14 @@ def _register_reply(
             elif isinstance(reply_spec, dict):
                 out = dict(reply_spec)
             else:
-                out = reply_spec  
+                out = reply_spec
         except Exception as e:
             reply.state = _ReplyState.FAILED
             reply.builder_error = type(e).__name__
-            
-            
-            
-            
+
+
+
+
             _LOG.error(
                 "reply builder raised %s for trigger=%r reply=%r",
                 type(e).__name__,
@@ -318,13 +318,13 @@ def _register_reply(
             )
             return
 
-        
-        
-        
-        
-        
-        
-        
+
+
+
+
+
+
+
         if scope_corr is not None:
             try:
                 stamped = _policy_write(
@@ -346,8 +346,8 @@ def _register_reply(
                     detail=f"reply={reply_topic} error={type(e).__name__}",
                 )
                 return
-            
-            
+
+
             try:
                 outgoing = _policy_read(policy, stamped)
             except CorrelationPolicyError as e:
@@ -368,9 +368,9 @@ def _register_reply(
                 return
             if outgoing is not None and outgoing != scope_corr:
                 reply.correlation_overridden = True
-                
-                
-                
+
+
+
                 _LOG.warning(
                     "reply correlation_id overridden: trigger=%r reply=%r "
                     "(outgoing value not logged; see report flag)",
@@ -379,10 +379,10 @@ def _register_reply(
                 )
             out = stamped.payload
 
-        
-        
-        
-        
+
+
+
+
         def _on_reply_sent() -> None:
             reply.reply_published = True
             timeline.record(
@@ -395,8 +395,8 @@ def _register_reply(
         try:
             harness.publish(reply_topic, out, on_sent=_on_reply_sent)
         except Exception as e:
-            
-            
+
+
             reply.state = _ReplyState.FAILED
             reply.builder_error = type(e).__name__
             _LOG.error(
@@ -427,19 +427,19 @@ async def _await_all(context: _ScenarioContext, *, timeout_ms: int) -> ScenarioR
             async with asyncio.timeout_at(deadline):
                 await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
         except TimeoutError:
-            pass  
+            pass
 
     now_t = loop.time()
     for exp in context.expectations:
         if exp.handle.outcome is not Outcome.PENDING:
             continue
-        
-        
-        
-        
+
+
+
+
         exp.handle._latency_ms = max(0.0, (now_t - exp.registered_at) * 1000)
-        
-        
+
+
         if exp.handle._attempts > 0:
             exp.handle.outcome = Outcome.FAIL
             exp.handle._reason = (
@@ -469,19 +469,19 @@ async def _await_all(context: _ScenarioContext, *, timeout_ms: int) -> ScenarioR
 
     handles = tuple(e.handle for e in context.expectations)
     passed = all(h.was_fulfilled() for h in handles) if handles else True
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
     context.timeline.sealed = True
-    
-    
-    
-    
+
+
+
+
     keep_timeline = (not passed) or bool(context.replies)
     timeline_entries = tuple(context.timeline.entries) if keep_timeline else ()
     timeline_dropped = context.timeline.dropped if keep_timeline else 0

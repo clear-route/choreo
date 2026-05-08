@@ -3,7 +3,7 @@
 Each subclass inherits from `StageError` (the catch-all marker) AND a
 standard taxon (`LookupError` / `ValueError` / `RuntimeError` /
 `ExceptionGroup`) so consumers can also `except ValueError` for
-typo-style mistakes uniformly. 
+typo-style mistakes uniformly.
 """
 
 from __future__ import annotations

@@ -65,7 +65,7 @@ class Harness:
                 sees every message). Consumers who need per-scope isolation
                 pass a `DictFieldPolicy` (or `test_namespace()` for the
                 `TEST-`-prefixed profile, previous captive behaviour).
-                
+
         """
         self._transport = transport
         self._codec: Codec = codec if codec is not None else JSONCodec()

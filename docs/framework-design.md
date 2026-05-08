@@ -796,7 +796,7 @@ Recommended reading order for a new contributor: 0005 → 0001 → 0003 → 0002
 
 ## 14. Writing style
 
-These rules apply to all ADRs, PRDs, and this document. Violation is a code-review block.
+These rules apply to this document. Violation is a code-review block.
 
 - **UK English.** Colour, behaviour, authorise, licence (noun), license (verb).
 - **No em-dashes in code.** Fine in prose; confusing in identifiers and string literals.

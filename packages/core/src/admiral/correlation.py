@@ -53,7 +53,7 @@ class CorrelationPolicy(Protocol):
         isolation on inbound routing. Negative-assertion matchers gate on
         this flag.
 
-    
+
     """
 
     async def new_id(self) -> str | None: ...
@@ -95,7 +95,7 @@ class NoCorrelationPolicy:
     per-run infrastructure: on a shared broker, messages from sibling
     scopes (or sibling tests / pipelines / tenants) will fan out.
 
-    
+
     """
 
     async def new_id(self) -> None:
@@ -123,7 +123,7 @@ class DictFieldPolicy:
     the same `field` share a correlation namespace. On shared broker
     infrastructure this exposes one scope's messages to another scope's
     filter. Use a prefix on anything other than dedicated per-run infra.
-    
+
     """
 
     def __init__(

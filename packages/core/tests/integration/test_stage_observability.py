@@ -4,7 +4,7 @@ Covers test-plan items M1-M2.
 
 M1 verifies the structured startup audit log emitted by
 `Stage.__init__` (`stage_initialised`) carries the bridge class name
-and the registered transport names — the audit trail 
+and the registered transport names — the audit trail
 §Security Considerations promises.
 
 M2 verifies the `from_wire` diagnostic path: when an inbound

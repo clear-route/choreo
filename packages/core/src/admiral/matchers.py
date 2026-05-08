@@ -138,7 +138,7 @@ def _is_matcher(obj: Any) -> bool:
     no more permissive in practice and keeps the check trivially fast.
 
     `expected_shape` is intentionally not part of this test — it is a
-    Reportable capability, not a Matcher requirement (ISP-split 
+    Reportable capability, not a Matcher requirement (ISP-split
     """
     return callable(getattr(obj, "match", None)) and hasattr(obj, "description")
 

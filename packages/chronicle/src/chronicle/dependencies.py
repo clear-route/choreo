@@ -50,7 +50,7 @@ async def get_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
 
     **SSE route handlers must NOT depend on this provider.**  A long-lived
     SSE connection would hold the session (and its pool slot) open
-    indefinitely.  
+    indefinitely.
     """
     async with request.app.state.sessionmaker() as session:
         yield session

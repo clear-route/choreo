@@ -61,7 +61,7 @@ def _redact(s: str, head: int = 8, tail: int = 4) -> str:
 
     Wire ids may carry consumer-supplied data; the full value goes only
     into structured fields a redaction policy can scrub, not into message
-    strings. 
+    strings.
     """
     if len(s) <= head + tail + 3:
         return repr(s)
@@ -453,7 +453,7 @@ def _register_stage_reply(
             )
             #  §2.3 row 8: REPLY_FAILED detail carries the
             # response topic and the exception CLASS NAME ONLY (no
-            # `str(exc)`) 
+            # `str(exc)`)
             # Consistent with single-Harness scenario.py:1058.
             _record_event(
                 timeline,
