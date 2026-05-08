@@ -1,4 +1,4 @@
-"""Library-level redaction helpers (ADR-0017 §Security Considerations).
+"""Library-level redaction helpers.
 
 Matcher descriptions carry literal values from `field_equals` et al. Any time
 such a description crosses a boundary where it could be observed (log line,
@@ -31,7 +31,7 @@ _MATCHER_LITERAL_RE = re.compile(
 def redact_matcher_description(desc: str) -> str:
     """Replace every `=value` fragment in a matcher description with
     `=<value>` so literal arguments do not reach logs or serialised reports
-    (ADR-0017). The returned string is safe to emit at WARNING.
+   . The returned string is safe to emit at WARNING.
 
     The regex is escape-aware for quoted values. Pathologically malformed
     descriptions (mismatched quote nesting — something `repr()` does not

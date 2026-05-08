@@ -41,7 +41,7 @@ async def test_stage_disconnect_should_raise_exception_group_when_one_transport_
     the original exception. `try/except* StageDisconnectError` walks it
     correctly.
 
-    Covers R11 (ExceptionGroup); ADR-0027 §Validation
+    Covers R11 (ExceptionGroup);  §Validation
     "StageDisconnectError is an ExceptionGroup".
     """
     from admiral import Harness
@@ -141,7 +141,7 @@ async def test_stage_disconnect_should_attempt_every_transport_even_when_one_fai
     reverse registration order. The middle one's failure does not abort
     the loop.
 
-    Covers R11; ADR-0027 §Implementation "disconnect best-effort across
+    Covers R11;  §Implementation "disconnect best-effort across
     all transports".
     """
     from admiral.stage import Stage, StageDisconnectError

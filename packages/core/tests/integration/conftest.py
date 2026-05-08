@@ -13,7 +13,7 @@ fixtures build the minimum collaborators each test group needs:
   them.
 
 See `docs/test-plans/0027-stage-integration-tests.md` for the test plan
-this file implements, and ADR-0027 for the design under test.
+this file implements, and  for the design under test.
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ def _harness_over(transport: Any):
 def two_harnesses(allowlist_yaml_path: Path) -> dict[str, Any]:
     """Return `{"nats": Harness, "kafka": Harness}` over two MockTransports.
 
-    Names match the canonical bridge example in PRD-011 / ADR-0027.
+    Names match the canonical bridge example in .
     Neither harness is connected; tests connect via Stage.connect().
 
     Both MockTransports register `mock://localhost` because that is the

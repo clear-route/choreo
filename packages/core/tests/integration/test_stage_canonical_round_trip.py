@@ -1,6 +1,6 @@
 """Group P: Stage canonical happy-path round-trip.
 
-The single positive integration test in the Stage suite. ADR-0027
+The single positive integration test in the Stage suite. 
 §Validation success metric: the canonical NATS-in / Kafka-bridge /
 NATS-out round trip must be expressible in ≤15 lines of scenario
 body. This test pins that line count, and pins the contract that

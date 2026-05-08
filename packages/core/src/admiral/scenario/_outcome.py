@@ -1,4 +1,4 @@
-"""Handle outcome states (PRD-006, ADR-0014)."""
+"""Handle outcome states."""
 
 from __future__ import annotations
 

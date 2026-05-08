@@ -1,13 +1,12 @@
 <h1 align="center">Admiral</h1>
 
-
 <p align="center"><em>Distributed systems need a commander.</em></p>
 
 ---
 
 Admiral is an async Python test framework for distributed, message-driven systems. You declare the messages you expect, publish the ones that trigger them, and the harness handles the routing, correlation, timing, matching, and reporting. When a test fails, the report tells you *which* hop broke and *why*.
 
-Supporting natively: **NATS**, **Kafka**, **RabbitMQ**, **Redis**. 
+Supporting natively: **NATS**, **Kafka**, **RabbitMQ**, **Redis**.
 
 ---
 
@@ -172,7 +171,6 @@ from pathlib import Path
 from admiral import Harness
 from admiral.transports import NatsTransport
 from admiral.matchers import contains_fields, gt
-
 
 async def test_a_created_order_should_be_processed_with_a_positive_count():
     transport = NatsTransport(
@@ -380,7 +378,7 @@ from admiral import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespac
 
 #
 Harness(transport)
-Harness(transport, correlation=NoCorrelationPolicy())   
+Harness(transport, correlation=NoCorrelationPolicy())
 Harness(transport, correlation=DictFieldPolicy(field="trace_id"))
 ```
 
@@ -393,7 +391,6 @@ Harness(transport, correlation=DictFieldPolicy(field="trace_id"))
 | Shared broker across tenants / CI runs / dev machines | `DictFieldPolicy(field=..., prefix=<run-unique>)` |
 | Downstream systems filter test traffic on `TEST-` | `test_namespace()` |
 | Correlation lives in a header, not the payload | Custom `CorrelationPolicy` |
-
 
 ### When you also have a `CorrelationBridge`
 
@@ -651,7 +648,6 @@ the asyncio loop thread.
 
 ## Test report
 
-
 The **admiral-reporter** package is a pytest plugin that writes an
 interactive HTML report and a structured JSON file at the end of every
 pytest run.
@@ -667,7 +663,7 @@ pytest
 
 # Output (default location)
 ls test-report/
-# index.html   results.json   assets/
+# index.html results.json assets/
 
 # Custom location
 pytest --harness-report=/tmp/my-report
@@ -738,7 +734,6 @@ DATABASE_URL=postgresql+asyncpg://chronicle:chronicle@localhost:5433/chronicle \
   python -m chronicle
 # Dashboard at http://localhost:5173
 ```
-
 
 ---
 

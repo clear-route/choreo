@@ -21,7 +21,7 @@ Usage::
         auth=lambda: NatsAuth.token(os.environ["NATS_TOKEN"]),
     )
 
-See ADR-0020 for the full design rationale.
+
 """
 
 from __future__ import annotations

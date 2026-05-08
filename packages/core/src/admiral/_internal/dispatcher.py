@@ -1,4 +1,4 @@
-"""Dispatcher — correlation-based inbound Mediator (ADR-0004).
+"""Dispatcher — correlation-based inbound Mediator.
 
 The single dispatch point for every inbound message. Extracts the correlation
 ID from the payload via a per-topic extractor, looks up the owning scope, and
@@ -23,7 +23,7 @@ class SurpriseEntry:
     """Redacted record of an inbound message the dispatcher could not route.
 
     No `payload` field by design — payloads may contain regulated or
-    personal data. See [ADR-0004 §Security Considerations](../../docs/adr/0004-dispatcher-correlation-mediator.md).
+    personal data. See [ §Security Considerations](../../docs/adr/0004-dispatcher-correlation-mediator.md).
     """
 
     topic: str
@@ -59,7 +59,7 @@ class Dispatcher:
         if "dispatch" in cls.__dict__:
             raise TypeError(
                 f"{cls.__name__} cannot override Dispatcher.dispatch; the single "
-                "dispatch-point invariant is enforced at class creation (ADR-0004)"
+                "dispatch-point invariant is enforced at class creation"
             )
 
     def __init__(self, *, poster: LoopPoster) -> None:
@@ -90,7 +90,7 @@ class Dispatcher:
         if _is_forbidden_extractor(extractor):
             raise ValueError(
                 f"extractor {extractor!r} is a deserialiser and is forbidden; "
-                "extractors must be pure parsing functions (ADR-0004 §Security)"
+                "extractors must be pure parsing functions"
             )
         self._extractors[topic] = extractor
 

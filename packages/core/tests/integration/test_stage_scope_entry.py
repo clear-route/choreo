@@ -3,7 +3,7 @@
 Covers test-plan items E1-E5 from
 `docs/test-plans/0027-stage-integration-tests.md` — the bridge protocol
 enforcement that fires inside `_StageScenarioScope.__aenter__`. Eager
-child minting (per ADR-0027 §Implementation, R8 in the comprehensive
+child minting (per  §Implementation, R8 in the comprehensive
 review) gives bridge translation errors a deterministic firing point at
 scope entry rather than racing the test body, and re-exercises the
 bridge's per-transport distinctness against the actual logical id.
@@ -37,10 +37,10 @@ async def test_stage_scenario_should_raise_translation_error_when_fresh_raises(
     """E1. The first thing `__aenter__` does is `await bridge.fresh()`.
     A consumer bridge that raises here surfaces as a typed
     BridgeTranslationError naming the `fresh` method, with the original
-    exception on `.original` (mirroring ADR-0019's CorrelationPolicyError
+    exception on `.original` (mirroring the CorrelationPolicyError
     shape) so the consumer does not have to walk __cause__.
 
-    Covers R19; ADR-0027 §Validation "BridgeTranslationError wraps
+    Covers R19;  §Validation "BridgeTranslationError wraps
     consumer-bridge exceptions".
     """
     from admiral.stage import BridgeTranslationError, Stage
@@ -151,7 +151,7 @@ async def test_stage_scenario_should_clean_up_partially_minted_state_when_mint_f
     "subsequent scope works" — the Stage is not left in a state that
     poisons future scopes.
 
-    Covers R8 (eager mint cleanup path); ADR-0027 §Implementation
+    Covers R8 (eager mint cleanup path);  §Implementation
     `_StageScenarioScope._teardown` on `__aenter__` failure.
     """
     from admiral import Harness
@@ -213,7 +213,7 @@ async def test_stage_scenario_scope_should_not_be_re_entrant(
     mint duplicate children, double-call `bridge.fresh()`, and leave
     teardown ambiguous about which entry to undo.
 
-    Covers ADR-0027 §Validation "StageScenarioScope not re-entrant".
+    Covers  §Validation "StageScenarioScope not re-entrant".
     """
     from admiral.stage import Stage, StageStateError
 

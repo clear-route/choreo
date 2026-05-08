@@ -1,4 +1,4 @@
-"""PRD-012 Phase 1 contract test against a real Chronicle + TimescaleDB.
+""" Phase 1 contract test against a real Chronicle + TimescaleDB.
 
 Asserts:
 
@@ -8,7 +8,7 @@ Asserts:
 * The run is queryable via ``GET /api/v1/runs/{run_id}``.
 
 Skipped cleanly when TimescaleDB is not reachable. Requires migration
-003 to have been applied (PRD-012 NOT NULL relaxation + transports
+003 to have been applied ( NOT NULL relaxation + transports
 column).
 """
 
@@ -26,7 +26,7 @@ pytestmark = pytest.mark.chronicle_db
 
 
 def _v1_1_stage_report() -> dict[str, Any]:
-    """Mirror of `tests/integration/test_prd012_contract._v1_1_stage_report`.
+    """Mirror of `tests/integration/test_stage_contract._v1_1_stage_report`.
 
     Duplicated here intentionally so the e2e test stands alone — the
     integration test exercises validation; this exercises persistence.
@@ -127,14 +127,14 @@ def _v1_1_stage_report() -> dict[str, Any]:
 
 
 @skip_no_db
-class TestPRD012Contract:
+class TestStageContract:
     """End-to-end: POST a v1.1 Stage report → assert 201 + persistence."""
 
     def test_a_v1_1_stage_report_should_be_accepted_with_201(self, db_client: TestClient) -> None:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_1_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd012-contract"},
+            headers={"X-Chronicle-Tenant": "stage-contract"},
         )
         assert response.status_code == 201, response.text
         body = response.json()
@@ -148,7 +148,7 @@ class TestPRD012Contract:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_1_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd012-contract"},
+            headers={"X-Chronicle-Tenant": "stage-contract"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]
@@ -176,7 +176,7 @@ class TestPRD012Contract:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_1_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd012-contract"},
+            headers={"X-Chronicle-Tenant": "stage-contract"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]

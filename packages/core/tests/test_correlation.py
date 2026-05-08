@@ -1,4 +1,4 @@
-"""Behavioural tests for the CorrelationPolicy surface (ADR-0019).
+"""Behavioural tests for the CorrelationPolicy surface.
 
 Covers the three shipped profiles (NoCorrelationPolicy, DictFieldPolicy,
 test_namespace) against the Envelope shape, the Harness wiring, and the
@@ -52,7 +52,7 @@ def test_an_envelope_should_be_frozen() -> None:
 
 async def test_no_correlation_policy_should_generate_none_as_the_scope_id() -> None:
     """Under the no-op policy, the scope has no correlation id and
-    Scenario.correlation_id is None (ADR-0019)."""
+    Scenario.correlation_id is None."""
     policy = NoCorrelationPolicy()
     assert await policy.new_id() is None
 
@@ -74,7 +74,7 @@ def test_no_correlation_policy_should_return_none_on_read() -> None:
 
 
 def test_no_correlation_policy_should_declare_no_routing() -> None:
-    """Negative-assertion matchers will gate on this flag (ADR-0019)."""
+    """Negative-assertion matchers will gate on this flag."""
     assert NoCorrelationPolicy().routes_by_correlation is False
 
 
@@ -91,7 +91,7 @@ async def test_dict_field_policy_should_stamp_a_missing_field() -> None:
 
 
 async def test_dict_field_policy_should_not_mutate_the_input_envelope() -> None:
-    """ADR-0019 §Implementation: `write` returns a new envelope; it must
+    """ §Implementation: `write` returns a new envelope; it must
     not mutate the caller's payload in place."""
     policy = DictFieldPolicy()
     original_payload = {"k": "v"}
@@ -102,7 +102,7 @@ async def test_dict_field_policy_should_not_mutate_the_input_envelope() -> None:
 
 async def test_dict_field_policy_should_honour_an_explicit_field() -> None:
     """An explicit field value on the payload is not overwritten — mirrors
-    the pre-ADR-0019 `setdefault` semantic."""
+    the previous `setdefault` semantic."""
     policy = DictFieldPolicy()
     env = Envelope(topic="t", payload={"correlation_id": "mine", "k": "v"})
     result = policy.write(env, "from-scope")
@@ -189,7 +189,7 @@ async def test_the_test_namespace_factory_should_accept_a_custom_field_name() ->
 async def test_the_default_harness_policy_should_be_no_correlation(
     allowlist_yaml_path: Path,
 ) -> None:
-    """ADR-0019 §Decision: public release default is NoCorrelationPolicy.
+    """ §Decision: public release default is NoCorrelationPolicy.
     Consumers who want per-scope isolation opt in explicitly."""
     harness = Harness(_mock_transport(allowlist_yaml_path))
     assert isinstance(harness.correlation, NoCorrelationPolicy)
@@ -227,7 +227,7 @@ async def test_no_op_policy_against_mock_transport_should_not_warn(
 async def test_no_op_policy_against_non_mock_transport_should_warn(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """ADR-0019 §Defence-in-depth regression: WARNING fires whenever
+    """ §Defence-in-depth regression: WARNING fires whenever
     NoCorrelationPolicy is paired with a non-Mock transport so an operator
     sees the unsafe pairing at connect() time."""
 
@@ -266,7 +266,7 @@ async def test_scenario_under_test_namespace_should_stamp_outbound_payloads(
 ) -> None:
     """End-to-end: with `test_namespace()` explicitly configured, a
     scenario publish stamps the configured dict field. This reproduces
-    the pre-ADR-0019 captive behaviour."""
+    the previous captive behaviour."""
     from admiral.matchers import payload_contains
 
     harness = Harness(_mock_transport(allowlist_yaml_path), correlation=_ns())
@@ -291,7 +291,7 @@ async def test_scenario_under_test_namespace_should_stamp_outbound_payloads(
 async def test_scenario_under_no_correlation_policy_should_not_stamp(
     allowlist_yaml_path: Path,
 ) -> None:
-    """ADR-0019 core promise: under NoCorrelationPolicy, `s.publish(topic,
+    """ core promise: under NoCorrelationPolicy, `s.publish(topic,
     payload)` produces exactly `payload` on the wire. No library-injected
     field."""
     from admiral.matchers import payload_contains
@@ -359,7 +359,7 @@ class _BrokenWritePolicy:
 async def test_a_broken_policy_write_should_raise_correlation_policy_error(
     allowlist_yaml_path: Path,
 ) -> None:
-    """ADR-0019 §Security Considerations §Consumer-supplied policy trust
+    """ §Security Considerations §Consumer-supplied policy trust
     boundary: a policy exception must surface as CorrelationPolicyError
     naming the policy class, not a bare RuntimeError."""
     from admiral.matchers import payload_contains
@@ -424,7 +424,7 @@ async def test_a_broken_new_id_should_fail_scope_entry(
 class _HeaderStyleStubPolicy:
     """Stub used as a regression gate: a policy that doesn't touch the
     payload field still satisfies the CorrelationPolicy protocol. Without
-    the envelope-shaped surface (ADR-0019), this kind of policy would
+    the envelope-shaped surface, this kind of policy would
     require a protocol change.
     """
 

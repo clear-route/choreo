@@ -1,6 +1,6 @@
 """Repository for topic-level latency queries.
 
-Uses raw SQL via ``text()`` for all queries (ADR-0025 Decision 1).
+Uses raw SQL via ``text()`` for all queries ( Decision 1).
 TimescaleDB-specific functions (``time_bucket``, ``percentile_cont``)
 and continuous aggregate views are not ORM-mappable, so raw SQL is
 the pragmatic choice.  All user-supplied values are bound parameters.
@@ -15,12 +15,12 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# ── Raw bucket interval (ADR-0025 Decision 2) ──
+# ── Raw bucket interval ( Decision 2) ──
 
 # SECURITY: constant only — inlined into SQL f-string. Never from user input.
 _RAW_BUCKET_INTERVAL = "15 minutes"
 
-# ── Aggregate view safelist (ADR-0025 §Security) ──
+# ── Aggregate view safelist ──
 
 _AGGREGATE_VIEWS: dict[str, str] = {
     "hourly": "topic_latency_hourly",
@@ -183,7 +183,7 @@ class TopicRepository:
     """Database access for topic-level queries.
 
     All queries use raw SQL via ``text()`` with named bind parameters
-    (ADR-0025 Decision 1).
+    ( Decision 1).
     """
 
     def __init__(self, session: AsyncSession) -> None:

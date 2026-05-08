@@ -63,7 +63,7 @@ class TransportCapabilities:
 # rendered timeline will show PUBLISHED + no RECEIVED; the test will
 # observe a TIMEOUT outcome on any handle awaiting delivery. This
 # behaviour matches the MockTransport contract and is documented in
-# PRD-013 §2.3.1.
+#  §2.3.1.
 OnSent = Callable[[], None]
 
 
@@ -140,7 +140,7 @@ class Transport(Protocol):
     threads. Callbacks must run on the asyncio loop thread. Shipping
     transports are all natively async and schedule work via
     `loop.create_task(...)` directly; a threaded transport would cross the
-    boundary via `admiral._internal.LoopPoster` (reserved scaffolding, ADR-0003).
+    boundary via `admiral._internal.LoopPoster` (reserved scaffolding).
 
     `publish()` accepts an optional `on_sent` callback that the transport
     MUST invoke on the loop thread at the post-wire moment for the message.

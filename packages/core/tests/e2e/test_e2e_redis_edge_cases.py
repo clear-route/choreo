@@ -37,7 +37,7 @@ async def test_two_concurrent_scenarios_on_the_same_redis_channel_should_only_fu
     """Redis PUBLISH fans out to every subscriber on the channel. The
     scope's correlation filter is the only isolation boundary.
 
-    Opts into `test_namespace()` — ADR-0019 makes correlation routing
+    Opts into `test_namespace()` makes correlation routing
     opt-in; the library default is broadcast."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
@@ -115,7 +115,7 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
     _redis_available: bool,
 ) -> None:
     """Opts into `test_namespace()` — this test exercises the correlation
-    filter itself, which ADR-0019 makes opt-in."""
+    filter itself, which  makes opt-in."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
     from admiral.scenario import Outcome
@@ -452,7 +452,7 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     _redis_available: bool,
 ) -> None:
     """Opts into `test_namespace()` because the late publish echoes
-    `s.correlation_id` (ADR-0019)."""
+    `s.correlation_id`."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
     from admiral.scenario import Outcome

@@ -1,4 +1,4 @@
-"""Session collection — PRD-007 §2.
+"""Session collection.
 
 Bridges the pytest hook stream and the scenario-observer callback into a
 single in-memory run document that the serialiser turns into JSON at
@@ -239,14 +239,14 @@ class Collector:
 
         totals = compute_totals(tests_json)
 
-        # Run-level transport aggregation (PRD-012 §1.5, §1.6, §2.5).
+        # Run-level transport aggregation.
         # Single-Harness-only: `transport` carries the class name,
         # `transports` is omitted. Any Stage scenario observed: bump
         # `transport` to null and emit `transports` with the sorted
         # union (sorted alphabetically, deterministic for snapshot tests).
         # In mixed-mode runs (both single-Harness and Stage), the union
         # includes the single-Harness transport class name plus every
-        # Stage transport. Per PRD-012 §1.6: "populates run.transports
+        # Stage transport. 6: "populates run.transports
         # with the union of every transport name encountered".
         stage_transports: set[str] = set()
         single_harness_observed = False
@@ -261,9 +261,9 @@ class Collector:
         if stage_transports and single_harness_observed and self.transport:
             transports_union.add(self.transport)
 
-        # PRD-012 §1.5.1: emit `redaction_version` only when at least one
+        #  §1.5.1: emit `redaction_version` only when at least one
         # Stage scenario was observed (and therefore the hash-based
-        # redaction at the report boundary was applied). Pre-PRD-012
+        # redaction at the report boundary was applied). Pre-
         # consumers reading single-Harness reports see the same v1.0
         # `redactions` shape, preserving the snapshot-test byte-identity
         # contract (US-6).

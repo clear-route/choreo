@@ -1,4 +1,4 @@
-"""Behavioural tests for the scenario observer seam (PRD-007 §2).
+"""Behavioural tests for the scenario observer seam.
 
 The observer registry in `admiral._reporting` is the single library-surface
 contact point between `core` and the future external `admiral-reporter`
@@ -219,7 +219,7 @@ async def test_a_scope_that_raises_before_await_all_should_emit_a_partial(
     """When the test body raises inside the scope before `await_all` runs,
     the reporter would otherwise see nothing. A partial `ScenarioResult`
     is emitted with `completed_normally=False` so the report can still
-    show what happened (PRD-007 Decision #24)."""
+    show what happened ( Decision #24)."""
     from admiral._reporting import register_observer
     from admiral.matchers import field_equals
 

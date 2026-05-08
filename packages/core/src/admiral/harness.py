@@ -1,4 +1,4 @@
-"""Harness — suite-scoped facade for the test framework (ADR-0001).
+"""Harness — suite-scoped facade for the test framework.
 
 The Harness is a pure coordinator. It takes any object satisfying the
 `Transport` Protocol, plus a `Codec` for decoding payloads, and nothing else.
@@ -64,8 +64,8 @@ class Harness:
                 routing falls back to broadcast (every live scope on a topic
                 sees every message). Consumers who need per-scope isolation
                 pass a `DictFieldPolicy` (or `test_namespace()` for the
-                `TEST-`-prefixed profile, pre-ADR-0019 captive behaviour).
-                See ADR-0019.
+                `TEST-`-prefixed profile, previous captive behaviour).
+                
         """
         self._transport = transport
         self._codec: Codec = codec if codec is not None else JSONCodec()
@@ -91,7 +91,7 @@ class Harness:
         self._warn_if_noop_policy_on_real_transport()
 
     def _warn_if_noop_policy_on_real_transport(self) -> None:
-        """ADR-0019 §Security Considerations §Defence-in-depth regression.
+        """ §Security Considerations §Defence-in-depth regression.
 
         Emit a structured WARNING when a no-op policy is paired with any
         transport other than MockTransport — scope isolation is off, and
@@ -107,7 +107,7 @@ class Harness:
             "Harness was constructed with NoCorrelationPolicy against %s; "
             "per-scope correlation routing is disabled and inbound messages "
             "fan out to every live scope. Safe only on dedicated / per-run "
-            "infrastructure (ADR-0019).",
+            "infrastructure.",
             transport_class,
         )
 
@@ -136,7 +136,7 @@ class Harness:
         """Bypass the `is_connected()` short-circuit and run the full
         teardown unconditionally.
 
-        Multi-transport coordinators (`Stage`, ADR-0027) need this when a
+        Multi-transport coordinators (`Stage`) need this when a
         harness's `connect()` raised partway: the transport may have
         opened resources before raising, and the regular `disconnect()`
         skips them because `_connected` stayed False. This method is the
@@ -162,7 +162,7 @@ class Harness:
 
     @property
     def transport_name(self) -> str:
-        """Read-only accessor for the transport's class name (PRD-012
+        """Read-only accessor for the transport's class name (
         §2.5, §2.8).
 
         The admiral-reporter reads this to populate `run.transport` for
@@ -187,7 +187,7 @@ class Harness:
         """Read-only accessor for the CorrelationPolicy held by this harness.
 
         The Scenario DSL routes id generation, outbound stamping, and inbound
-        filtering through this policy (ADR-0019).
+        filtering through this policy.
         """
         return self._correlation
 
@@ -228,7 +228,7 @@ class Harness:
 
     def scenario(self, name: str) -> Any:
         """Enter a scenario scope. Returns an async context manager yielding
-        a Scenario. See ADR-0012, ADR-0014, ADR-0015."""
+        a Scenario. """
         from .scenario import _ScenarioScope
 
         return _ScenarioScope(self, name)
@@ -247,5 +247,5 @@ class Harness:
     def __reduce__(self) -> Any:
         raise TypeError(
             "Harness is not pickleable — transports may hold credentials and "
-            "live sockets that must not cross a process boundary (ADR-0001)"
+            "live sockets that must not cross a process boundary"
         )

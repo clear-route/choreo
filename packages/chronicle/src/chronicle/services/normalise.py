@@ -25,7 +25,7 @@ class NormalisedHandle:
     matcher_description: str
     diagnosis_kind: str | None
     over_budget: bool
-    # PRD-012: per-handle transport for Stage scenarios. None for
+    # : per-handle transport for Stage scenarios. None for
     # single-Harness handles. Flowed through to
     # `handle_measurements.transport` by the repository.
     transport: str | None = None
@@ -34,7 +34,7 @@ class NormalisedHandle:
 @dataclass(frozen=True)
 class NormalisedTimelineEvent:
     """A single timeline event extracted and normalised from
-    `scenario.timeline[]` (PRD-013, schema v1.3).
+    `scenario.timeline[]` (, schema v1.3).
 
     Mirrors the v1.3 JSON shape: mandatory `time` (parsed from
     `wall_clock`), `action`, `detail`, `offset_ms` plus optional
@@ -63,7 +63,7 @@ class NormalisedScenario:
     duration_ms: float
     completed_normally: bool
     handles: tuple[NormalisedHandle, ...]
-    # PRD-013 §1.6: optional with default to keep backward-compat with
+    #  §1.6: optional with default to keep backward-compat with
     # test fixtures constructing NormalisedScenario directly. v1.0/v1.1
     # reports populate an empty tuple; v1.2/v1.3 Stage reports carry
     # captured events.
@@ -83,10 +83,10 @@ class NormalisedReport:
     finished_at: datetime
     duration_ms: float
     environment: str | None
-    # PRD-012: `transport` is now nullable (Stage-only or mixed runs);
+    # : `transport` is now nullable (Stage-only or mixed runs);
     # `transports` carries the sorted union when populated. Repository
     # writes `transport` to `runs.transport` (column relaxed to nullable
-    # by migration `003_prd012_stage_transports.py`); `transports` to
+    # by migration `003_stage_transports.py`); `transports` to
     # `runs.transports`.
     transport: str | None
     branch: str | None
@@ -108,7 +108,7 @@ class NormalisedReport:
     # Exploded data
     scenarios: list[NormalisedScenario]
 
-    # PRD-012: optional with default to keep backward compatibility
+    # : optional with default to keep backward compatibility
     # with test fixtures constructing NormalisedReport directly.
     transports: list[str] | None = None
 
@@ -162,7 +162,7 @@ def normalise_report(report: object) -> NormalisedReport:
     scenarios: list[NormalisedScenario] = []
     for test in tests:
         for scenario_dict in test.get("scenarios", []):
-            # PRD-012 contract: a Stage scenario (signalled by the
+            #  contract: a Stage scenario (signalled by the
             # `stage` block) carries per-handle `transport` on every
             # handle. Validate the invariant up-front so the COPY
             # protocol does not later attempt to write NULL into the
@@ -178,7 +178,7 @@ def normalise_report(report: object) -> NormalisedReport:
                     raise ValueError(
                         f"Stage handle on topic {h.get('topic')!r} in scenario "
                         f"{scenario_dict.get('name')!r} has no `transport` field; "
-                        "PRD-012 §1.1 requires every Stage handle to carry one."
+                        " §1.1 requires every Stage handle to carry one."
                     )
                 handles.append(
                     NormalisedHandle(
@@ -193,7 +193,7 @@ def normalise_report(report: object) -> NormalisedReport:
                         transport=handle_transport,
                     )
                 )
-            # PRD-013 §1.6: extract timeline events. v1.0/v1.1 reports
+            #  §1.6: extract timeline events. v1.0/v1.1 reports
             # have an empty list (deferral marker); v1.2/v1.3 reports
             # carry the captured events. The normaliser parses
             # `wall_clock` into a tz-aware datetime; the v1.3 schema

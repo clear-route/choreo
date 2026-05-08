@@ -72,7 +72,7 @@ class MockTransport:
     # ---- lifecycle -------------------------------------------------------
 
     async def connect(self) -> None:
-        # --- resolve and validate auth (ADR-0020 §Implementation step 5) ---
+        # --- resolve and validate auth ---
         raw_auth = self._auth
         self._auth = None
         descriptor = await _resolve_auth(raw_auth, "mock")
@@ -130,7 +130,7 @@ class MockTransport:
         # subscriber. Matches real-broker semantics (the broker confirms
         # the send, then propagates to subscribers — physically separate
         # channels, the confirmation arrives independently of delivery).
-        # Important for the PRD-013 timeline: a synchronous reply chain
+        # Important for the  timeline: a synchronous reply chain
         # would otherwise record REPLIED (the inner publish's on_sent)
         # before PUBLISHED (the outer publish's on_sent), inverting the
         # causal order in the rendered waterfall.

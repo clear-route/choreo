@@ -92,7 +92,7 @@ only the categories it cares about.
 
 The repo ships [config/allowlist.yaml](config/allowlist.yaml) for the framework's
 own tests. Consumers ship their own allowlist file(s) — one per deployment
-they support. ADR-0006 explains why production endpoints never appear in any
+they support.  explains why production endpoints never appear in any
 checked-in allowlist.
 
 ### Production config does not live in test files
@@ -145,7 +145,6 @@ import pytest_asyncio
 from admiral import Harness
 from admiral.transports import MockTransport     # or NatsTransport / KafkaTransport / ...
 
-
 @pytest_asyncio.fixture(loop_scope="session", scope="session")
 async def harness():
     # The consumer chooses which transport and where its config comes from.
@@ -160,7 +159,6 @@ async def harness():
         yield h
     finally:
         await h.disconnect()
-
 
 # In the consumer's tests
 async def test_a_created_event_should_produce_a_state_change(harness):
@@ -326,7 +324,7 @@ Three layers with strict import direction:
 api/           → services/       → repositories/     → models/
 (thin routes)    (business logic)   (database access)   (ORM tables)
      ↓               ↓                   ↓
-schemas/        normalise.py         SQLAlchemy 2.0
+schemas/        normalise.py SQLAlchemy 2.0
 (Pydantic)      (shared types)       asyncpg COPY
 ```
 

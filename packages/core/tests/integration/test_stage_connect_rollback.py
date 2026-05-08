@@ -41,7 +41,7 @@ async def test_stage_connect_should_disconnect_already_connected_siblings_when_a
     Stage.connect() raises StageConnectError and BOTH already-connected
     transports report `is_connected() is False` after the raise.
 
-    Covers ADR-0027 §Validation "Connect rollback cleanly leaves no
+    Covers  §Validation "Connect rollback cleanly leaves no
     transport up".
     """
     from admiral import Harness
@@ -88,7 +88,7 @@ async def test_stage_connect_should_disconnect_the_failing_transport_itself(
     `_ResourceLeakingMockTransport` increments on connect entry and
     decrements on disconnect.
 
-    Covers R4; ADR-0027 §Validation "Connect rollback disconnects the
+    Covers R4;  §Validation "Connect rollback disconnects the
     failing transport too".
     """
     from admiral import Harness
@@ -142,7 +142,7 @@ async def test_stage_connect_should_surface_the_original_connect_error_when_roll
     the one that surfaces. The disconnect failure is recorded as a
     structured WARNING for audit.
 
-    Covers R15 (rollback isolation); ADR-0027 §Monitoring structured-log
+    Covers R15 (rollback isolation);  §Monitoring structured-log
     assertions.
     """
     from admiral.stage import Stage, StageConnectError
@@ -282,7 +282,7 @@ async def test_stage_connect_should_attempt_no_further_transports_after_first_fa
     """C6. The connect loop is fail-fast. After the second transport
     raises, the third's connect() is never called.
 
-    Covers ADR-0027 §Implementation "fail-fast" guarantee.
+    Covers  §Implementation "fail-fast" guarantee.
     """
     from admiral.stage import Stage, StageConnectError
 

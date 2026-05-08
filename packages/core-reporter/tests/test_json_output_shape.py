@@ -1,4 +1,4 @@
-"""JSON output structure — PRD-007 §3.
+"""JSON output structure.
 
 Drives the plugin with a pytester inner session that actually uses the
 harness, so the output contains scenarios, handles, and timelines.
@@ -181,7 +181,7 @@ def test_run_totals_should_sum_the_test_outcomes(
 def test_a_scenario_with_replies_should_carry_reply_reports_and_timeline_events(
     pytester: pytest.Pytester,
 ) -> None:
-    """PRD-008 / ADR-0017: reply reports must flow through the JSON
+    """: reply reports must flow through the JSON
     alongside handles, and reply lifecycle events must appear on the
     scope's timeline so the HTML renders them inline."""
     module_src = """

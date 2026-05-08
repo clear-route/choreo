@@ -1,4 +1,4 @@
-"""Serialisation — PRD-007 §3, §5; PRD-012 §1.7, §2.2, §2.3, §2.4; PRD-013 §1.1, §1.6, §3.1.
+"""Serialisation, §5;  §1.7, §2.2, §2.3, §2.4;  §1.1, §1.6, §3.1.
 
 Converts `ScenarioResult` / `StageScenarioResult` / `Handle` /
 `TimelineEntry` (defined in `core`) into JSON-shaped dicts that
@@ -8,9 +8,9 @@ Applies size caps in a single tree walk: string fields >2 KB are replaced
 with a truncation marker, and a JSON-encoded per-payload cap of 8 KB
 guards against large dicts.
 
-Outcome values are normalised according to the table in PRD-007 §3.
+Outcome values are normalised according to the table in  §3.
 
-Stage scenarios (PRD-012):
+Stage scenarios:
 
 * `serialise_scenario` dispatches on `result.kind` — Stage results
   emit the additional `stage` block plus `handle.transport` and
@@ -49,7 +49,7 @@ from admiral.stage import (
 from ._redact import RedactionStats, redact_structured
 
 # ---------------------------------------------------------------------------
-# Caps (PRD-007 §5)
+# Caps
 # ---------------------------------------------------------------------------
 
 
@@ -155,7 +155,7 @@ def _walk_and_cap_strings(value: Any) -> Any:
 
 
 # ---------------------------------------------------------------------------
-# Outcome normalisation (PRD-007 §3)
+# Outcome normalisation
 # ---------------------------------------------------------------------------
 
 
@@ -227,7 +227,7 @@ def serialise_timeline_entry(entry: TimelineEntry) -> dict[str, Any]:
     Optional fields (`topic`, `transport`, `logical_topic`, `source`)
     are OMITTED from the output dict when their Python value is `None`
     — never emitted as `null`. Preserves the byte-identity contract
-    for single-`Harness` entries (PRD-012 §1.5) and the per-PRD-013
+    for single-`Harness` entries and the per-
     §1.1 / §1.6 omission rules.
     """
     out: dict[str, Any] = {
@@ -341,7 +341,7 @@ def serialise_handle(handle: Handle, stats: RedactionStats) -> dict[str, Any]:
         "failures_dropped": handle.failures_dropped,
         "diagnosis": _derive_diagnosis(handle),
     }
-    # PRD-012 §2.3, §1.5.1: Stage handles carry `transport` and a
+    #  §2.3, §1.5.1: Stage handles carry `transport` and a
     # hash-redacted `correlation_id`. Single-Harness handles omit
     # both keys (the scenario-level correlation_id stays as-is in the
     # parent scenario serialiser).
@@ -355,7 +355,7 @@ def serialise_handle(handle: Handle, stats: RedactionStats) -> dict[str, Any]:
 REPLIES_CAP = 100
 
 
-# StageReplyState → schema-string mapping per PRD-012 §1.7.
+# StageReplyState → schema-string mapping 7.
 # The `state` enum in test-report-v1.2.json keeps the v1.0 four values.
 # Framework-side StageReplyState.FIRED collapses to "replied"; the
 # distinction (which framework path produced it) is preserved
@@ -378,7 +378,7 @@ _REPLY_REPORT_STATE_MAP: dict[ReplyReportState, str] = {
 def _serialise_reply_state(state: Any) -> str:
     """Map any reply-state enum value to the schema string.
 
-    PRD-012 §1.7 distinguishes two failure modes:
+     §1.7 distinguishes two failure modes:
 
     * `StageReplyState.ARMED` is a runtime-only state; encountering it
       at serialisation means the freeze-path in the framework's
@@ -403,7 +403,7 @@ def _serialise_reply_state(state: Any) -> str:
 def serialise_reply_report(report: ReplyReport | StageReplyReport) -> dict[str, Any]:
     """Render a reply report for the JSON output.
 
-    Matcher descriptions carry literal values (ADR-0017 §Security); the
+    Matcher descriptions carry literal values; the
     serialiser redacts them before emission — the report itself is a log-
     like artefact that leaves the scope and must not carry payload-derived
     matcher literals. The unredacted description remains on the in-memory
@@ -411,7 +411,7 @@ def serialise_reply_report(report: ReplyReport | StageReplyReport) -> dict[str, 
 
     Stage replies (`StageReplyReport`) carry `trigger_transport` and
     `response_transport`; the framework's `response_topic` is mapped
-    onto the existing `reply_topic` JSON key (PRD-012 §1.2.1).
+    onto the existing `reply_topic` JSON key.
     Single-`Harness` replies omit the transport fields.
     """
     is_stage = isinstance(report, StageReplyReport)
@@ -447,7 +447,7 @@ def serialise_scenario(
     completed_normally: bool,
     stats: RedactionStats,
 ) -> dict[str, Any]:
-    """Dispatch on `result.kind` (PRD-012 §2.1) to single-Harness vs
+    """Dispatch on `result.kind` to single-Harness vs
     Stage emission.
 
     Single-Harness scenarios produce the v1.0 shape (byte-identical
@@ -455,7 +455,7 @@ def serialise_scenario(
     `stage` block plus per-handle `transport` and redacted
     `correlation_id` (handled by `serialise_handle`).
 
-    Defence in depth (PRD-012 §2.1 §2nd-to-last paragraph): the
+    Defence in depth: the
     Stage-emission branch is wrapped in `try/except`. On unexpected
     failure (e.g. a hostile result whose `by_transport` is a property
     that raises), the reporter falls through to single-Harness
@@ -481,7 +481,7 @@ def serialise_scenario(
             )
             # Fall through to single-Harness emission. The result type
             # is StageScenarioResult; it shares `handles`, `passed`,
-            # `replies` and (post-PRD-012) `correlation_id` with the
+            # `replies` and (post-) `correlation_id` with the
             # single-Harness shape, so the fallback emits the partial
             # data without a stage block.
             return _serialise_stage_result_as_fallback(
@@ -563,7 +563,7 @@ def _serialise_stage_scenario(
 
     Adds the `stage` block (bridge_class, registered transports,
     redacted per-transport correlation ids). The handle list emits
-    `transport` + redacted `correlation_id` per handle. PRD-012 §1.4,
+    `transport` + redacted `correlation_id` per handle.  §1.4,
     §1.5.1.
 
     Naming: at the report boundary the per-transport wire ids are
@@ -577,7 +577,7 @@ def _serialise_stage_scenario(
     timeline = tuple(result.timeline[:TIMELINE_CAP])
     by_transport = result.by_transport
 
-    # PRD-012 §1.4 + the user-feedback fix: emit the FULL set of
+    #  §1.4 + the user-feedback fix: emit the FULL set of
     # transports registered on the Stage (sorted alphabetically), not
     # just the subset that produced handles. The QA reading the report
     # should see the configured shape, not the executed subset.
@@ -603,7 +603,7 @@ def _serialise_stage_scenario(
         if first_handle.correlation_id is not None:
             correlation_ids[transport] = redact_correlation_id(first_handle.correlation_id)
 
-    # PRD-012 §1.4: `bridge_class` is populated by the Stage scope at
+    #  §1.4: `bridge_class` is populated by the Stage scope at
     # result construction (advisory-tier audit field, regex-validated
     # in the schema). The fallback to "Unknown" handles older Stage
     # results that pre-date the field; new emission always carries

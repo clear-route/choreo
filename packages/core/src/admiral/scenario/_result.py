@@ -1,4 +1,4 @@
-"""ScenarioResult and its diagnostic helpers (PRD-006, PRD-012)."""
+"""ScenarioResult and its diagnostic helpers."""
 
 from __future__ import annotations
 
@@ -32,11 +32,11 @@ class ScenarioResult:
     def __reduce__(self) -> Any:
         raise TypeError(
             "ScenarioResult is not pickleable — carries Handle and ReplyReport "
-            "objects that may hold payload content (ADR-0017)"
+            "objects that may hold payload content"
         )
 
     def reply_at(self, trigger_topic: str) -> ReplyReport:
-        """Return the reply report for `trigger_topic` (ADR-0017).
+        """Return the reply report for `trigger_topic`.
 
         Raises KeyError when no reply with that trigger was registered.
         """

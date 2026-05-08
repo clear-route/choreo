@@ -1,6 +1,6 @@
 """Auth redaction tests — verifies that credentials never leak through
 repr, eq, deepcopy, pytest assertion rewriting, or resolver error messages.
-See ADR-0020 §Validation.
+
 """
 
 from __future__ import annotations

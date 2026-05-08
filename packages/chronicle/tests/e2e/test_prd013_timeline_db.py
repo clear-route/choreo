@@ -1,11 +1,11 @@
-"""PRD-013 PR 3.3 e2e: timeline_events COPY persistence against TimescaleDB.
+""" PR 3.3 e2e: timeline_events COPY persistence against TimescaleDB.
 
 Asserts the asyncpg COPY pipeline ships v1.3 timeline entries into
 the `timeline_events` hypertable, preserving every optional field
 (transport / topic / logical_topic / source) and the action enum.
 
 Skipped cleanly when TimescaleDB is not reachable. Requires migration
-005 to have been applied (PRD-013 §5 hypertable creation).
+005 to have been applied.
 """
 
 from __future__ import annotations
@@ -196,7 +196,7 @@ async def _query_timeline_events(run_id: str) -> list[dict]:
 
 
 @skip_no_db
-class TestPRD013TimelineIngest:
+class TestTimelineIngest:
     """End-to-end: POST a v1.3 Stage report → assert 201 + timeline rows
     land in the `timeline_events` hypertable with all v1.2/v1.3 fields
     preserved."""
@@ -207,7 +207,7 @@ class TestPRD013TimelineIngest:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_3_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd013-timeline"},
+            headers={"X-Chronicle-Tenant": "timeline"},
         )
         assert response.status_code == 201, response.text
         run_id = response.json()["run_id"]
@@ -229,7 +229,7 @@ class TestPRD013TimelineIngest:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_3_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd013-timeline"},
+            headers={"X-Chronicle-Tenant": "timeline"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]
@@ -244,7 +244,7 @@ class TestPRD013TimelineIngest:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_3_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd013-timeline"},
+            headers={"X-Chronicle-Tenant": "timeline"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]
@@ -259,7 +259,7 @@ class TestPRD013TimelineIngest:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_3_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd013-timeline"},
+            headers={"X-Chronicle-Tenant": "timeline"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]
@@ -281,7 +281,7 @@ class TestPRD013TimelineIngest:
         response = db_client.post(
             "/api/v1/runs",
             json=v1_1_report,
-            headers={"X-Chronicle-Tenant": "prd013-timeline-empty"},
+            headers={"X-Chronicle-Tenant": "timeline-empty"},
         )
         assert response.status_code == 201
         run_id = response.json()["run_id"]
@@ -291,7 +291,7 @@ class TestPRD013TimelineIngest:
 
 
 @skip_no_db
-class TestPRD013TimelineReadAPI:
+class TestTimelineReadAPI:
     """End-to-end: GET /api/v1/runs/{run_id}/timeline returns
     persisted timeline events with optional filters."""
 
@@ -299,7 +299,7 @@ class TestPRD013TimelineReadAPI:
         response = db_client.post(
             "/api/v1/runs",
             json=_v1_3_stage_report(),
-            headers={"X-Chronicle-Tenant": "prd013-timeline-read"},
+            headers={"X-Chronicle-Tenant": "timeline-read"},
         )
         assert response.status_code == 201, response.text
         return response.json()["run_id"]

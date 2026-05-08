@@ -242,7 +242,7 @@ class RabbitTransport:
         exchange = self._exchange
         in_flight = [t for t in self._pending_subs if not t.done()]
 
-        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        #  §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
         # timeline ordering is deterministic. See KafkaTransport.publish
         # for the rationale.
         if on_sent is not None:

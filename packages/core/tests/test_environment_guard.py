@@ -1,4 +1,4 @@
-"""Behavioural tests for the allowlist guard (ADR-0006).
+"""Behavioural tests for the allowlist guard.
 
 The library owns the `Allowlist` primitive; each **transport** enforces it
 at `connect()`. These tests use `MockTransport` as the enforcement exemplar —
@@ -113,7 +113,7 @@ async def test_a_connected_harness_configured_with_test_namespace_should_stamp_t
 ) -> None:
     """A harness configured with `test_namespace()` stamps a `TEST-` prefix
     onto outbound correlation ids — the opt-in posture for consumers who
-    want the pre-ADR-0019 ingress-filter contract."""
+    want the previous ingress-filter contract."""
     from admiral import Harness, test_namespace
     from admiral.transports import MockTransport
 

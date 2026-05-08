@@ -10,7 +10,7 @@ from Vault / Secrets Manager / env-vars at the last possible moment.
 ``_ALLOWED_VARIANTS`` may grow in minor releases.  Consumer tests that pin
 their contents are unsupported.
 
-See ADR-0020 for the full design rationale.
+
 """
 
 from __future__ import annotations

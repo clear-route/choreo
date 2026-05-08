@@ -1,4 +1,4 @@
-"""Behavioural tests for LoopPoster — the thread-safety boundary (ADR-0003).
+"""Behavioural tests for LoopPoster — the thread-safety boundary.
 
 Every cross-thread delivery from a transport thread to the asyncio loop goes
 through `LoopPoster.post`. It wraps `loop.call_soon_threadsafe` and (in debug

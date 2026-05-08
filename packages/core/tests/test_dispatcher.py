@@ -1,4 +1,4 @@
-"""Behavioural tests for Dispatcher — correlation-based inbound Mediator (ADR-0004).
+"""Behavioural tests for Dispatcher — correlation-based inbound Mediator.
 
 The Dispatcher is the single dispatch point for every inbound message. It owns a
 `correlation_id → scope` map, a per-topic extractor registry, and a redacted
@@ -112,7 +112,7 @@ async def test_a_message_arriving_after_its_scope_deregisters_should_be_classifi
 async def test_registering_an_extractor_that_deserialises_untrusted_data_should_be_rejected() -> (
     None
 ):
-    """ADR-0004 §Security: extractors are pure parsing functions."""
+    """ §Security: extractors are pure parsing functions."""
     import pickle
 
     from admiral._internal import Dispatcher, LoopPoster

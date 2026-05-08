@@ -1,4 +1,4 @@
-"""Credential-shape redaction — PRD-007 §12.
+"""Credential-shape redaction.
 
 Default redactor strips the values of fields whose *key* matches a
 credential-shape regex, and scrubs `bearer <token>` / `x-api-key: <token>`

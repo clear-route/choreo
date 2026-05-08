@@ -1,4 +1,4 @@
-"""pytest-xdist support — PRD-007 §1 / User Story 5.
+"""pytest-xdist support.
 
 The merge logic is unit-tested here with hand-written partials to
 exercise the controller path. A sanity end-to-end with `-n 2` at the

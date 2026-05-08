@@ -39,9 +39,9 @@ addopts = --harness-report=test-report
 Disable with `--harness-report-disable`. Register a custom redactor for
 domain-specific payload shapes via `admiral_reporter.register_redactor(...)`.
 
-## DSL-source attribution on timeline entries — PRD-013 v1.3
+## DSL-source attribution on timeline entries v1.3
 
-PRD-013 v1.3 (schema v1.3) tags every Stage timeline entry with the DSL
+ v1.3 (schema v1.3) tags every Stage timeline entry with the DSL
 surface that produced it, so consumers can disambiguate a test-side
 publish from a reply-chain's automatic response on the same topic
 without reading the test code. The schema bumps from `"1.2"` to `"1.3"`
@@ -81,9 +81,9 @@ HTML report additions:
    by `entry["source"] == "publish"` to count only test-initiated
    publishes.
 
-## Stage timeline capture — PRD-013 v1.2
+## Stage timeline capture v1.2
 
-PRD-013 adds per-scope event timeline capture for Stage scenarios. The
+ adds per-scope event timeline capture for Stage scenarios. The
 schema bumps from `"1.1"` to `"1.2"` (additive minor); every v1.1-valid
 report validates against v1.2 after the `schema_version` rewrite. Strict
 schema-validator consumers update their pinned schema document to
@@ -138,15 +138,15 @@ Three migration scenarios — pick the one that matches your consumer:
    that hardcoded "Stage scenarios have empty timelines" need to
    update their assumption.
 
-## Multi-transport (`Stage`) scenarios — PRD-012 v1.1
+## Multi-transport (`Stage`) scenarios v1.1
 
-Stage scenarios (multi-transport bridges; see ADR-0027)
+Stage scenarios (multi-transport bridges)
 land in the report as additive optional fields. Single-`Harness` reports are
 byte-identical to the v1.0 emission aside from the `schema_version` value.
 
 ### What's new in `results.json`
 
-The schema bumps from `"1"` to `"1.1"` (additive minor per PRD-007 §US-3).
+The schema bumps from `"1"` to `"1.1"` (additive minor
 Consumers gating on `schema_version.startswith("1")` continue to work; strict
 schema-validator consumers update their pinned schema document to
 [test-report-v1.1.json](../../docs/schemas/test-report-v1.1.json). The v1.0
@@ -279,5 +279,4 @@ detect the change via this field.
 entropy. The shipped `IdentityBridge` and `MappedBridge` use
 `secrets.token_hex(16)` (64 bits) for `bridge.fresh()` by default. A
 custom bridge that derives `fresh()` from low-entropy sources (request
-id, sequence number, customer id) defeats redaction — see ADR-0027
-§Security Considerations.
+id, sequence number, customer id) defeats redaction.

@@ -1,4 +1,4 @@
-"""The reporter must never be a test-failure source — PRD-007 §8."""
+"""The reporter must never be a test-failure source."""
 
 from __future__ import annotations
 

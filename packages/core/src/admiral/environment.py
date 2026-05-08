@@ -1,4 +1,4 @@
-"""Allowlist loading and enforcement exceptions (ADR-0006).
+"""Allowlist loading and enforcement exceptions.
 
 The library owns the **Allowlist primitive** — a generic category-keyed
 list-of-strings. It does not own the category names. Each transport decides

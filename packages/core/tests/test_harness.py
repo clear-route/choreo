@@ -92,7 +92,7 @@ async def test_connecting_an_already_connected_harness_should_not_re_enter_trans
 async def test_force_disconnect_should_call_transport_disconnect_when_connect_failed_partway(
     allowlist_yaml_path: Path,
 ) -> None:
-    """A multi-transport coordinator (Stage, ADR-0027) needs to clean up a
+    """A multi-transport coordinator (Stage) needs to clean up a
     harness whose `connect()` raised: the transport may have opened
     resources before raising, but `disconnect()` short-circuits on
     `is_connected() is False`. `force_disconnect()` is the escape hatch:
@@ -316,7 +316,7 @@ async def test_the_session_scoped_harness_should_expose_its_correlation_policy(
 ) -> None:
     """A consumer can introspect the active policy. The library default is
     `NoCorrelationPolicy`; this harness is constructed without an explicit
-    policy, so it is no-op (ADR-0019)."""
+    policy, so it is no-op."""
     from admiral import NoCorrelationPolicy
 
     assert isinstance(harness.correlation, NoCorrelationPolicy)

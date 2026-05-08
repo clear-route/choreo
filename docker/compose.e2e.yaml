@@ -39,7 +39,7 @@ services:
       retries: 10
 
   # Authenticated NATS — user/password required.  Used by the auth
-  # contract tests (ADR-0020).  Runs on port 4223 alongside the
+  # contract tests.  Runs on port 4223 alongside the
   # unauthenticated broker on 4222.  The sentinel password is
   # deliberately unusual so the CI log scanner can detect it if it
   # leaks into test output.

@@ -1,6 +1,6 @@
-"""PRD-013 PRs 1.2-1.6 - Stage scope timeline + per-event hook points.
+""" PRs 1.2-1.6 - Stage scope timeline + per-event hook points.
 
-Red tests for the end-to-end slices of PRD-013 §2.2-§2.3:
+Red tests for the end-to-end slices of  §2.2-§2.3:
 
 PR 1.2 covers the public `timeline` field on `StageScenarioResult`, the
 `_Timeline` instance on `_StageScenarioScope`, and the `PUBLISHED` hook
@@ -8,20 +8,20 @@ via the `on_sent` callback (matches single-`Harness` post-wire semantics).
 
 PR 1.3 adds `RECEIVED` (accept-path of `_decode_and_correlation_check`) and
 `CORRELATION_SKIPPED` (correlation-mismatch path), with the wire-id mismatch
-hash-redacted via `redact_correlation_id` (PRD-013 §Security).
+hash-redacted via `redact_correlation_id`.
 
 PR 1.4 adds `MATCHED` (matcher-accept branch of `_resolve_handle_on_match`)
 and `MISMATCHED` (matcher-reject branch). The MISMATCHED `detail` carries
-the matcher's mismatch reason un-redacted (PRD-013 §Security: payload
+the matcher's mismatch reason un-redacted ( §Security: payload
 values stay visible in this test tool).
 
 PR 1.5 adds `DEADLINE` (await_all timeout path). Scope-level event - the
-`transport` field is OMITTED per PRD-013 §D-3 (no sentinel, no `null`,
+`transport` field is OMITTED per  §D-3 (no sentinel, no `null`,
 just absent).
 
 PR 1.6 adds `REPLIED` (response_harness.publish post-wire via `on_sent`)
 and `REPLY_FAILED` (build / publish exception path). REPLY_FAILED detail
-carries only `type(exc).__name__` per ADR-0017 §Security Considerations -
+carries only `type(exc).__name__` per  §Security Considerations -
 exception messages are NOT included.
 
 Phase 1 closes with PR 1.6; Phase 2 covers reporter + renderer.
@@ -103,7 +103,7 @@ async def test_publishing_on_a_named_transport_should_record_a_published_entry(
 ) -> None:
     """A single `scope.publish(topic, payload, on=...)` records exactly one
     PUBLISHED entry whose `transport` is the publish target. This is the
-    end-to-end hook-point test for PRD-013 §2.3 row 1 (PUBLISHED)."""
+    end-to-end hook-point test for  §2.3 row 1 (PUBLISHED)."""
     async with connected_stage.scenario("publish-only") as scope:
         scope.publish("orders.new", b"payload", on="kafka")
         result = await scope.await_all(timeout_ms=10)
@@ -191,7 +191,7 @@ async def test_a_single_harness_scenario_timeline_should_remain_unchanged(
     allowlist_yaml_path: Path,
 ) -> None:
     """Single-`Harness` scopes do not run through the Stage path; their
-    timeline byte-identity contract from PRD-012 must hold. Verifies that
+    timeline byte-identity contract from  must hold. Verifies that
     PR 1.2's Stage instrumentation does not regress single-`Harness`."""
 
     harness = Harness(
@@ -225,7 +225,7 @@ async def test_a_message_arriving_on_an_expected_topic_should_record_a_received_
     """A Stage `expect()` registered on transport X observing a `publish()`
     on transport X with the matching wire id records exactly one RECEIVED
     entry on the receiving transport. The `transport` field carries the
-    receiving child's name (PRD-013 §2.3 row 2)."""
+    receiving child's name."""
 
     async with connected_stage.scenario("received") as scope:
         scope.expect("orders.new", field_equals("kind", "never-matches"), on="kafka")
@@ -258,7 +258,7 @@ async def test_a_loopback_publish_should_record_both_published_and_received(
 async def test_a_loopback_publish_should_record_published_before_received(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §2.3.1: `on_sent` fires synchronously at the publish call
+    """ §2.3.1: `on_sent` fires synchronously at the publish call
     site BEFORE subscriber dispatch (MockTransport) and BEFORE the
     broker round-trip (real transports). For a same-transport
     publish/expect pair, PUBLISHED's `offset_ms` is therefore <= the
@@ -279,7 +279,7 @@ async def test_a_loopback_publish_should_record_published_before_received(
 async def test_a_received_message_should_record_received_before_matched(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §2.3 row 2 + 4: RECEIVED is recorded inside
+    """ §2.3 row 2 + 4: RECEIVED is recorded inside
     `_decode_and_correlation_check` BEFORE the matcher runs; MATCHED
     is recorded inside `_resolve_handle_on_match`'s accept branch.
     `RECEIVED.offset_ms <= MATCHED.offset_ms` for any matched
@@ -314,7 +314,7 @@ async def test_a_rejected_message_should_record_received_before_mismatched(
 async def test_a_reply_chain_should_record_published_trigger_before_replied_response(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §2.3 rows 1 + 7: the trigger publish records PUBLISHED
+    """ §2.3 rows 1 + 7: the trigger publish records PUBLISHED
     at call-time; the reply chain runs inside the subsequent subscriber
     dispatch and publishes the response, recording REPLIED. PUBLISHED's
     `offset_ms` is therefore <= REPLIED's. This is the test that
@@ -374,7 +374,7 @@ async def test_two_consecutive_publishes_should_record_strictly_increasing_offse
 
 
 # ---------------------------------------------------------------------------
-# PRD-013 v1.3 / schema v1.3: TimelineEntry.source attribution
+#  v1.3 / schema v1.3: TimelineEntry.source attribution
 # ---------------------------------------------------------------------------
 
 
@@ -383,7 +383,7 @@ async def test_a_test_side_publish_should_carry_source_publish(
 ) -> None:
     """`scope.publish(...)` records a PUBLISHED entry whose `source`
     is `"publish"` — distinguishes a test-initiated publish from a
-    reply-chain's automatic response. PRD-013 §1.6, schema v1.3."""
+    reply-chain's automatic response.  §1.6, schema v1.3."""
 
     async with connected_stage.scenario("source-publish") as scope:
         scope.publish("orders.new", b"payload", on="kafka")
@@ -456,7 +456,7 @@ async def test_a_deadline_event_should_carry_source_scope(
 ) -> None:
     """Scope-level events (currently only DEADLINE) carry
     `source="scope"`. Symmetric with `transport=None` and
-    `topic=None` per PRD-013 §D-3."""
+    `topic=None` """
 
     async with connected_stage.scenario("source-scope") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
@@ -508,8 +508,8 @@ async def test_a_message_for_another_scopes_wire_id_should_record_a_correlation_
     inbound (MockTransport fan-out is shared per-Harness), and
     `_decode_and_correlation_check` rejects the foreign wire id AND
     records a CORRELATION_SKIPPED on the receiving transport
-    (PRD-013 §2.3 row 3). The detail is hash-redacted via
-    `redact_correlation_id` per PRD-013 §Security."""
+   . The detail is hash-redacted via
+    `redact_correlation_id` """
 
     nats_h = Harness(
         MockTransport(allowlist_path=allowlist_yaml_path, endpoint="mock://localhost"),
@@ -557,7 +557,7 @@ async def test_a_matcher_accepting_a_message_should_record_a_matched_entry(
 ) -> None:
     """A Stage `expect()` whose matcher accepts the inbound payload
     records exactly one MATCHED entry attributed to the receiving
-    transport (PRD-013 §2.3 row 4)."""
+    transport."""
 
     async with connected_stage.scenario("matched") as scope:
         scope.expect("orders.new", field_equals("kind", "ping"), on="kafka")
@@ -612,7 +612,7 @@ async def test_a_matcher_rejecting_a_message_should_record_a_mismatched_entry(
     """A Stage `expect()` whose matcher rejects the inbound payload (the
     payload arrived for the right scope but the field/value did not
     satisfy the matcher) records a MISMATCHED entry. The `transport`
-    field carries the receiving child's name (PRD-013 §2.3 row 5)."""
+    field carries the receiving child's name."""
 
     async with connected_stage.scenario("mismatched") as scope:
         scope.expect("orders.new", field_equals("kind", "expected"), on="kafka")
@@ -641,7 +641,7 @@ async def test_a_scope_whose_matcher_rejects_should_not_pass(
 async def test_a_mismatched_entry_should_carry_the_un_redacted_matcher_reason(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §Security: payload-derived values in the MISMATCHED `detail`
+    """ §Security: payload-derived values in the MISMATCHED `detail`
     stay un-redacted because the test report's diagnostic value IS the
     actual rejected payload. The matcher's reason string (containing the
     expected and actual field values) reaches the timeline verbatim,
@@ -684,7 +684,7 @@ async def test_a_scope_that_times_out_should_record_a_deadline_entry(
     connected_stage: Stage,
 ) -> None:
     """When `await_all`'s `timeout_ms` fires before every expectation
-    resolves, the scope records exactly one DEADLINE entry (PRD-013
+    resolves, the scope records exactly one DEADLINE entry (
     §2.3 row 6)."""
 
     async with connected_stage.scenario("times-out") as scope:
@@ -697,7 +697,7 @@ async def test_a_scope_that_times_out_should_record_a_deadline_entry(
 async def test_a_deadline_entry_should_omit_the_transport_field(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §D-3: DEADLINE is a scope-level event - no per-transport
+    """ §D-3: DEADLINE is a scope-level event - no per-transport
     attribution. The `transport` field is OMITTED (Python: `None` so
     the reporter omits the JSON key per §1.1). No sentinel, no null
     semantics overloaded."""
@@ -712,7 +712,7 @@ async def test_a_deadline_entry_should_omit_the_transport_field(
 async def test_a_deadline_entry_should_omit_the_topic_field(
     connected_stage: Stage,
 ) -> None:
-    """PRD-013 §D-3 symmetry: DEADLINE is a scope-level event, not
+    """ §D-3 symmetry: DEADLINE is a scope-level event, not
     topic-scoped. `topic` is `None` (reporter omits the JSON key) -
     parallels the `transport` omission. Avoids the in-band-signalling
     anti-pattern of using `topic=""` to flag scope-level events."""
@@ -729,7 +729,7 @@ async def test_a_deadline_detail_should_describe_the_timeout_budget(
 ) -> None:
     """The DEADLINE `detail` carries an operator-readable descriptor of
     the deadline that just fired in the form `timeout_ms=<budget>`
-    (PRD-013 §2.3 row 6 example: `'timeout_ms=200'`)."""
+   ."""
 
     async with connected_stage.scenario("deadline-detail") as scope:
         scope.expect("never.arrives", field_equals("kind", "x"), on="kafka")
@@ -776,7 +776,7 @@ async def test_a_reply_that_fires_successfully_should_record_a_replied_entry(
 ) -> None:
     """When `_StageReply.fire` builds a response and `response_harness.publish`
     succeeds, the scope records exactly one REPLIED entry. The `transport`
-    field carries the response transport name (PRD-013 §2.3 row 7)."""
+    field carries the response transport name."""
     async with connected_stage.scenario("reply-success") as scope:
         scope.on("orders.new", on="kafka").publish(
             "results",
@@ -819,7 +819,7 @@ async def test_a_reply_whose_build_raises_should_record_a_reply_failed_entry(
 ) -> None:
     """When the reply's `build` callback raises, `_StageReply.fire`
     transitions to `FIRED_BUILDER_ERROR` AND records a REPLY_FAILED
-    entry attributed to the response transport (PRD-013 §2.3 row 8)."""
+    entry attributed to the response transport."""
 
     def boom(trigger):
         raise ValueError("test-injected build failure")
@@ -837,7 +837,7 @@ async def test_a_reply_whose_build_raises_should_record_a_reply_failed_entry(
 async def test_a_reply_failed_detail_should_carry_only_the_exception_class_name(
     connected_stage: Stage,
 ) -> None:
-    """ADR-0017 §Security Considerations: exception messages are NOT
+    """ §Security Considerations: exception messages are NOT
     included in `detail` (they tend to interpolate context that is more
     variable and less diagnostic than the class name). The detail names
     the response topic and the exception CLASS only - never `str(exc)`."""
@@ -858,7 +858,7 @@ async def test_a_reply_failed_detail_should_carry_only_the_exception_class_name(
 async def test_a_transport_name_with_html_should_be_rejected_at_stage_construction(
     two_harnesses: dict[str, Any],
 ) -> None:
-    """PRD-012 §1.4-§1.5 / PRD-013 §1.1 schema regex
+    """ §1.4-§1.5 /  §1.1 schema regex
     `^[a-zA-Z0-9_-]{1,64}$` constrains transport names. Stage validates
     at __init__ so consumer-supplied names cannot propagate into the
     timeline / results.json / Phase 2 renderer where they would become

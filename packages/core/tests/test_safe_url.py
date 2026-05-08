@@ -52,7 +52,7 @@ def test_safe_url_should_return_a_malformed_url_unchanged() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Query-string redaction (ADR-0020)
+# Query-string redaction
 # ---------------------------------------------------------------------------
 
 

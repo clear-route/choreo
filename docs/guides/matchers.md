@@ -7,7 +7,7 @@ always gives you a human-readable reason — never a bare `assert False`.
 
 This guide is task-oriented: pick the shape of what you want to check,
 find the matching section, copy the pattern. For the rationale behind the
-design, see ADR-0013. For the
+design,  For the
 exact signatures, the docstrings on
 [packages/core/src/admiral/matchers.py](../../packages/core/src/admiral/matchers.py) are canonical.
 
@@ -259,11 +259,10 @@ class IsEven:
             return MatchResult(True, f"{payload} is even")
         return MatchResult(False, f"{payload!r} is not even")
 
-
 s.expect("jobs.updated", contains_fields({"item": {"count": IsEven()}}))
 ```
 
-Two rules for custom matchers, from ADR-0013 §Security Considerations:
+Two rules for custom matchers, from  §Security Considerations:
 
 1. **Pure.** No I/O, no mutable module-level state, no side effects on
    the payload. Matchers run on the dispatcher thread; a slow matcher

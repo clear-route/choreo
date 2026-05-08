@@ -121,7 +121,7 @@ class NatsFactory(TransportFactory):
         return NatsTransport(servers=[NATS_URL], allowlist_path=allowlist_path)
 
 
-# -- NATS (authenticated, ADR-0020) -----------------------------------------
+# -- NATS (authenticated) -----------------------------------------
 
 
 class NatsAuthFactory(TransportFactory):

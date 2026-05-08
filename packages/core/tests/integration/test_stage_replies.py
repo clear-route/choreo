@@ -17,7 +17,7 @@ The contract under test:
 * Build/publish exceptions transition state to FIRED_BUILDER_ERROR
   (terminal); the reply does not retry.
 * Reply records live on the trigger context only — single-writer per
-  ADR-0016. The framework surface (`result.replies`) reflects this.
+  . The framework surface (`result.replies`) reflects this.
 * Same-transport replies via Stage match the observable behaviour of
   single-transport `Scenario.on(...).publish(...)`.
 """
@@ -436,7 +436,7 @@ async def test_stage_cross_transport_reply_should_use_response_context_correlati
 async def test_stage_cross_transport_reply_should_produce_exactly_one_reply_report(
     allowlist_yaml_path: Path,
 ) -> None:
-    """I8. ADR-0016 single-writer invariant: the `_StageReply` record
+    """I8.  single-writer invariant: the `_StageReply` record
     is held only on the trigger context. The user-visible
     consequence: `result.replies` contains exactly one
     `StageReplyReport` per `on().publish()` registration —

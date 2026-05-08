@@ -4,7 +4,7 @@ Covers test-plan items M1-M2.
 
 M1 verifies the structured startup audit log emitted by
 `Stage.__init__` (`stage_initialised`) carries the bridge class name
-and the registered transport names — the audit trail ADR-0027
+and the registered transport names — the audit trail 
 §Security Considerations promises.
 
 M2 verifies the `from_wire` diagnostic path: when an inbound
@@ -41,7 +41,7 @@ async def test_stage_construction_should_emit_a_stage_initialised_audit_log(
     two_harnesses: dict[str, Harness],  # noqa: F811 — fixture re-import
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """M1. The startup audit ADR-0027 §Security Considerations
+    """M1. The startup audit  §Security Considerations
     promises: `Stage.__init__` emits a structured INFO event named
     `stage_initialised` with `bridge_class` (str) and `transports`
     (tuple[str, ...]) on the LogRecord. Audit can identify which

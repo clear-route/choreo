@@ -108,7 +108,7 @@ class IngestService:
                 ]
                 db_scenarios = await self._run_repo.bulk_insert_scenarios(run, scenario_dicts)
 
-                # Build handle tuples keyed by scenario ID. Per PRD-012 §2.5
+                # Build handle tuples keyed by scenario ID. 5
                 # the first slot in each tuple is the per-handle transport
                 # (falling back to the run-level value when the handle is
                 # single-Harness, i.e. h.transport is None). The repository
@@ -138,7 +138,7 @@ class IngestService:
                     run, db_scenarios, handles_by_scenario
                 )
 
-                # PRD-013 §5: bulk-insert Stage timeline events via the
+                #  §5: bulk-insert Stage timeline events via the
                 # same COPY pattern. Build per-scenario tuples in the
                 # order TIMELINE_COPY_COLUMNS expects (after the 4-field
                 # run/scenario context prefix the repo prepends): time,

@@ -6,7 +6,7 @@ machine the Stage uses to reject re-use, double-connect, and out-of-order
 calls.
 
 Re-use is intentionally not supported: a disconnected Stage cannot be
-reconnected. Per ADR-0027 §Implementation Stage docstring, the user
+reconnected. Per  §Implementation Stage docstring, the user
 constructs a fresh Stage instead. These tests pin that contract.
 
 Lifecycle here exercises only the success-path connect / disconnect
@@ -36,7 +36,7 @@ async def test_stage_connect_should_raise_state_error_when_called_twice(
     disconnect first or construct a fresh Stage.
 
     Covers R7 (explicit state machine);
-    ADR-0027 §Validation "State machine rejects re-use".
+     §Validation "State machine rejects re-use".
     """
     from admiral.stage import Stage, StageStateError
 
@@ -86,7 +86,7 @@ def test_stage_scenario_should_raise_state_error_when_called_before_connect(
     connected, distinguishing this from B4's post-disconnect case.
 
     Covers R7;
-    ADR-0027 §Validation "stage.scenario() rejects pre-connect".
+     §Validation "stage.scenario() rejects pre-connect".
     """
     from admiral.stage import Stage, StageStateError
 
@@ -133,7 +133,7 @@ async def test_stage_disconnect_should_not_raise_when_called_a_second_time(
     relies on.
 
     Covers R7;
-    ADR-0027 §Validation "disconnect() is idempotent".
+     §Validation "disconnect() is idempotent".
     """
     from admiral.stage import Stage
 

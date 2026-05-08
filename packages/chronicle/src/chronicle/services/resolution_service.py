@@ -14,7 +14,7 @@ from uuid import UUID
 
 from chronicle.repositories.topic_repo import LatencyBucketRow, TopicRepository
 
-# Continuous aggregate refresh end_offsets from PRD-009.
+# Continuous aggregate refresh end_offsets from .
 _AGGREGATE_END_OFFSETS = {
     "hourly": timedelta(minutes=30),
     "daily": timedelta(hours=1),

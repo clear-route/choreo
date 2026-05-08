@@ -1,4 +1,4 @@
-"""Directory-wipe safety — PRD-007 §10.
+"""Directory-wipe safety.
 
 The reporter writes to a temp sibling directory and atomic-renames it
 into place. The final output directory carries a `.harness-report`

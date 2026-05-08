@@ -47,7 +47,7 @@ async def test_two_concurrent_scenarios_on_the_same_topic_should_only_fulfil_the
 
     topic = _unique_topic("concurrent")
     # Per-scope correlation filter is what this test exercises — the
-    # harness default is NoCorrelationPolicy (broadcast) since ADR-0019,
+    # harness default is NoCorrelationPolicy (broadcast) since ,
     # so opt in explicitly.
     harness = Harness(
         NatsTransport(servers=[nats_url], allowlist_path=allowlist_yaml_path),
@@ -424,7 +424,7 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
 
     Opts into `test_namespace()` because the late publish echoes
     `s.correlation_id` onto its payload, which is only meaningful under a
-    routing-capable policy (ADR-0019)."""
+    routing-capable policy."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
     from admiral.scenario import Outcome

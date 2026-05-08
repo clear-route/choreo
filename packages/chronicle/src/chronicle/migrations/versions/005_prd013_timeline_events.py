@@ -1,4 +1,4 @@
-"""PRD-013 §5: timeline_events hypertable for Stage timeline ingest.
+""" §5: timeline_events hypertable for Stage timeline ingest.
 
 Phase 3 PR 3.1. One row per TimelineEntry from the test report's
 `scenario.timeline[]` array. Schema mirrors the v1.3 JSON shape:

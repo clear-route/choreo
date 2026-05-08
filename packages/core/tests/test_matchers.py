@@ -1,4 +1,4 @@
-"""Behavioural tests for Matcher Strategy (ADR-0013).
+"""Behavioural tests for Matcher Strategy.
 
 Each matcher is a pure predicate over a decoded payload. Failure results carry
 a human-readable reason. `all_of` / `any_of` / `not_` compose them into boolean
@@ -490,7 +490,7 @@ def test_contains_fields_description_should_use_an_embedded_matchers_description
 
 
 # ---------------------------------------------------------------------------
-# expected_shape() — machine-readable form for the test-report writer (PRD-007)
+# expected_shape() — machine-readable form for the test-report writer
 # ---------------------------------------------------------------------------
 
 

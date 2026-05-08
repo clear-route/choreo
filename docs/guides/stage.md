@@ -9,8 +9,8 @@ in a single scenario.
 > A again — under one global deadline. Designed for testing bridge
 > services and protocol translators.
 
-For the design rationale, see PRD-011
-and ADR-0027. For
+For the design rationale, see
+and . For
 the broader framework context, see [framework-design.md §12](../framework-design.md#12-multi-transport-scenarios-stage).
 
 ---
@@ -395,8 +395,8 @@ suspect:
 ## Reading the test report
 
 The `admiral-reporter` package emits `test-report/results.json` and
-`test-report/index.html` per PRD-007;
-PRD-012 extends both
+`test-report/index.html` per ;
+ extends both
 surfaces with Stage-specific fields.
 
 ### `results.json` shape for a Stage scenario
@@ -477,7 +477,7 @@ The HTML report renders Stage scenarios with:
   — `REPLY FAILED → [nats]`.
 
 The renderer's `data-*` attributes split into stable and advisory tiers
-per PRD-012 §3.6. See the [reporter README](../../packages/core-reporter/README.md)
+6. See the [reporter README](../../packages/core-reporter/README.md)
 for the full table; consumers writing CI selectors against the report
 should rely on stable-tier attributes only.
 
@@ -502,7 +502,7 @@ The v1.2 additions (still in effect) are: optional `transport`
 `topic` relaxed to optional (scope-level events such as DEADLINE
 omit the field). The HTML report adds a Stage timeline banner,
 per-transport swim lanes, cross-transport reply arrows, and
-virtualisation for cap-saturated workloads. See PRD-013 for the
+virtualisation for cap-saturated workloads. See for the
 full specification and the admiral-reporter README for the consumer
 contract.
 
@@ -519,7 +519,6 @@ The protection assumes the correlation id has at least 64 bits of entropy.
 The shipped `IdentityBridge` and `MappedBridge` use
 `secrets.token_hex(16)` for `bridge.fresh()` by default. Bridges that
 derive `fresh()` from low-entropy or PII sources defeat redaction —
-see ADR-0027 §Security Considerations.
 
 ---
 

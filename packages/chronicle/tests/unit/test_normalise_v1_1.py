@@ -1,4 +1,4 @@
-"""Normalise tests for v1.1 reports (PRD-012).
+"""Normalise tests for v1.1 reports.
 
 Asserts Chronicle's `normalise_report` accepts the new shape without
 KeyError / type errors:
@@ -55,7 +55,7 @@ def _make_request(run: dict[str, Any], tests: list[dict[str, Any]] | None = None
 
 
 def test_normalise_should_accept_null_transport_when_transports_is_present():
-    """PRD-012: Stage-only runs emit `transport: null`, `transports: [...]`."""
+    """: Stage-only runs emit `transport: null`, `transports: [...]`."""
     run = _minimal_run(transport=None, transports=["kafka", "nats"])
     req = _make_request(run)
     norm = normalise_report(req)
@@ -148,7 +148,7 @@ def test_normalise_should_preserve_per_handle_transport_for_stage_scenarios():
 
 
 def test_a_stage_scenario_with_a_handle_missing_transport_should_raise_value_error():
-    """PRD-012 §1.1: a Stage handle MUST carry a `transport` field.
+    """ §1.1: a Stage handle MUST carry a `transport` field.
     Failing fast at normalise prevents Chronicle's NOT NULL constraint
     on `handle_measurements.transport` from raising an opaque
     IntegrityError mid-COPY."""

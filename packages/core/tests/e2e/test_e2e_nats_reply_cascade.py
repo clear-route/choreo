@@ -1,6 +1,6 @@
 """End-to-end reply cascade over real NATS.
 
-Exercises PRD-008 replys (`s.on(...).publish(...)`) across a real wire.
+Exercises  replys (`s.on(...).publish(...)`) across a real wire.
 A single initial publish kicks off a six-hop request/reply cascade,
 each hop a reply watching the previous hop's reply. Six expects assert
 that every step of the cascade carried its fields forward and that
@@ -13,7 +13,7 @@ This test validates, against a real broker:
     the trigger into its reply).
   - Auto-injected `correlation_id` propagates across the whole chain, so
     the expect filter routes each downstream message back to the scope.
-  - Fire-once semantics hold over the wire (ADR-0016 §Fire-once).
+  - Fire-once semantics hold over the wire.
   - Consumer-owned bundle pattern: each hop is a plain function taking the
     Scenario, composable in-line by the test.
 
@@ -146,7 +146,7 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
 
     The cascade's correlation_id threading (asserted below via per-hop
     `message_received` propagation) requires a routing-capable policy —
-    `test_namespace()` reproduces the pre-ADR-0019 stamping so each hop's
+    `test_namespace()` reproduces the previous stamping so each hop's
     outbound dict carries the scope's id for the next hop's expect filter."""
     from admiral import Harness, test_namespace
     from admiral.matchers import contains_fields, field_equals
@@ -234,7 +234,7 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
         assert h_audit.message["request_id"] == "REQ-E2E-001"
 
         # Every reply fired exactly once; none overrode correlation;
-        # no builder raised. ADR-0017 §Validation — state-coverage test.
+        # no builder raised.  §Validation — state-coverage test.
         assert len(result.replies) == 6
         registration_order = [
             topics["events"],
@@ -256,7 +256,7 @@ async def test_a_six_hop_reply_cascade_over_nats_should_complete_end_to_end(
             assert r.correlation_overridden is False
             assert r.builder_error is None
 
-        # Scope-bound cleanup (ADR-0016 §Cleanup): after the scope exits,
+        # Scope-bound cleanup: after the scope exits,
         # the transport carries no reply subscriptions attributable to us.
         assert harness.active_subscription_count() == 0
     finally:
@@ -270,13 +270,13 @@ async def test_parallel_reply_scopes_over_nats_should_stay_isolated_by_correlati
 ) -> None:
     """Multiple concurrent scopes share the same NATS subjects. Each scope's
     reply must only fire for its own scope's trigger — the correlation
-    filter (ADR-0018) is the load-bearing invariant here.
+    filter is the load-bearing invariant here.
 
     Scaled to 5 concurrent scopes with a three-hop cascade each (15 replys
     total). Enough to prove cross-scope routing over a real wire without
     dominating CI wall-clock.
 
-    Under ADR-0019 the library default is `NoCorrelationPolicy`, which
+    Under  the library default is `NoCorrelationPolicy`, which
     broadcasts — every scope on every shared subject sees every message.
     This test's whole premise is correlation-based isolation, so it
     configures `test_namespace()` explicitly. Without that opt-in the

@@ -1,4 +1,4 @@
-"""pytest plugin entry point — PRD-007 §1.
+"""pytest plugin entry point.
 
 Hooks:
 
@@ -92,7 +92,7 @@ class _State:
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
-    group = parser.getgroup("admiral-reporter", "Harness test report (PRD-007)")
+    group = parser.getgroup("admiral-reporter", "Harness test report")
     group.addoption(
         "--harness-report",
         action="store",
@@ -415,7 +415,7 @@ def _write_report(session: pytest.Session, state: _State) -> None:
             xdist_info["incomplete_workers"] = merge.incomplete_workers
             payload["run"]["xdist"] = xdist_info
         payload["run"]["totals"] = compute_totals(payload["tests"])
-        # PRD-012 §1.5/§1.6: re-derive run-level transports from merged
+        #  §1.5/§1.6: re-derive run-level transports from merged
         # Stage scenarios. The master Collector did not see worker
         # observer callbacks, so its own `stage_transports` aggregation
         # at to_dict() time was empty. Walk the merged tests' stage
@@ -448,7 +448,7 @@ def _write_report(session: pytest.Session, state: _State) -> None:
     if len(encoded.encode("utf-8")) > _HARD_FILE_CAP_BYTES:
         warnings.warn(
             f"admiral-reporter: report exceeds {_HARD_FILE_CAP_BYTES} bytes; "
-            f"refusing to write (PRD-007 §5)",
+            f"refusing to write",
             RuntimeWarning,
             stacklevel=2,
         )

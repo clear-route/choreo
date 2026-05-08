@@ -3,14 +3,14 @@
 Each subclass inherits from `StageError` (the catch-all marker) AND a
 standard taxon (`LookupError` / `ValueError` / `RuntimeError` /
 `ExceptionGroup`) so consumers can also `except ValueError` for
-typo-style mistakes uniformly. See ADR-0027 §Implementation Error types.
+typo-style mistakes uniformly. 
 """
 
 from __future__ import annotations
 
 import re
 
-# Transport name regex (PRD-012 §1.4-§1.5, PRD-013 §1.1). Stage validates
+# Transport name regex. Stage validates
 # at __init__ to fail closed before consumer-supplied names can flow into
 # the timeline / results.json / Phase 2 renderer.
 _TRANSPORT_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
@@ -48,7 +48,7 @@ class UnknownTransportError(StageError, LookupError):
 
 class InvalidTransportNameError(StageError, ValueError):
     """A transport name registered on `Stage(harnesses=...)` does not
-    match the schema regex `^[a-zA-Z0-9_-]{1,64}$` (PRD-012 §1.4-§1.5).
+    match the schema regex `^[a-zA-Z0-9_-]{1,64}$`.
 
     Stage fails closed at construction so consumer-supplied names cannot
     propagate into the timeline / results.json / Phase 2 renderer where
@@ -130,7 +130,7 @@ class BridgeTranslationError(StageError, RuntimeError):
     """Wraps any exception raised by bridge.fresh / to_wire / from_wire,
     or a type-validation failure on the bridge's return value.
 
-    Mirrors ADR-0019's `CorrelationPolicyError` shape: bridge_class,
+    Mirrors the `CorrelationPolicyError` shape: bridge_class,
     method, transport, and the original exception are on named
     attributes. The message names the original exception's CLASS only —
     never its `str()` — because bridge-side exceptions can carry

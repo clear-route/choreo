@@ -108,7 +108,7 @@ class Run(Base):
     finished_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     duration_ms: Mapped[float] = mapped_column(Float, nullable=False)
     environment: Mapped[str | None] = mapped_column(Text)
-    # PRD-012: relaxed to nullable. Stage-only and mixed-mode runs
+    # : relaxed to nullable. Stage-only and mixed-mode runs
     # emit transport=null + transports=union (sorted alphabetically).
     transport: Mapped[str | None] = mapped_column(Text, nullable=True)
     transports: Mapped[list[str] | None] = mapped_column(ARRAY(Text), nullable=True)
@@ -128,7 +128,7 @@ class Run(Base):
     total_skipped: Mapped[int] = mapped_column(Integer, nullable=False)
     total_slow: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    # Denormalised stats (populated during ingest — PRD-010)
+    # Denormalised stats (populated during ingest)
     topic_count: Mapped[int | None] = mapped_column(Integer)
     p50_ms: Mapped[float | None] = mapped_column(Float)
     p95_ms: Mapped[float | None] = mapped_column(Float)
@@ -203,7 +203,7 @@ class HandleMeasurement(Base):
     run_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     scenario_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     environment: Mapped[str | None] = mapped_column(Text)
-    # PRD-012 (migration 004): relaxed to nullable. Mixed-mode runs
+    #  (migration 004): relaxed to nullable. Mixed-mode runs
     # (single-Harness + Stage in the same pytest session) carry
     # single-Harness handles with no per-handle transport AND a
     # null run-level transport.

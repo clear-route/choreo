@@ -5,7 +5,7 @@ wire ids. The Stage calls `fresh()` once per scope and
 `to_wire(logical, transport)` once per registered transport per scope at
 scope entry. The bridge is NOT invoked on the inbound message hot path;
 wire-level comparison is used there. `from_wire()` is invoked only for
-diagnostics. See ADR-0027 §Security Considerations for the trust-boundary
+diagnostics. See  §Security Considerations for the trust-boundary
 discussion.
 """
 

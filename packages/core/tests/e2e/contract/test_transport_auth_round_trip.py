@@ -1,4 +1,4 @@
-"""E2E authenticated transport contract tests (ADR-0020).
+"""E2E authenticated transport contract tests.
 
 These tests exercise the auth descriptor path end-to-end against a real
 authenticated NATS broker.  They validate that:

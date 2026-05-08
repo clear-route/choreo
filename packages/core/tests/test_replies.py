@@ -1,9 +1,9 @@
 """Behavioural tests for Scenario replies.
 
-Covers PRD-008 functional requirements and the three reply ADRs:
-  - ADR-0016 — lifecycle: scope-bound, fire-once, pre-publish registration
-  - ADR-0017 — fire-and-forget results via `ReplyReport`
-  - ADR-0018 — correlation scoping reuses the expect-filter
+Covers  functional requirements and the three reply ADRs:
+  -  — lifecycle: scope-bound, fire-once, pre-publish registration
+  -  — fire-and-forget results via `ReplyReport`
+  -  — correlation scoping reuses the expect-filter
 
 Usage pattern inside a scenario scope:
 
@@ -29,8 +29,8 @@ import pytest
 
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
-    # Reply tests rely on per-scope correlation isolation (ADR-0018). Pass
-    # `test_namespace()` explicitly — the library default under ADR-0019
+    # Reply tests rely on per-scope correlation isolation. Pass
+    # `test_namespace()` explicitly — the library default under 
     # is `NoCorrelationPolicy` (broadcast), which these tests do not want.
     from admiral import Harness, test_namespace
     from admiral.transports import MockTransport
@@ -51,7 +51,7 @@ async def harness(allowlist_yaml_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# Chain shape — ADR-0016 type-state
+# Chain shape type-state
 # ---------------------------------------------------------------------------
 
 
@@ -200,7 +200,7 @@ async def test_a_reply_with_a_matcher_should_only_fire_on_matching_trigger(harne
 
 
 # ---------------------------------------------------------------------------
-# Fire-once semantics — ADR-0016 §Fire-once enforcement
+# Fire-once semantics
 # ---------------------------------------------------------------------------
 
 
@@ -232,7 +232,7 @@ async def test_a_reply_should_fire_at_most_once_per_scope(harness) -> None:
 
 
 async def test_a_reply_should_count_candidates_arriving_after_it_fires(harness) -> None:
-    """Post-FIRED subscription stays alive for candidate counting (ADR-0016
+    """Post-FIRED subscription stays alive for candidate counting (
     §Fire-once enforcement step 2)."""
     async with harness.scenario("post-fire-count") as s:
         s.on("t").publish("t.reply", lambda message_received: {"ok": True})
@@ -247,7 +247,7 @@ async def test_a_reply_should_count_candidates_arriving_after_it_fires(harness) 
 
 
 # ---------------------------------------------------------------------------
-# Terminal report states — ADR-0017
+# Terminal report states
 # ---------------------------------------------------------------------------
 
 
@@ -328,12 +328,12 @@ async def test_builder_error_should_not_stop_the_scenario(harness) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Correlation scoping — ADR-0018
+# Correlation scoping
 # ---------------------------------------------------------------------------
 
 
 async def test_a_reply_should_auto_inject_scope_correlation_id(harness) -> None:
-    """ADR-0018: reply stamping mirrors `Scenario.publish`. The scope's
+    """: reply stamping mirrors `Scenario.publish`. The scope's
     correlation appears on the reply so a downstream in-scope expect routes."""
     from admiral.matchers import field_equals
 
@@ -350,7 +350,7 @@ async def test_a_reply_should_auto_inject_scope_correlation_id(harness) -> None:
 
 
 async def test_a_reply_should_ignore_messages_from_other_scopes(harness) -> None:
-    """ADR-0018 parallel isolation — foreign-correlation messages are filtered
+    """ parallel isolation — foreign-correlation messages are filtered
     out before they become candidates."""
     import json
 
@@ -378,7 +378,7 @@ async def test_a_reply_should_ignore_messages_from_other_scopes(harness) -> None
 async def test_builder_overriding_correlation_id_should_flag_the_report(
     harness,
 ) -> None:
-    """ADR-0018 §Correlation-override detection."""
+    """ §Correlation-override detection."""
     async with harness.scenario("override") as s:
         s.on("t").publish(
             "t.reply",
@@ -394,7 +394,7 @@ async def test_builder_overriding_correlation_id_should_flag_the_report(
 async def test_override_warning_should_not_log_the_outgoing_correlation_value(
     harness, caplog
 ) -> None:
-    """ADR-0017 §Security — the override warning proves an override happened
+    """ §Security — the override warning proves an override happened
     via the report flag; the raw value must not leak to logs because it is
     caller-controlled and may carry upstream identifiers."""
     import logging
@@ -431,7 +431,7 @@ async def test_a_reply_without_correlation_override_should_not_flag_report(harne
 async def test_replies_across_parallel_scopes_should_fire_only_for_their_own_scope(
     harness,
 ) -> None:
-    """ADR-0018 / PRD-008 §Success Metrics — scaled to 20 concurrent scopes
+    """ §Success Metrics — scaled to 20 concurrent scopes
     for CI speed; proves the parallel-isolation invariant.
     """
     from admiral.matchers import field_equals
@@ -530,7 +530,7 @@ async def test_summary_without_replies_should_not_include_a_replies_section(
 
 
 # ---------------------------------------------------------------------------
-# Cleanup — ADR-0016 scope-bound teardown
+# Cleanup scope-bound teardown
 # ---------------------------------------------------------------------------
 
 
@@ -557,7 +557,7 @@ async def test_reply_subscriptions_should_be_cleaned_up_on_exception(
 
 
 # ---------------------------------------------------------------------------
-# Security — ADR-0017 §Security Considerations
+# Security
 # ---------------------------------------------------------------------------
 
 
@@ -591,7 +591,7 @@ async def test_reply_report_repr_should_not_contain_payload(harness) -> None:
 async def test_builder_error_report_should_contain_only_the_exception_class_name(
     harness,
 ) -> None:
-    """ADR-0017 §Security — builder_error is constructed as
+    """ §Security — builder_error is constructed as
     `f"{type(e).__name__}"` alone. The exception's str(e) may contain
     payload-derived values and must not interpolate into the report."""
 
@@ -613,7 +613,7 @@ async def test_builder_error_report_should_contain_only_the_exception_class_name
 async def test_never_fired_reply_warning_should_redact_matcher_literal_values(
     harness, caplog
 ) -> None:
-    """ADR-0017 §Security — WARNING-line matcher description is redacted;
+    """ §Security — WARNING-line matcher description is redacted;
     the unredacted text stays on the in-memory report for assertions."""
     from admiral.matchers import field_equals
 
@@ -633,7 +633,7 @@ async def test_never_fired_reply_warning_should_redact_matcher_literal_values(
 
 
 # ---------------------------------------------------------------------------
-# Logging — ADR-0017 §Warning-log behaviour
+# Logging
 # ---------------------------------------------------------------------------
 
 
@@ -665,7 +665,7 @@ async def test_builder_error_should_log_at_error_level(harness, caplog) -> None:
 
 
 async def test_fired_reply_should_not_log_at_warning(harness, caplog) -> None:
-    """ADR-0017 §Warning-log behaviour: FIRED does not WARN, even when
+    """ §Warning-log behaviour: FIRED does not WARN, even when
     candidate_count > 1 (the over-count is visible on the report)."""
     caplog.set_level(logging.WARNING, logger="admiral.scenario")
 
@@ -778,12 +778,12 @@ async def test_reply_builder_error_should_record_a_timeline_entry(harness) -> No
     actions = [e.action for e in result.timeline]
     assert TimelineAction.REPLY_FAILED in actions
     builder_err_entry = next(e for e in result.timeline if e.action.value == "reply_failed")
-    # Detail names the exception class (not str(e) — ADR-0017 §Security).
+    # Detail names the exception class (not str(e)).
     assert "ValueError" in builder_err_entry.detail
 
 
 async def test_passing_scenario_with_replies_should_retain_timeline(harness) -> None:
-    """Passing scenarios normally return an empty timeline (PRD-006). Scenarios
+    """Passing scenarios normally return an empty timeline. Scenarios
     with replies override that so reply activity is still visible on pass."""
     async with harness.scenario("pass-with-replies") as s:
         s.on("trigger.t").publish("reply.t", {"ok": True})
@@ -798,7 +798,7 @@ async def test_passing_scenario_without_replies_should_still_have_empty_timeline
     harness,
 ) -> None:
     """Guard: the reply-exception to the 'pass = empty timeline' rule must
-    not bleed into reply-less passing scenarios. PRD-006 still applies."""
+    not bleed into reply-less passing scenarios.  still applies."""
     from admiral.matchers import field_equals
 
     async with harness.scenario("pass-no-reply") as s:
@@ -811,14 +811,14 @@ async def test_passing_scenario_without_replies_should_still_have_empty_timeline
 
 
 # ---------------------------------------------------------------------------
-# Safety — ADR-0006 correlation boundary + fire-once re-entrance
+# Safety correlation boundary + fire-once re-entrance
 # ---------------------------------------------------------------------------
 
 
 async def test_a_reply_with_a_non_test_prefixed_correlation_override_should_fail(
     harness,
 ) -> None:
-    """ADR-0006 — every outbound publish must carry a TEST- correlation so
+    """ — every outbound publish must carry a TEST- correlation so
     production systems can filter test traffic at their boundary. A reply
     builder that returns a foreign-namespace correlation_id must not make it
     to the wire; the reply is marked FAILED and the scenario continues."""
@@ -844,7 +844,7 @@ async def test_a_reply_with_a_non_test_prefixed_correlation_override_should_fail
 async def test_a_builder_that_re_publishes_synchronously_should_not_double_fire(
     harness,
 ) -> None:
-    """ADR-0016 §Fire-once enforcement — a callable reply_spec that itself
+    """ §Fire-once enforcement — a callable reply_spec that itself
     calls `harness.publish` on the trigger topic (or anything that re-enters
     the dispatcher) must not cause the reply to fire twice. Closing the
     fire-once window BEFORE the builder runs is what makes this safe."""
@@ -882,7 +882,7 @@ async def test_a_builder_that_re_publishes_synchronously_should_not_double_fire(
 
 
 async def test_builder_exception_log_should_not_carry_the_exception_string(harness, caplog) -> None:
-    """ADR-0017 §Security — the ERROR log when a builder raises must not
+    """ §Security — the ERROR log when a builder raises must not
     include str(e) because the exception message often echoes payload
     content. Only the class name is permitted across the log boundary."""
     import logging

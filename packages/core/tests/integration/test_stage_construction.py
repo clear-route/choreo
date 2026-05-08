@@ -5,7 +5,7 @@ Covers test-plan items A1-A9 from
 Stage's `__init__` is responsible for catching before the user can call
 `connect()`.
 
-Each test maps to one ADR-0027 §Validation success metric (or one of the
+Each test maps to one  §Validation success metric (or one of the
 25 review items, R1-R25). The mapping is named in the test docstring.
 
 These tests assume `from admiral.stage import Stage, ...` resolves. Until
@@ -34,7 +34,7 @@ from .conftest import (
 def test_stage_construction_should_reject_an_empty_harness_mapping() -> None:
     """A1. Stage requires at least one harness; empty mapping is a config bug.
 
-    Covers ADR-0027 §Implementation Stage.__init__ early guard.
+    Covers  §Implementation Stage.__init__ early guard.
     """
     from admiral.stage import IdentityBridge, Stage
 
@@ -59,7 +59,7 @@ def test_stage_construction_should_reject_a_bridge_that_collides_on_the_smoke_te
     from registration order.
 
     Covers R6 (smoke-test claim weakened but still fires);
-    ADR-0027 §Validation "BridgeAmbiguityError at startup smoke test".
+     §Validation "BridgeAmbiguityError at startup smoke test".
     """
     from admiral.stage import BridgeAmbiguityError, Stage
 
@@ -113,7 +113,7 @@ def test_stage_construction_should_reject_a_mapped_bridge_missing_a_registered_t
     wrapping a KeyError. Diagnostic surface matters here — the consumer
     needs to see the two sets to fix their config.
 
-    Covers ADR-0027 §Validation "BridgeTransportMismatchError for MappedBridge".
+    Covers  §Validation "BridgeTransportMismatchError for MappedBridge".
     """
     from admiral.stage import BridgeTransportMismatchError, Stage
 
@@ -164,11 +164,11 @@ def test_stage_construction_should_wrap_a_bridge_to_wire_exception_during_smoke_
 ) -> None:
     """A5. Consumer bridge code is a trust boundary. An uncaught exception
     surfaces as a typed BridgeTranslationError, with the original on a named
-    attribute (mirroring ADR-0019's CorrelationPolicyError shape) so
+    attribute (mirroring the CorrelationPolicyError shape) so
     consumers do not have to walk __cause__.
 
     Covers R19 (.original attribute populated);
-    ADR-0027 §Validation "BridgeTranslationError carries .original".
+     §Validation "BridgeTranslationError carries .original".
     """
     from admiral.stage import BridgeTranslationError, Stage
 
@@ -208,7 +208,7 @@ def test_stage_construction_should_reject_a_bridge_to_wire_returning_a_non_strin
     equality; an int or bytes return silently breaks correlation.
 
     Covers R9 (return-type validation);
-    ADR-0027 §Validation "to_wire return-type validation".
+     §Validation "to_wire return-type validation".
     """
     from admiral.stage import BridgeTranslationError, Stage
 
@@ -305,7 +305,7 @@ def test_stage_construction_should_emit_an_audit_log_naming_the_bridge_class(
     two_harnesses: dict[str, Any],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """ADR-0027 §Security Considerations promises a structured startup
+    """ §Security Considerations promises a structured startup
     log naming the bridge class so audit can identify what bridge code
     was in effect for a given run.
     """

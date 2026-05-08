@@ -1,7 +1,7 @@
-"""PRD-013 Phase 3 PR 3.2 contract test: reporter v1.3 → Chronicle round-trip.
+""" Phase 3 PR 3.2 contract test: reporter v1.3 → Chronicle round-trip.
 
-Mirrors `test_prd012_contract.py`'s pattern but for the v1.3 schema
-which adds `timeline_entry.source` (PRD-013 §1.6) on top of v1.2's
+Mirrors `test_stage_contract.py`'s pattern but for the v1.3 schema
+which adds `timeline_entry.source` on top of v1.2's
 `transport` / `logical_topic` / optional `topic`. The contract under
 test: a v1.3 Stage report emitted by the admiral-reporter must pass
 Chronicle's ingest pipeline (Pydantic level 1 + JSON Schema level 2
@@ -13,7 +13,7 @@ Two surfaces:
 * **No-DB integration** (this file): drives the report through
   Pydantic + JSON Schema + `normalise_report` to assert the shape
   is accepted. Runs in every CI pass.
-* **DB-backed e2e** (Phase 3 PR 3.3 — `e2e/test_prd013_timeline_db.py`):
+* **DB-backed e2e** (Phase 3 PR 3.3 — `e2e/test_timeline_db.py`):
   POSTs the report to a running Chronicle, asserts the
   `timeline_events` hypertable is populated.
 """
@@ -33,7 +33,7 @@ def _v1_3_stage_report() -> dict[str, Any]:
     and every TimelineAction value.
 
     Fields exercised:
-    - `schema_version: "1.3"` (PRD-013)
+    - `schema_version: "1.3"`
     - `timeline_entry.transport` (v1.2)
     - `timeline_entry.topic` optional (v1.2; DEADLINE omits)
     - `timeline_entry.logical_topic` (v1.2; populated for one entry)
@@ -229,7 +229,7 @@ def test_a_v1_3_timeline_entry_with_unknown_source_should_fail_schema_validation
 def test_a_v1_3_timeline_entry_omitting_optional_source_should_validate(
     schema_v1_3: dict,
 ) -> None:
-    """The `source` field is optional (PRD-013 §1.6); single-Harness
+    """The `source` field is optional; single-Harness
     entries pre-dating v1.3 instrumentation omit it."""
     report = _v1_3_stage_report()
     for entry in report["tests"][0]["scenarios"][0]["timeline"]:
@@ -243,7 +243,7 @@ def test_a_v1_3_timeline_entry_omitting_optional_source_should_validate(
 
 
 def test_a_v1_3_stage_report_should_normalise_without_errors():
-    """v1.3 additions must not regress the PRD-012 per-handle
+    """v1.3 additions must not regress the  per-handle
     transport flow. Per-handle transport still lands on
     `NormalisedHandle.transport`."""
     report = _v1_3_stage_report()
@@ -256,7 +256,7 @@ def test_a_v1_3_stage_report_should_normalise_without_errors():
 
 
 def test_a_v1_3_stage_report_should_extract_timeline_events_into_normalised_scenarios():
-    """PRD-013 PR 3.3: `normalise_report` extracts every entry in
+    """ PR 3.3: `normalise_report` extracts every entry in
     `scenario.timeline[]` into a `NormalisedTimelineEvent`. Optional
     fields (topic / transport / logical_topic / source) flow through
     as None when omitted in the source JSON."""
@@ -277,7 +277,7 @@ def test_a_v1_3_stage_report_should_extract_timeline_events_into_normalised_scen
 
 
 def test_a_v1_3_stage_report_should_extract_source_attribution_per_event():
-    """PRD-013 §1.6: each timeline event's `source` flows through
+    """ §1.6: each timeline event's `source` flows through
     as the corresponding NormalisedTimelineEvent's source."""
     report = _v1_3_stage_report()
     req = IngestRequest(**report)
@@ -288,7 +288,7 @@ def test_a_v1_3_stage_report_should_extract_source_attribution_per_event():
 
 
 def test_a_v1_3_deadline_event_should_normalise_with_topic_and_transport_as_none():
-    """PRD-013 §D-3: scope-level events (DEADLINE) omit `topic` and
+    """ §D-3: scope-level events (DEADLINE) omit `topic` and
     `transport` in the JSON; the normaliser carries the absence
     through as `None`."""
     report = _v1_3_stage_report()
@@ -302,7 +302,7 @@ def test_a_v1_3_deadline_event_should_normalise_with_topic_and_transport_as_none
 
 
 def test_a_v1_3_logical_topic_should_flow_through_when_set():
-    """PRD-013 §1.3: `logical_topic` is the cross-transport identity
+    """ §1.3: `logical_topic` is the cross-transport identity
     for translating bridges; the normaliser preserves it."""
     report = _v1_3_stage_report()
     req = IngestRequest(**report)

@@ -1,4 +1,4 @@
-"""Observer seam for the test-report writer — PRD-007 §2.
+"""Observer seam for the test-report writer.
 
 This is the ONLY library-surface contact point between `core` and the
 external `admiral-reporter` package. The reporter registers a callback here;
@@ -54,7 +54,7 @@ def register_observer(cb: Observer) -> None:
     Observers are called synchronously from the scenario code path; a
     blocking observer blocks the scenario. Exceptions raised inside an
     observer are swallowed via `warnings.warn(...)` — the reporter is
-    never a test-failure source (PRD-007 §8).
+    never a test-failure source.
     """
     if cb not in _observers:
         _observers.append(cb)

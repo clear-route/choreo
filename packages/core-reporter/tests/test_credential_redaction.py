@@ -1,4 +1,4 @@
-"""Credential-shape redaction — PRD-007 §12."""
+"""Credential-shape redaction."""
 
 from __future__ import annotations
 

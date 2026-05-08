@@ -1,4 +1,4 @@
-"""Tests for `admiral.redaction` — report-boundary redaction (PRD-012 §1.5.1).
+"""Tests for `admiral.redaction` — report-boundary redaction.
 
 The framework's in-process `_redact()` (head=8, tail=4, length annotation)
 is preserved for short-lived error messages. The on-disk `results.json`
@@ -117,7 +117,7 @@ def test_redaction_version_should_be_v1():
 
 
 def test_redaction_version_should_be_a_string_matching_the_schema_pattern():
-    """The schema (PRD-012 Appendix A.1) declares
+    """The schema ( Appendix A.1) declares
     `redaction_version` with pattern `^v[0-9]+$`. The constant must
     satisfy this pattern."""
     assert re.fullmatch(r"^v[0-9]+$", REDACTION_VERSION)

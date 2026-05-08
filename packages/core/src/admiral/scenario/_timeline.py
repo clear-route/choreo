@@ -1,4 +1,4 @@
-"""Per-scope timeline buffer (PRD-006, PRD-013)."""
+"""Per-scope timeline buffer."""
 
 from __future__ import annotations
 
@@ -31,17 +31,17 @@ class TimelineAction(StrEnum):
     # `CORRELATION_SKIPPED` records the moment an inbound message was
     # rejected by the per-scope correlation filter (its wire id belongs
     # to another scope). Single-Harness scopes do not record this event
-    # by today's path; PRD-013 wires it on the Stage path with
+    # by today's path;  wires it on the Stage path with
     # transport attribution and a hash-redacted wire-id mismatch in
-    # `detail` (PRD-013 §2.3 row 3, §Security).
+    # `detail`.
     CORRELATION_SKIPPED = "correlation_skipped"
     DEADLINE = "deadline"
-    # Reply lifecycle events (PRD-008). `REPLIED` records the post-wire
+    # Reply lifecycle events. `REPLIED` records the post-wire
     # moment for the reply's outbound publish: the builder ran, the
     # transport sent the reply, and the `on_sent` hook fired. `REPLY_FAILED`
     # records the path where the builder or the publish itself raised —
     # the `detail` field carries the exception class name only
-    # (ADR-0017 §Security).
+    #.
     REPLIED = "replied"
     REPLY_FAILED = "reply_failed"
 
@@ -66,7 +66,7 @@ class TimelineEntry:
     _wall_clock_epoch: float
     topic: str | None
     """Wire topic the event observed. `None` for scope-level events
-    (currently only `DEADLINE`) per PRD-013 §D-3; the reporter omits
+    (currently only `DEADLINE`) per  §D-3; the reporter omits
     the JSON key in that case. Single-`Harness` and per-transport
     Stage events both carry the wire topic the subscriber/publisher
     saw (which, for translating bridges, is post-translation on the
@@ -75,13 +75,13 @@ class TimelineEntry:
     action: TimelineAction
     detail: str = ""
     transport: str | None = None
-    """Per-transport attribution for Stage scenarios (PRD-013 §2.1).
+    """Per-transport attribution for Stage scenarios.
     Single-Harness scopes leave this at the default `None`; the reporter
-    omits the JSON key entirely in that case (PRD-013 §1.1, preserving
-    PRD-012's byte-identity contract). Stage per-transport children
+    omits the JSON key entirely in that case ( §1.1, preserving
+    the byte-identity contract). Stage per-transport children
     populate it with the child's transport name (e.g. `"kafka"`, `"nats"`).
     Scope-level Stage events (currently only `DEADLINE`) leave it at
-    `None` per PRD-013 §D-3, so the JSON key is also omitted there."""
+    `None` """
     logical_topic: str | None = None
     """The scope-level (pre-bridge-translation) topic name where it
     differs from the wire topic. For Stage entries with a translating
@@ -93,7 +93,7 @@ class TimelineEntry:
     translate or for non-Stage entries; the reporter omits the JSON
     key in that case."""
     source: str | None = None
-    """Which DSL surface produced this event (PRD-013 §1.6, schema
+    """Which DSL surface produced this event ( §1.6, schema
     v1.3). One of `"publish"` (test-side `scope.publish` /
     `harness.publish`), `"expect"` (subscriber registered by
     `scope.expect` / `s.expect`), `"reply"` (reply-chain registered
@@ -169,11 +169,11 @@ class _Timeline:
         """Record one observed event.
 
         `topic` is the wire topic. `None` is valid for scope-level
-        events such as `DEADLINE` (PRD-013 §D-3); the reporter omits
+        events such as `DEADLINE`; the reporter omits
         the JSON key for those entries.
 
         `transport` is the per-transport attribution for Stage scenarios
-        (PRD-013 §2.1). Single-`Harness` callers leave it at `None`;
+       . Single-`Harness` callers leave it at `None`;
         Stage callers pass the per-transport child name (e.g. `"kafka"`)
         for transport-scoped events and leave it at `None` for
         scope-level events. The reporter omits the JSON key when `None`.
@@ -187,7 +187,7 @@ class _Timeline:
 
         Resilience: any exception inside this method is swallowed and
         logged at WARNING (`timeline_record_failed`). An observability
-        seam must never break the AUT — same principle ADR-0017 applies
+        seam must never break the AUT — same principle  applies
         to reply diagnostics. The `record_errors` counter exposes the
         error count for tests / consumers that want to assert on it.
 

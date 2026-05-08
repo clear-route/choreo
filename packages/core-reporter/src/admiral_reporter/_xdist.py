@@ -1,4 +1,4 @@
-"""pytest-xdist support — PRD-007 §1 User Story 5 / Decision #15.
+"""pytest-xdist support.
 
 Each worker writes a partial JSON under `<report-dir>/_partial/worker-<id>.json`.
 The controller (master) reads every partial at `pytest_sessionfinish`,

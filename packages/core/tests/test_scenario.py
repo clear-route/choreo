@@ -1,4 +1,4 @@
-"""Behavioural tests for Scenario DSL (ADR-0012, ADR-0014, ADR-0015).
+"""Behavioural tests for Scenario DSL.
 
 Usage pattern inside a scenario scope:
     async with harness.scenario("name") as s:
@@ -8,7 +8,7 @@ Usage pattern inside a scenario scope:
         result = await s.await_all(timeout_ms=500)
 
 Calling `publish` before any `expect` or `await_all` before any `publish`
-raises `AttributeError` (ADR-0012 runtime enforcement).
+raises `AttributeError` ( runtime enforcement).
 """
 
 from __future__ import annotations
@@ -21,8 +21,8 @@ import pytest
 @pytest.fixture(scope="session")
 async def harness(allowlist_yaml_path: Path):
     # Scenario tests assert on correlation stamping and per-scope isolation
-    # (ADR-0002). The library default under ADR-0019 is NoCorrelationPolicy;
-    # pass `test_namespace()` to reproduce the pre-ADR-0019 posture.
+    #. The library default under  is NoCorrelationPolicy;
+    # pass `test_namespace()` to reproduce the previous posture.
     from admiral import Harness, test_namespace
     from admiral.transports import MockTransport
 
@@ -537,7 +537,7 @@ async def test_handle_should_stop_accepting_attempts_after_pass(harness) -> None
 
 
 # ---------------------------------------------------------------------------
-# Latency budgets + SLOW outcome (PRD-006)
+# Latency budgets + SLOW outcome
 # ---------------------------------------------------------------------------
 
 
@@ -631,7 +631,7 @@ async def test_calling_within_ms_twice_should_emit_a_user_warning(harness) -> No
 
 
 # ---------------------------------------------------------------------------
-# Failure timeline (PRD-006)
+# Failure timeline
 # ---------------------------------------------------------------------------
 
 
@@ -737,7 +737,7 @@ async def test_publishing_a_dict_with_a_non_prefixed_correlation_should_raise(
     publish must carry a `TEST-` correlation so downstream systems filter it
     at the boundary. A caller who overrides with a production-looking id
     (`PROD-...`) is refused at publish time, not allowed onto the wire
-    (ADR-0006 + ADR-0019)."""
+    ( + )."""
     from admiral import CorrelationIdNotInNamespaceError
     from admiral.matchers import field_equals
 
@@ -995,7 +995,7 @@ async def test_scenario_result_should_refuse_pickling_with_a_clear_message(
     """A ScenarioResult carries Handles and ReplyReports that reject pickling
     individually. Without its own __reduce__, pickling would fail via a nested
     class's error — confusing to debug. The ScenarioResult-level guard gives
-    a message that names the right object (ADR-0017)."""
+    a message that names the right object."""
     import pickle
 
     from admiral.matchers import field_equals

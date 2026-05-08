@@ -1,4 +1,4 @@
-"""Correlation policy — pluggable injection and extraction (ADR-0019).
+"""Correlation policy — pluggable injection and extraction.
 
 The Harness no longer hardcodes a correlation field name or format. A
 `CorrelationPolicy` instance decides how a correlation id is generated,
@@ -53,7 +53,7 @@ class CorrelationPolicy(Protocol):
         isolation on inbound routing. Negative-assertion matchers gate on
         this flag.
 
-    See ADR-0019 Security Considerations for the trust-boundary contract.
+    
     """
 
     async def new_id(self) -> str | None: ...
@@ -95,7 +95,7 @@ class NoCorrelationPolicy:
     per-run infrastructure: on a shared broker, messages from sibling
     scopes (or sibling tests / pipelines / tenants) will fan out.
 
-    See ADR-0019 §Security Considerations §Broadcast confidentiality.
+    
     """
 
     async def new_id(self) -> None:
@@ -116,14 +116,14 @@ class DictFieldPolicy:
     """Stamps a string field on dict payloads; reads the same field back.
 
     Non-dict payloads pass through unchanged (write is a no-op, read
-    returns None). This matches the pre-ADR-0019 library behaviour when
+    returns None). This matches the previous library behaviour when
     instantiated with `field="correlation_id"` and no prefix.
 
     WARNING: without a distinguishing `prefix`, two instances that share
     the same `field` share a correlation namespace. On shared broker
     infrastructure this exposes one scope's messages to another scope's
     filter. Use a prefix on anything other than dedicated per-run infra.
-    See ADR-0019 §Security Considerations.
+    
     """
 
     def __init__(
@@ -165,7 +165,7 @@ class DictFieldPolicy:
             )
         if self._field in envelope.payload:
             # Caller set the field explicitly; validate the prefix then
-            # leave the payload alone. Mirrors the pre-ADR-0019 semantic
+            # leave the payload alone. Mirrors the previous semantic
             # that an explicit correlation id is honoured, not silently
             # overwritten.
             existing = envelope.payload[self._field]
@@ -192,12 +192,12 @@ class DictFieldPolicy:
 
 
 def test_namespace(field: str = "correlation_id") -> DictFieldPolicy:
-    """Factory matching the pre-ADR-0019 library posture.
+    """Factory matching the previous library posture.
 
     Returns a `DictFieldPolicy` that stamps a `TEST-` prefix on every
     correlation id and enforces the prefix on explicit overrides. Used
     by the captive test suite; implements the downstream ingress-filter
-    contract previously described in ADR-0006 §Security Considerations.
+    contract previously described in  §Security Considerations.
     """
     return DictFieldPolicy(field=field, prefix="TEST-")
 

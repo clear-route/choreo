@@ -31,7 +31,7 @@ pip install admiral-reporter
 
 ## Correlation policy
 
-The library ships with three correlation profiles (ADR-0019):
+The library ships with three correlation profiles:
 
 ```python
 from admiral import Harness, NoCorrelationPolicy, DictFieldPolicy, test_namespace

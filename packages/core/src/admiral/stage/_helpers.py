@@ -4,8 +4,8 @@ The helpers here centralise behaviour that the scope's DSL surface,
 the reply-trigger callback, and `await_all`'s deadline path all share:
 codec/correlation prelude, handle resolution, timeline recording,
 distinctness-check loop. Single source of truth keeps the
-trust-boundary defences (ADR-0027 §Security Considerations) and the
-PRD-013 §2.3 timeline contract uniform across call sites.
+trust-boundary defences and the
+ §2.3 timeline contract uniform across call sites.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ _MAX_WIRE_ID_LEN = 1024
 """Upper bound on `to_wire` return string length.
 
 Defends the dispatcher key space, log lines, and `Handle.correlation_id`
-from a bridge with no internal bounds. See ADR-0027 §Security
+from a bridge with no internal bounds. See  §Security
 Considerations and §Notes for the calibration discussion.
 """
 
@@ -61,7 +61,7 @@ def _redact(s: str, head: int = 8, tail: int = 4) -> str:
 
     Wire ids may carry consumer-supplied data; the full value goes only
     into structured fields a redaction policy can scrub, not into message
-    strings. See ADR-0027 §Security Considerations.
+    strings. 
     """
     if len(s) <= head + tail + 3:
         return repr(s)
@@ -83,10 +83,10 @@ def _record_event(
 
     Centralises the `if timeline is not None:` guard, the `loop.time()`
     lookup for the event timestamp, and the kwargs threading. Used by
-    every PRD-013 hook-point recording site so the call sites stay
+    every  hook-point recording site so the call sites stay
     one-liners and the behavioural contract stays in one place.
 
-    `source` is the DSL-surface attribution (PRD-013 §1.6, schema v1.3).
+    `source` is the DSL-surface attribution.
     Per-site values:
       - `"publish"` for `_StageScenarioScope.publish` (test-side publish)
       - `"reply"` for `_register_stage_reply._on_trigger` events
@@ -131,7 +131,7 @@ def _decode_and_correlation_check(
     The two-step prelude (codec.decode → correlation_policy.read) is
     shared by every Stage callback that consumes inbound bytes:
     `_StageScenarioScope.expect()` and `_register_stage_reply`.
-    Centralised so the correlation defence (ADR-0027 §Security
+    Centralised so the correlation defence ( §Security
     Considerations) is enforced uniformly: a message whose
     `policy.read()` returns a wire id NOT equal to `expected_wire_id`
     is dropped, defending against cross-scope leak when multiple Stages
@@ -139,7 +139,7 @@ def _decode_and_correlation_check(
 
     A policy returning `None` (e.g. NoCorrelationPolicy, or an unstamped
     message under DictFieldPolicy) falls through to the matcher — this
-    is the broadcast fallback ADR-0019 §Implementation documents.
+    is the broadcast fallback  §Implementation documents.
 
     Diagnostic from_wire path: when an inbound wire id is present but
     does NOT match the scope's, the helper optionally calls
@@ -191,7 +191,7 @@ def _decode_and_correlation_check(
                         "error_class": type(exc).__name__,
                     },
                 )
-        # PRD-013 §2.3 row 3: record CORRELATION_SKIPPED with the wire-id
+        #  §2.3 row 3: record CORRELATION_SKIPPED with the wire-id
         # mismatch hash-redacted. Wire ids carry no diagnostic value
         # once they are visibly distinct, so hash redaction costs
         # nothing while preventing archive-grep correlation across
@@ -227,7 +227,7 @@ def _decode_and_correlation_check(
         )
         return None
 
-    # PRD-013 §2.3 row 2: RECEIVED records at the moment a subscriber
+    #  §2.3 row 2: RECEIVED records at the moment a subscriber
     # callback saw a message after the correlation filter passed,
     # BEFORE the matcher ran. The bar from a previous PUBLISHED/REPLIED
     # to this RECEIVED is wire propagation; the bar from this RECEIVED
@@ -261,10 +261,10 @@ def _resolve_handle_on_match(
     Mutates `handle` in place. Mirrors the matcher branch in
     `scenario._register_expectation` minus latency-budget evaluation.
 
-    PRD-013 §2.3 rows 4-5: when `timeline` is provided, records
+     §2.3 rows 4-5: when `timeline` is provided, records
     `MATCHED` on the accept branch and `MISMATCHED` on the reject
     branch, both attributed to `transport`. The MISMATCHED `detail` is
-    the matcher's reason (un-redacted per PRD-013 §Security: payload
+    the matcher's reason (un-redacted per  §Security: payload
     values stay visible in this test tool).
     """
     recv_t = loop.time()
@@ -326,7 +326,7 @@ def _register_stage_reply(
       1. Every routed message increments `candidate_count`
          unconditionally — including post-FIRED arrivals (observability).
       2. Post-FIRED messages bypass matcher + builder (fire-once
-         enforcement, ADR-0016 §Security Considerations).
+         enforcement).
       3. `matcher=None` auto-passes (no-matcher reply fires on any
          routed candidate).
       4. The fire-once window closes (state ARMED → FIRED) BEFORE the
@@ -338,7 +338,7 @@ def _register_stage_reply(
          the exception class name. The reply does not retry.
 
     The `_StageReply` record is held only on `ctx_trigger.replies` —
-    single-writer per ADR-0016. The response context has no record.
+    single-writer  The response context has no record.
     """
     matcher_description = matcher.description if matcher is not None else "(any)"
     reply = _StageReply(
@@ -418,7 +418,7 @@ def _register_stage_reply(
                 Envelope(topic=response_topic, payload=response_payload),
                 response_wire_id,
             )
-            # PRD-013 §2.3 row 7 + §2.3.1: REPLIED records at the
+            #  §2.3 row 7 + §2.3.1: REPLIED records at the
             # post-wire `on_sent` boundary so semantics match
             # PUBLISHED. The detail carries the trigger topic so a
             # reader can correlate trigger → response across transports.
@@ -451,9 +451,9 @@ def _register_stage_reply(
                     "error_class": type(exc).__name__,
                 },
             )
-            # PRD-013 §2.3 row 8: REPLY_FAILED detail carries the
+            #  §2.3 row 8: REPLY_FAILED detail carries the
             # response topic and the exception CLASS NAME ONLY (no
-            # `str(exc)`) per ADR-0017 §Security Considerations.
+            # `str(exc)`) 
             # Consistent with single-Harness scenario.py:1058.
             _record_event(
                 timeline,
@@ -568,7 +568,7 @@ def _check_distinctness(
     Single source of truth for the two distinctness call sites:
     `Stage._validate_bridge_distinctness` (synthetic input, at __init__)
     and `_StageScenarioScope._mint_all_children` (real logical id, at
-    __aenter__). The two passes together implement ADR-0027 §Security
+    __aenter__). The two passes together implement  §Security
     Considerations' two-pass distinctness defence.
     """
     seen: dict[str, str] = {}

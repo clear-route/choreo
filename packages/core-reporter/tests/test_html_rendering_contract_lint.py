@@ -1,4 +1,4 @@
-"""Rendering-contract lint — PRD-007 §9.
+"""Rendering-contract lint.
 
 The bundled JavaScript must never use DOM sinks that interpret
 payload-derived strings as HTML. This test scans the rendered template

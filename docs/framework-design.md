@@ -191,7 +191,7 @@ The `Dispatcher` is the single routing point for all inbound messages. It implem
 ### How routing works
 
 Correlation-based routing is opt-in via the Harness's `CorrelationPolicy`
-(ADR-0019). When a consumer configures a non-no-op policy (e.g.
+. When a consumer configures a non-no-op policy (e.g.
 `DictFieldPolicy` or `test_namespace()`), the scope generates an id at entry
 via `policy.new_id()`, stamps outbound payloads via `policy.write()`, and
 filters inbound messages via `policy.read()`. Under the library default
@@ -265,9 +265,9 @@ Sharing one transport across all tests creates the risk that Scenario A's subscr
 
 Every scenario runs inside an `async with harness.scenario(name) as s:` block. On `__aexit__` (normal exit, exception, or deadline), the scope calls `harness.unsubscribe(topic, callback)` for every callback it registered. The transport's subscriber list is clean for the next scenario.
 
-A transport whose `unsubscribe()` raises is logged at WARNING (exception class name only — ADR-0017) and teardown continues. One failing unsubscribe must not abort cleanup of the remaining subscriptions.
+A transport whose `unsubscribe()` raises is logged at WARNING (exception class name only) and teardown continues. One failing unsubscribe must not abort cleanup of the remaining subscriptions.
 
-### Mechanism 2 — Correlation-based filtering (opt-in, ADR-0019)
+### Mechanism 2 — Correlation-based filtering (opt-in)
 
 When the Harness is constructed with a routing-capable `CorrelationPolicy`,
 the filter inside every `on_message` callback rejects messages that carry a
@@ -301,12 +301,12 @@ The format is determined by the active `CorrelationPolicy`. Shipped profiles:
 - `DictFieldPolicy(field, prefix, id_generator)` — id is `prefix +
   id_generator()`; default generator is `secrets.token_hex(16)` (128 bits).
 - `test_namespace(field="correlation_id")` — `DictFieldPolicy` with
-  `prefix="TEST-"`. Reproduces the pre-ADR-0019 captive posture so
+  `prefix="TEST-"`. Reproduces the previous captive posture so
   downstream systems filtering on the `TEST-` prefix continue to work.
 
 Consumers can implement their own policy (header-stamping, tag-value-protocol
 tag 11, protobuf field, etc.) by providing `new_id`, `write(envelope, id)`,
-and `read(envelope)`. See ADR-0019 for the protocol contract.
+and `read(envelope)`.
 
 ### xdist interaction
 
@@ -356,9 +356,9 @@ register expectations before publish()
 
 ### Why a single class rather than separate types
 
-ADR-0012 originally specified four distinct classes (ScenarioBuilder, ExpectingScenario, TriggeredScenario, ScenarioResult). The implementation reduced this to one `Scenario` class with a runtime `_state` flag. The reason: the `handle = s.expect(...)` pattern requires the caller to hold a reference across the state transition. With separate classes, `s` would be replaced by a new object on each state transition, breaking the `handle` reference. A single mutable object that advances its own state is the simpler shape. The external guarantee — wrong-state calls raise immediately — is identical either way.
+ originally specified four distinct classes (ScenarioBuilder, ExpectingScenario, TriggeredScenario, ScenarioResult). The implementation reduced this to one `Scenario` class with a runtime `_state` flag. The reason: the `handle = s.expect(...)` pattern requires the caller to hold a reference across the state transition. With separate classes, `s` would be replaced by a new object on each state transition, breaking the `handle` reference. A single mutable object that advances its own state is the simpler shape. The external guarantee — wrong-state calls raise immediately — is identical either way.
 
-### Correlation injection (policy-driven, ADR-0019)
+### Correlation injection (policy-driven)
 
 `Scenario.publish()` routes the outbound payload through the active
 `CorrelationPolicy`:
@@ -718,7 +718,7 @@ register_redactor(mask_tokens)
 
 `Stage` is a coordinator that wraps a named registry of `Harness` instances so a single scenario can publish, expect, and reply across multiple message transports under one global deadline. The motivating case is a bridge AUT — a service that translates between transports (e.g. low-latency NATS request → durable Kafka pipeline → response on NATS). The natural test boundary spans both transports; a single-`Harness` scenario cannot.
 
-See PRD-011 and ADR-0027 for the design discussion. This section is a fast architectural read-out.
+ This section is a fast architectural read-out.
 
 ### What Stage owns
 
@@ -730,7 +730,7 @@ See PRD-011 and ADR-0027 for the design discussion. This section is a fast archi
 
 The bridge is consumer code executed inside the Stage's async path on every scope entry. The library defends itself by:
 
-- **Wrapping every bridge call.** `BridgeTranslationError` carries the bridge class, method, transport, and the original exception (mirrors ADR-0019's `CorrelationPolicyError` shape). The async event loop is never poisoned.
+- **Wrapping every bridge call.** `BridgeTranslationError` carries the bridge class, method, transport, and the original exception (mirrors the `CorrelationPolicyError` shape). The async event loop is never poisoned.
 - **Validating bridge return shape.** Every `to_wire` return value is checked to be a non-empty `str` of length ≤ `_MAX_WIRE_ID_LEN` (1024).
 - **Two-pass distinctness.** A startup smoke test against a synthetic logical id (`Stage.__init__`) plus a per-scope re-validation against the actual `bridge.fresh()` value (`__aenter__`). Both raise `BridgeAmbiguityError` on collision; the second pass catches bridges that pass the smoke test but collide on real input.
 - **Transport-set mismatch detection.** Bridges advertising a `configured_transports` attribute (e.g. `MappedBridge`) are checked against the registered harness set at construction; mismatch raises `BridgeTransportMismatchError`.
@@ -748,7 +748,7 @@ For each `stage.scenario(name)` block:
 
 `s.on(trigger_topic, on=A).publish(response_topic, on=B, build=...)` registers a cross-transport reactive reply:
 
-- The reply record (`_StageReply`) lives on the **trigger** child only — single-writer per ADR-0016. The response child has no record. `_StageScenarioResult.replies` reflects this with one `StageReplyReport` per registration.
+- The reply record (`_StageReply`) lives on the **trigger** child only — single-writer The response child has no record. `_StageScenarioResult.replies` reflects this with one `StageReplyReport` per registration.
 - Fire-once is preserved across the cross-transport boundary: the trigger callback flips `_StageReply.state` from `ARMED` to `FIRED` BEFORE invoking the build callback. A nested re-entrant publish that re-fires the trigger callback short-circuits at the post-FIRED bypass.
 - On match, `build(payload)` produces the response payload; the response is encoded via the response child's codec, stamped via the response child's `CorrelationPolicy.write` with the **response** child's wire id (the bridge's `to_wire(logical, response_transport)` value), and published via the response harness. Any exception in build/encode/stamp/publish flips the state to `FIRED_BUILDER_ERROR`; `builder_error` is the exception class name only, never `str(exc)`.
 
@@ -788,7 +788,7 @@ The ADRs are the authoritative source of truth for each decision. This section i
 | 0017 | Reply fire-and-forget results | Replies are not assertions; observability via `ReplyReport`; builder-error class name only |
 | 0018 | Reply correlation scoping | Same correlation filter as `expect`; scope correlation stamped on reply dict |
 
-ADR-0011 (adversarial SUT handling) is planned but not yet written.
+ (adversarial SUT handling) is planned but not yet written.
 
 Recommended reading order for a new contributor: 0005 → 0001 → 0003 → 0002 → 0004 → 0006 → 0007 → 0012 → 0013 → 0014 → 0015 → 0016 → 0017 → 0018.
 

@@ -1,4 +1,4 @@
-"""Behavioural tests for Handle (ADR-0014).
+"""Behavioural tests for Handle.
 
 Each `expect*()` returns a Handle. Before `await_all()`, the outcome is
 PENDING and accessing `message` / `latency_ms` raises. After, the Handle is
@@ -87,7 +87,7 @@ def test_was_fulfilled_should_be_false_when_outcome_is_fail() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Reporter-oriented data accessors (PRD-007 §3)
+# Reporter-oriented data accessors
 # ---------------------------------------------------------------------------
 
 

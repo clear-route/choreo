@@ -1,11 +1,11 @@
-"""HTML template — PRD-007 §4, §7, §9.
+"""HTML template, §7, §9.
 
 Renders a self-contained `index.html` with inlined CSS, vanilla JS, and
 the run's JSON payload. The HTML never performs runtime `fetch`; the
 JSON lives in a `<script type="application/json">` block and is parsed
 by the bundled JS via `textContent`.
 
-Rendering contract (PRD-007 §9):
+Rendering contract:
 
   - All payload-derived content is injected via `textContent` or
     `document.createTextNode`. `innerHTML`, `outerHTML`,
@@ -371,7 +371,7 @@ _CSS = """
 
 .harness-report .hr-waterfall { margin-top: var(--hr-space-3); border: 1px solid var(--hr-border); border-radius: var(--hr-radius-sm); background: var(--hr-bg); overflow: hidden; position: relative; }
 
-/* PRD-013 §4.1: per-transport swim-lane wrappers. Each lane carries
+/*  §4.1: per-transport swim-lane wrappers. Each lane carries
    `data-transport`; the dedicated scope-events lane carries
    `data-scope-lane="true"`. Lanes are visually separated by a top
    border and a label header. */
@@ -389,7 +389,7 @@ _CSS = """
   border-bottom: 1px solid var(--hr-border);
 }
 
-/* PRD-013 §4.2: cross-transport reply-arrow SVG overlay. Sized + positioned
+/*  §4.2: cross-transport reply-arrow SVG overlay. Sized + positioned
    by `layoutReplyArrows` at boot; CSS sets the absolute-positioning anchor
    so coordinates inside the SVG align with positions inside the waterfall.
    `pointer-events: none` so arrows don't block row hover/click. */
@@ -408,7 +408,7 @@ _CSS = """
   opacity: 0.65;
 }
 
-/* PRD-013 §4.1.1: virtualisation expansion button. Plain UA button is
+/*  §4.1.1: virtualisation expansion button. Plain UA button is
    ugly; this borrows the existing button shape from the report toolbar. */
 .harness-report .hr-timeline-expand {
   margin-top: var(--hr-space-2);
@@ -508,7 +508,7 @@ _CSS = """
 .harness-report .hr-waterfall-action[data-action="reply_failed"] { color: var(--hr-fail); }
 .harness-report .hr-waterfall-action[data-action="correlation_skipped"] { color: var(--hr-text-subtle); }
 
-/* PRD-013 §1.6 / schema v1.3: source-attribution badge.
+/*  §1.6 / schema v1.3: source-attribution badge.
    Subtle pill rendered after the action verb naming the DSL surface
    that produced the event (test publish vs reply chain vs expect
    subscriber vs scope-level). Helps the reader disambiguate two
@@ -596,7 +596,7 @@ _CSS = """
 .harness-report .hr-waterfall-detail-label { color: var(--hr-text-subtle); text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
 .harness-report .hr-waterfall-detail-value { color: var(--hr-text); word-break: break-word; }
 
-/* Reply reports — PRD-008 / ADR-0017 — scope-bound reply summaries,
+/* Reply reports /  — scope-bound reply summaries,
    rendered between handles and the timeline. One row per reply;
    compact so a multi-reply cascade stays scannable. */
 .harness-report .hr-replies { margin-top: var(--hr-space-4); }
@@ -685,16 +685,16 @@ _CSS = """
 .harness-report .hr-json-null { color: var(--hr-text-subtle); font-style: italic; }
 
 /* ----------------------------------------------------------------- */
-/* PRD-012: Stage scenario surface — flat strip per system.md §3      */
+/* : Stage scenario surface — flat strip per system.md §3      */
 /* Stage strip. Class names below are the stable selector contract    */
-/* (test_design_system_contract.py + PRD-012 §3.6); the styling is    */
+/* (test_design_system_contract.py +  §3.6); the styling is    */
 /* the topic-chip / strip primitive.                                  */
 /* ----------------------------------------------------------------- */
 
 /* Per-handle / per-stage / per-reply transport chip — all three reuse
    the topic-chip primitive (system.md §3 Topic chip) so a transport
    reads as the same kind of object as a topic. The class selectors
-   are kept as PRD-012 hooks; the visual is the chip. */
+   are kept as  hooks; the visual is the chip. */
 .harness-report .hr-handle-transport-badge,
 .harness-report .hr-stage-transport-badge,
 .harness-report .hr-reply-transport-badge {
@@ -795,7 +795,7 @@ _CSS = """
   padding: 0 var(--hr-space-2);
 }
 
-/* Failing-side sub-badges in scenario header (PRD-012 §3.5 / US-5).
+/* Failing-side sub-badges in scenario header.
    The header keeps the bold red tag — failure-first signalling lives
    here, not in the strip. */
 .harness-report .hr-scenario-failing-side,
@@ -821,7 +821,7 @@ _JS = r"""
 
   // -------------------------------------------------------------------
   // Load the inlined JSON via textContent. Never use innerHTML here or
-  // anywhere else in this script (PRD-007 §9 rendering contract).
+  // anywhere else in this script.
   // -------------------------------------------------------------------
   var dataNode = document.getElementById('harness-results');
   if (!dataNode) { return; }
@@ -1364,7 +1364,7 @@ _JS = r"""
   }
 
   function outcomeLetter(o) {
-    // Icon + letter (colour is never the sole signal — PRD-007 §4 a11y).
+    // Icon + letter (colour is never the sole signal).
     switch (o) {
       case 'passed': case 'pass': return '\u2713';  // check
       case 'failed': case 'fail': return '\u2715';  // x
@@ -1381,22 +1381,22 @@ _JS = r"""
   // the matcher verdict for an expect. `deadline` → `timed out` for
   // symmetry with the TIMEOUT handle outcome. `correlation_skipped` is
   // a diagnostic event the user rarely needs to think about. `replied`
-  // / `reply_failed` are PRD-008 reply lifecycle events.
+  // / `reply_failed` are  reply lifecycle events.
   function actionLabel(action) {
     if (action === 'deadline') { return 'timed out'; }
     if (action === 'correlation_skipped') { return 'other scope'; }
     if (action === 'received') { return 'received'; }
-    // PRD-013 v1.3: `replied` IS a publish (from a reply chain). The
+    //  v1.3: `replied` IS a publish (from a reply chain). The
     // `source=reply` badge disambiguates origin; the action label
     // shows the wire-level verb. Schema enum value stays `"replied"`
-    // for backward-compat with PRD-008 / Chronicle ingest.
+    // for backward-compat with  / Chronicle ingest.
     if (action === 'replied') { return 'published'; }
     if (action === 'reply_failed') { return 'publish failed'; }
     return action;
   }
 
   function sourceBadgeText(source) {
-    // PRD-013 §1.6: short human-readable text for the source badge.
+    //  §1.6: short human-readable text for the source badge.
     // Names the DSL surface that produced the event.
     if (source === 'publish') { return 'by test'; }
     if (source === 'expect') { return 'by expect'; }
@@ -1506,7 +1506,7 @@ _JS = r"""
       meta.appendChild(el('span', { 'data-field': 'completed-flag' }, 'partial'));
     }
     header.appendChild(meta);
-    // PRD-012 §3.5 (US-5): failing-side sub-badge surfaces which
+    //  §3.5 (US-5): failing-side sub-badge surfaces which
     // transport (or transports) failed. Only present when the scenario
     // is Stage AND has at least one non-passing handle. Space-separated
     // tokens in data-failing-transports for CSS [~=] selector compat.
@@ -1519,7 +1519,7 @@ _JS = r"""
         }, 'FAIL → [' + failingTransports.join(', ') + ']'));
       }
     }
-    // PRD-012 §3.5 second sub-badge: surfaces a FIRED_BUILDER_ERROR
+    //  §3.5 second sub-badge: surfaces a FIRED_BUILDER_ERROR
     // reply's response transport (advisory tier per §3.6).
     if (scenario.stage && scenario.replies && scenario.replies.length) {
       var firstFailingReply = null;
@@ -1539,14 +1539,14 @@ _JS = r"""
     }
     node.appendChild(header);
 
-    // PRD-012 §3.3: scope-level Stage breadcrumb. Renders only when the
+    //  §3.3: scope-level Stage breadcrumb. Renders only when the
     // scenario carries a `stage` block (the canonical Stage signal).
     if (scenario.stage) {
       node.appendChild(renderStageBreadcrumb(scenario.stage));
     }
 
     var body = el('div', { 'class': 'hr-scenario-body' });
-    // PRD-012 Pass-2 redesign: handle rows ARE registered expectations
+    //  Pass-2 redesign: handle rows ARE registered expectations
     // (each `s.expect(topic, matcher, on=...)` becomes a row). Add a
     // section heading so the framing reads as "what the test registered"
     // rather than "what we observed", and a count for at-a-glance scan.
@@ -1563,14 +1563,14 @@ _JS = r"""
       });
       body.appendChild(handlesHost);
     }
-    // Reply reports (PRD-008) — one row per reply chain registered in the
+    // Reply reports — one row per reply chain registered in the
     // scope. Rendered between expectations and the timeline so the reader
     // sees assertions, stand-ins, then the chronology.
     var repliesHost = renderReplies(scenario);
     if (repliesHost) {
       body.appendChild(repliesHost);
     }
-    // Timeline is lazy-mounted on first expand (PRD-007 §4 "lazy timeline mount").
+    // Timeline is lazy-mounted on first expand.
     var timelineHost = el('div', { 'class': 'hr-timeline', 'data-timeline-mounted': 'false' });
     body.appendChild(timelineHost);
     if (expandInitial) {
@@ -1887,10 +1887,10 @@ _JS = r"""
     return state;
   }
 
-  // PRD-012 §3.3: scope-level Stage breadcrumb. Renders the bridge
+  //  §3.3: scope-level Stage breadcrumb. Renders the bridge
   // class name, the registered transports as pills, and a collapsed
   // detail panel with per-transport correlation ids. Stable-tier
-  // `data-*` attributes (PRD-012 §3.6) are:
+  // `data-*` attributes are:
   //   - data-stage-bridge-class (advisory tier)
   //   - data-stage-transports (space-separated, stable)
   //   - data-stage-transport on individual pills (stable; distinct
@@ -1900,7 +1900,7 @@ _JS = r"""
     // Stage strip (system.md §3 Stage strip). Single-line metadata row
     // emitting the [stage] tag, the bridge class, the transport set, and
     // a correlation-ids disclosure. Class names and data-* attrs are
-    // the stable selector contract (PRD-012 §3.6) — preserved across
+    // the stable selector contract — preserved across
     // the visual redesign so consumer queries keep working.
     var transports = stage.transports || [];
     var crumbAttrs = { 'class': 'hr-stage-breadcrumb' };
@@ -1964,7 +1964,7 @@ _JS = r"""
     return crumb;
   }
 
-  // PRD-012 §3.5: collect deduplicated, sorted transport names of
+  //  §3.5: collect deduplicated, sorted transport names of
   // every non-passing handle in a Stage scenario. The result is the
   // value of the failing-side sub-badge's data-failing-transports
   // attribute (space-separated, [~=] selector compat).
@@ -1983,7 +1983,7 @@ _JS = r"""
     return out;
   }
 
-  // PRD-013 §4.1.1: virtualisation threshold. Timelines below this
+  //  §4.1.1: virtualisation threshold. Timelines below this
   // size mount eagerly (lower latency for the common case);
   // timelines at or above this size mount the first
   // VIRTUALISATION_THRESHOLD entries and expose an expansion control.
@@ -2012,7 +2012,7 @@ _JS = r"""
     heading.appendChild(el('small', {}, formatOffset(maxOffset) + ' total'));
     host.appendChild(heading);
 
-    // PRD-013 §4.3 visibility banner: Stage scenarios with timeline
+    //  §4.3 visibility banner: Stage scenarios with timeline
     // data emit a stable-tier banner naming the per-transport
     // breakdown. Sits as a semantic header above the swim-lane
     // waterfall.
@@ -2058,7 +2058,7 @@ _JS = r"""
 
     var wrap = el('div', { 'class': 'hr-timeline-wrap' });
 
-    // PRD-013 §4.1.1: virtualisation under cap-saturated workloads.
+    //  §4.1.1: virtualisation under cap-saturated workloads.
     // Below the threshold, mount the full waterfall eagerly. Above
     // it, mount only the first VIRTUALISATION_THRESHOLD entries and
     // expose an expansion control - rendering 50k DOM nodes upfront
@@ -2077,7 +2077,7 @@ _JS = r"""
 
     host.appendChild(wrap);
 
-    // PRD-013 §4.2: reply-arrow geometry runs after the waterfall is
+    //  §4.2: reply-arrow geometry runs after the waterfall is
     // mounted to the document so row positions are measurable. The
     // overlay SVG was constructed with placeholder `d` attributes;
     // `layoutReplyArrows` rewrites them to real row-to-row diagonals.
@@ -2092,7 +2092,7 @@ _JS = r"""
   }
 
   function mountTimelineVirtualised(host, wrap, entries, maxOffset, scenario) {
-    // PRD-013 \u00a74.1.1: bounded mount + expansion control. The first
+    //  \u00a74.1.1: bounded mount + expansion control. The first
     // VIRTUALISATION_THRESHOLD entries render eagerly so the user
     // sees the start of the timeline immediately; the remainder
     // mounts on click, swapping out the partial waterfall for the
@@ -2288,7 +2288,7 @@ _JS = r"""
   }
 
   function pairReplyArrows(nodes) {
-    // PRD-013 §4.2.1: single linear scan. Track the most recent
+    //  §4.2.1: single linear scan. Track the most recent
     // RECEIVED node per topic; for each REPLIED, parse the trigger
     // topic from `detail` (`trigger=<topic>`) and pair against the
     // last RECEIVED on that topic. O(events) cost. Cross-scope
@@ -2339,7 +2339,7 @@ _JS = r"""
   }
 
   function layoutReplyArrows(host) {
-    // PRD-013 §4.2: runtime layout pass. After the waterfall is
+    //  §4.2: runtime layout pass. After the waterfall is
     // attached to the document, every `<path data-reply-link-from
     // data-reply-link-to>` learns its row-to-row geometry. Straight
     // diagonal from the FROM row's right edge to the TO row's left
@@ -2385,7 +2385,7 @@ _JS = r"""
   }
 
   function isSwimLaneMode(scenario, nodes) {
-    // PRD-013 §D-3a: swim-lane mode activates when at least one node
+    //  §D-3a: swim-lane mode activates when at least one node
     // has a transport set AND that transport is registered on the
     // scenario's stage block. Single-`Harness` scenarios (no
     // `scenario.stage`) and Stage scopes whose only timeline event
@@ -2408,7 +2408,7 @@ _JS = r"""
   }
 
   function renderSwimLaneWaterfall(root, nodes, scenario, axisMax, nodeById, topicShape, rowsById) {
-    // PRD-013 §4.1: group rows by transport into per-lane wrappers.
+    //  §4.1: group rows by transport into per-lane wrappers.
     // Lane order matches `scenario.stage.transports` (registration
     // order) so consumers see a consistent shape across runs.
     // Topic-less entries (DEADLINE) fall into a dedicated scope
@@ -2454,7 +2454,7 @@ _JS = r"""
         scopeLane.appendChild(row);
       }
     }
-    // PRD-013 §4.2: cross-transport reply linkage. Pair RECEIVED ->
+    //  §4.2: cross-transport reply linkage. Pair RECEIVED ->
     // REPLIED via `trigger=` detail; render an SVG overlay above
     // the lane wrappers with one path per pair. Path coordinates
     // start at the placeholder origin; `layoutReplyArrows` rewrites
@@ -2606,7 +2606,7 @@ _JS = r"""
   }
 
   function renderWaterfallRow(node, axisMax, nodeById, topicShape) {
-    // PRD-013 §D-3: scope-level events (currently DEADLINE) carry
+    //  §D-3: scope-level events (currently DEADLINE) carry
     // no `topic` field. Tag the row with `data-scope-event="true"`
     // so consumer queries and the swim-lane renderer route these
     // into the dedicated scope-events lane. Stable-tier contract:
@@ -2635,7 +2635,7 @@ _JS = r"""
       'class': 'hr-waterfall-action',
       'data-action': node.action
     }, actionLabel(node.action)));
-    // PRD-013 §1.6 / schema v1.3: render a small badge naming the DSL
+    //  §1.6 / schema v1.3: render a small badge naming the DSL
     // surface that produced this event so a reader can disambiguate
     // a test-side publish from a reply-chain's automatic response on
     // the same topic at a glance. CSS in the `.hr-waterfall-source`
@@ -2782,7 +2782,7 @@ _JS = r"""
       'data-outcome': handle.outcome,
       'aria-expanded': expanded ? 'true' : 'false'
     };
-    // PRD-012 §3.1 + §3.4: Stage handles carry data-handle-transport
+    //  §3.1 + §3.4: Stage handles carry data-handle-transport
     // on the row so a follow-up by-transport grouping toggle can
     // re-flow them via CSS [data-grouping-mode="by-transport"]
     // selectors. The badge below uses the same value.
@@ -2796,7 +2796,7 @@ _JS = r"""
     // Row layout: chevron + badge + topic + latency. No card, no kind
     // label — the scenario section above establishes context.
     header.appendChild(el('span', { 'class': 'hr-topic' }, handle.topic));
-    // PRD-012 §3.1 (US-1): per-handle transport badge on Stage handles.
+    //  §3.1 (US-1): per-handle transport badge on Stage handles.
     // The badge carries class `hr-handle-transport-badge` (CSS hook)
     // and aria-label (US-1 AC4) but NOT `data-handle-transport` —
     // that attribute lives on the row only, so the selector
@@ -2834,7 +2834,7 @@ _JS = r"""
       // numbers; the UI now renders only structured fields.
       body.appendChild(renderBudgetBar(handle));
     } else if (outcome === 'timeout') {
-      // PRD-012 Pass-2 redesign: instead of a single "no message
+      //  Pass-2 redesign: instead of a single "no message
       // arrived" note, render the same lifecycle pattern the reply
       // body uses — the QA gets the same diagnostic vocabulary on
       // expectations and replies. Without timeline data we can answer

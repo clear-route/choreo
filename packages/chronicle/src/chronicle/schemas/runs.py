@@ -32,7 +32,7 @@ class RunSummary(BaseModel):
     total_slow: int
     anomaly_count: int = 0
 
-    # PRD-010 additions — denormalised stats from ingest
+    #  additions — denormalised stats from ingest
     topic_count: int = 0
     p50_ms: float | None = None
     p95_ms: float | None = None
@@ -75,7 +75,7 @@ class RunListResponse(PagedResponse[RunSummary]):
 
 
 class TimelineEventResponse(BaseModel):
-    """One timeline event in the read response (PRD-013 §5).
+    """One timeline event in the read response.
 
     Mirrors the v1.3 `timeline_entry` JSON shape: mandatory `time` /
     `action` / `detail` / `offset_ms` plus optional `topic` /

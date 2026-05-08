@@ -1,4 +1,4 @@
-"""Schema validation tests for `test-report-v1.1.json` (PRD-012).
+"""Schema validation tests for `test-report-v1.1.json`.
 
 Asserts the additive evolution from v1.0 to v1.1 holds at the schema
 level: every v1.0 report (after `schema_version` substitution) is
@@ -229,7 +229,7 @@ def test_a_v1_1_run_with_a_malformed_transport_name_should_fail_validation(
 
 
 # ---------------------------------------------------------------------------
-# scenario.correlation_id null (PRD-012 §1.4.1)
+# scenario.correlation_id null
 # ---------------------------------------------------------------------------
 
 
@@ -297,7 +297,7 @@ def test_a_stage_correlation_id_not_in_sha256_form_should_fail_validation():
 
 
 # ---------------------------------------------------------------------------
-# Reply transports + topic mapping (PRD-012 §1.2)
+# Reply transports + topic mapping
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def test_a_reply_report_should_accept_optional_trigger_and_response_transports()
 
 
 def test_a_reply_report_state_should_not_introduce_fired_or_fired_builder_error():
-    """PRD-012 §1.3 — no enum extension. The wire format keeps the
+    """ §1.3 — no enum extension. The wire format keeps the
     v1.0 four values; framework `StageReplyState.FIRED` maps to
     `"replied"`."""
     schema = _load(_V1_1_PATH)
@@ -339,7 +339,7 @@ def test_a_reply_report_state_should_not_introduce_fired_or_fired_builder_error(
 
 
 # ---------------------------------------------------------------------------
-# redaction_version (PRD-012 §1.5.1)
+# redaction_version
 # ---------------------------------------------------------------------------
 
 

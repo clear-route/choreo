@@ -1,4 +1,4 @@
-"""Handle — the per-expectation observation object (ADR-0014, PRD-006)."""
+"""Handle — the per-expectation observation object."""
 
 from __future__ import annotations
 
@@ -23,14 +23,14 @@ class Handle:
     correlation_id: str | None
     outcome: Outcome = Outcome.PENDING
     _transport: str | None = None
-    """Multi-transport scenarios (Stage, ADR-0027) populate this with the
+    """Multi-transport scenarios (Stage) populate this with the
     transport name the handle was registered against. None for handles
     created by single-Harness scenarios. The leading underscore plus the
     `transport` property below mean there is no public setter; the value
     is set once via the dataclass constructor and is read-only thereafter.
     Prevents consumer-side post-hoc mutation that would (a) confuse the
     dispatcher routing and (b) leak unintended values into Handle.__repr__
-    (per ADR-0027 §Security Considerations)."""
+   ."""
     _message: Any = None
     _latency_ms: float | None = None
     _reason: str = ""
@@ -45,11 +45,11 @@ class Handle:
     @property
     def transport(self) -> str | None:
         """Read-only transport name. See `_transport` docstring above
-        and ADR-0027 §Security Considerations for the read-only rationale."""
+        and  §Security Considerations for the read-only rationale."""
         return self._transport
 
     def within_ms(self, budget_ms: float) -> Handle:
-        """Declare a latency budget for this expectation (PRD-006).
+        """Declare a latency budget for this expectation.
 
         If the matcher accepts a message but the elapsed time since the
         expectation was registered exceeds `budget_ms`, the outcome is
@@ -126,7 +126,7 @@ class Handle:
     @property
     def last_mismatch_payload(self) -> Any:
         """The decoded payload of the most recent matcher mismatch, or None
-        if no attempts occurred. Consumed by the test report (PRD-007) to
+        if no attempts occurred. Consumed by the test report to
         render the actual-side of the expected-vs-actual diff when the
         handle resolves to FAIL (i.e. messages arrived but none matched)."""
         return self._last_mismatch_payload
@@ -135,7 +135,7 @@ class Handle:
     def matcher_expected(self) -> Any:
         """Machine-readable expected shape captured from `matcher.expected_shape()`
         at expectation-registration time, or None if the matcher does not
-        expose one. Consumed by the test report (PRD-007) to render the
+        expose one. Consumed by the test report to render the
         expected-side of the expected-vs-actual diff."""
         return self._matcher_expected
 

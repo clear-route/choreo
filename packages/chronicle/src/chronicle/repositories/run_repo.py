@@ -36,7 +36,7 @@ HANDLE_COPY_COLUMNS: list[str] = [
 ]
 
 # Column list for asyncpg COPY into `timeline_events` (migration 005,
-# PRD-013 §5). Order matches the create_table column declarations.
+#  §5). Order matches the create_table column declarations.
 TIMELINE_COPY_COLUMNS: list[str] = [
     "time",
     "tenant_id",
@@ -171,7 +171,7 @@ class RunRepository:
 
         ``handles_by_scenario`` maps ``scenario.id`` to a list of tuples
         where each tuple's first field is the per-handle transport
-        (PRD-012 §2.5). The remaining fields follow the per-handle
+       . The remaining fields follow the per-handle
         portion of ``HANDLE_COPY_COLUMNS``. Run/scenario context fields
         (time/tenant/run/scenario/environment/branch) are prepended
         here.
@@ -229,7 +229,7 @@ class RunRepository:
         events_by_scenario: dict[UUID, list[tuple]],
     ) -> int:
         """Bulk-insert timeline event rows via asyncpg's COPY protocol
-        (PRD-013 §5).
+       .
 
         ``events_by_scenario`` maps ``scenario.id`` to a list of tuples
         with the per-event payload following ``TIMELINE_COPY_COLUMNS``
@@ -370,7 +370,7 @@ class RunRepository:
         offset: int = 0,
     ) -> tuple[list[dict], int]:
         """Return a page of timeline events for a run, in observation
-        order (PRD-013 §5).
+        order.
 
         `timeline_events` is a hypertable with no ORM model — uses raw
         SQL via the SQLAlchemy session. Filters are SQL-parameter

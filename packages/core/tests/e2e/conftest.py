@@ -79,7 +79,7 @@ async def _nats_available(nats_url: str) -> bool:
     return True
 
 
-# -- Authenticated NATS fixtures (ADR-0020) ---------------------------------
+# -- Authenticated NATS fixtures ---------------------------------
 
 
 @pytest.fixture(scope="session")

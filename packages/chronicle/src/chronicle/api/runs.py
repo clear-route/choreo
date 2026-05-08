@@ -174,7 +174,7 @@ async def list_run_timeline(
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0, le=50000)] = 0,
 ) -> TimelineEventListResponse:
-    """Return a paginated list of timeline events for a run (PRD-013
+    """Return a paginated list of timeline events for a run (
     §5). Events are ordered by `offset_ms ASC` (observation order).
 
     Query parameters:
@@ -183,7 +183,7 @@ async def list_run_timeline(
       - `source`: filter to a single DSL surface (e.g. `reply`)
       - `limit`: page size (default 100, max 1000)
       - `offset`: skip count (default 0, max 50000 — matches the
-        per-run aggregate cap from PRD-013 §D-4)
+        per-run aggregate cap from  §D-4)
 
     Returns 404 if the run does not exist; an empty list when the
     run exists but has no timeline (single-Harness or empty Stage

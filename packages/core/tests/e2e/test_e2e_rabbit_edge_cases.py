@@ -38,7 +38,7 @@ async def test_two_concurrent_scenarios_on_the_same_rabbit_topic_should_only_ful
     key; every publish fans out to both. The scope's correlation filter is
     the isolation boundary.
 
-    ADR-0019 default is `NoCorrelationPolicy` (broadcast); this test
+     default is `NoCorrelationPolicy` (broadcast); this test
     specifically verifies the filter, so it opts into `test_namespace()`."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
@@ -114,7 +114,7 @@ async def test_a_scenario_should_drop_messages_carrying_a_foreign_correlation_id
     amqp_url: str,
     _rabbit_available: bool,
 ) -> None:
-    """ADR-0019: the correlation filter is opt-in via a routing policy.
+    """: the correlation filter is opt-in via a routing policy.
     This test verifies the filter itself, so it configures `test_namespace()`."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
@@ -429,7 +429,7 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     _rabbit_available: bool,
 ) -> None:
     """Opts into `test_namespace()` because the late publish echoes
-    `s.correlation_id` (ADR-0019)."""
+    `s.correlation_id`."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
     from admiral.scenario import Outcome

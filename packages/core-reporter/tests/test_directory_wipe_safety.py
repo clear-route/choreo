@@ -1,4 +1,4 @@
-"""Directory-wipe safety — PRD-007 §10 / Decision #29.
+"""Directory-wipe safety.
 
 These tests exercise `_safepath` directly (unit-level) and through the
 plugin (integration-level via pytester).

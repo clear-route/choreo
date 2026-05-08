@@ -1,6 +1,6 @@
-"""Framework foundation for PRD-012 — Test Report Stage Support.
+"""Framework foundation for  — Test Report Stage Support.
 
-Red tests for the framework changes promised in PRD-012 §2.8: a `kind`
+Red tests for the framework changes promised in  §2.8: a `kind`
 discriminator on result types, public `StageScenarioResult` (with a
 backward-compat alias to the old underscored name),
 `StageScenarioResult.correlation_id` carrying the scope's logical id,
@@ -81,7 +81,7 @@ def test_StageScenarioResult_should_be_publicly_importable_from_admiral():
 
 def test_underscored_alias_should_remain_for_backward_compat():
     """In-tree code referring to `_StageScenarioResult` continues to
-    import. PRD-012 §2.8 commits to a backward-compat alias for two
+    import.  §2.8 commits to a backward-compat alias for two
     minor versions."""
     from admiral.stage import StageScenarioResult, _StageScenarioResult
 
@@ -95,7 +95,7 @@ def test_underscored_alias_should_remain_for_backward_compat():
 
 def test_a_stage_scenario_result_should_carry_a_correlation_id_field():
     """The reporter populates `scenario.correlation_id` from this field
-    (PRD-012 §1.4.1, §2.6) so it does not reach into private scope
+    so it does not reach into private scope
     attributes. Constructed directly here; Stage-side wire-up is
     exercised in the integration suite."""
     result = StageScenarioResult(
@@ -110,7 +110,7 @@ def test_a_stage_scenario_result_should_carry_a_correlation_id_field():
 def test_a_stage_scenario_result_should_accept_a_none_correlation_id():
     """Stages constructed with NoCorrelationPolicy / a bridge whose
     fresh() returns None still produce a result. The schema relaxation
-    in PRD-012 §1.4.1 (`["string", "null"]`) makes this representable."""
+    in  §1.4.1 (`["string", "null"]`) makes this representable."""
     result = StageScenarioResult(handles=(), passed=True, replies=(), correlation_id=None)
     assert result.correlation_id is None
 

@@ -1,5 +1,5 @@
 """admiral-reporter — pytest plugin that emits a test-report directory at the end
-of every pytest run (PRD-007).
+of every pytest run.
 
 This package is a consumer-facing sibling of `admiral`; `admiral` itself has no
 dependency on pytest, and this package contributes the reporting pipeline

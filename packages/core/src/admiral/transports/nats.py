@@ -96,7 +96,7 @@ class NatsTransport:
     # ---- lifecycle -------------------------------------------------------
 
     async def connect(self) -> None:
-        # --- reconnect guard (ADR-0020 §Implementation step 4.1) ---
+        # --- reconnect guard ---
         if self._auth is not None and self._has_connected:
             raise TransportError(
                 "auth-bearing transports do not support reconnect; construct a fresh transport"
@@ -115,7 +115,7 @@ class NatsTransport:
         descriptor = await _resolve_auth(self._auth, "nats")
 
         # Drop instance reference before logon so a crash cannot leave it
-        # on self (ADR-0020 §Implementation step 4.5).
+        # on self.
         self._auth = None
 
         try:
@@ -155,7 +155,7 @@ class NatsTransport:
             raise TransportError(f"could not connect to NATS at {safe_servers!r}: {e}") from e
         finally:
             # Clear on exit — runs on success, failure, and cancellation
-            # (ADR-0020 §Implementation step 4.7).
+            #.
             if descriptor is not None:
                 _clear_auth_fields(descriptor)
 
@@ -340,7 +340,7 @@ class NatsTransport:
         #  has to run first to buffer anything)."
         in_flight = [t for t in self._pending_subs if not t.done()]
 
-        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        #  §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
         # timeline ordering is deterministic across nested publishes
         # (e.g. a reply chain triggered by a subscriber callback). The
         # alternative — firing on_sent inside the publish task after

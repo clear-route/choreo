@@ -1,6 +1,6 @@
-"""PRD-012: relax runs.transport NOT NULL; add runs.transports.
+""": relax runs.transport NOT NULL; add runs.transports.
 
-PRD-012 §1.5 / §2.5: Stage-only and mixed-mode test runs emit
+ §1.5 / §2.5: Stage-only and mixed-mode test runs emit
 `run.transport: null` and a `run.transports: [...]` array. Chronicle's
 runs.transport NOT NULL constraint would reject these; the migration
 relaxes the constraint and adds the new array column.

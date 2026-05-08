@@ -2,7 +2,7 @@
 
 `Stage` wraps a named registry of `Harness` instances and a
 `CorrelationBridge` so a single scenario can publish, expect, and reply
-across multiple message transports. See ADR-0027 for the design.
+across multiple message transports. 
 
 Public surface:
 

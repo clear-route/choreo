@@ -1,4 +1,4 @@
-"""HTML XSS safety — PRD-007 §9 (rendering contract).
+"""HTML XSS safety).
 
 Test payloads contain attacker-controlled strings that could in principle
 close the inline `<script type="application/json">` block, inject

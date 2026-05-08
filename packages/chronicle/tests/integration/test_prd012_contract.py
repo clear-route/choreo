@@ -1,6 +1,6 @@
-"""PRD-012 Phase 1 contract test: reporter → Chronicle round-trip.
+""" Phase 1 contract test: reporter → Chronicle round-trip.
 
-The contract under test is the Phase 1 exit gate (PRD-012 Implementation
+The contract under test is the Phase 1 exit gate ( Implementation
 Plan §Phase 1): a v1.1 Stage report emitted by the admiral-reporter
 must pass Chronicle's ingest pipeline (Pydantic level 1, then
 normalisation, then repository writes) without 4xx or 5xx errors,
@@ -11,7 +11,7 @@ Two surfaces:
 * **No-DB integration** (this file, `chronicle_db`-marker-free): drives
   the report through Pydantic + ``normalise_report`` to assert the
   shape is accepted at the validation layers. Runs in every CI pass.
-* **DB-backed e2e** (``e2e/test_prd012_contract_db.py``, marked
+* **DB-backed e2e** (``e2e/test_stage_contract_db.py``, marked
   ``chronicle_db``): POSTs the report to a running Chronicle instance
   and asserts 201 + `runs.transports` is populated. Runs only when
   TimescaleDB is reachable.
@@ -28,7 +28,7 @@ from chronicle.services.normalise import normalise_report
 
 
 def _v1_1_stage_report() -> dict[str, Any]:
-    """A minimal v1.1 Stage report mirroring PRD-012 Appendix A.3.
+    """A minimal v1.1 Stage report mirroring  Appendix A.3.
 
     Stage-only: `run.transport` is null, `run.transports` carries the
     sorted union; one Stage scenario with two transports and one Stage

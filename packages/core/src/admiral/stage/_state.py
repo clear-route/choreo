@@ -60,7 +60,7 @@ class _StageReply:
 
     Mutated by the trigger-topic subscriber as messages arrive; frozen
     into a `StageReplyReport` at scope exit. Held on the TRIGGER child's
-    `replies` list (single-writer per ADR-0016 §Fire-once enforcement);
+    `replies` list (single-writer per  §Fire-once enforcement);
     the response child has no record.
     """
 
@@ -77,7 +77,7 @@ class _StageReply:
     builder_error: str | None = None
     """Class name only — never `str(exc)`. Builder/publish exceptions
     can carry payload-derived data; the redacted name is enough for
-    diagnosis (mirrors ADR-0017 §Security Considerations posture)."""
+    diagnosis."""
 
 
 @dataclass(frozen=True)
@@ -143,7 +143,7 @@ class _StageChild:
     so one failure does not abort the rest.
 
     Replies are held only on the TRIGGER child (single-writer per
-    ADR-0016).
+    ).
     """
 
     wire_id: str
@@ -172,7 +172,7 @@ class StageScenarioResult:
     """The scope's logical id (`bridge.fresh()` output captured at scope
     entry, coerced to str). The admiral-reporter populates
     `scenario.correlation_id` from this without reaching into private
-    scope attributes (PRD-012 §2.6)."""
+    scope attributes."""
     name: str = ""
     """The scope name passed to `stage.scenario("name")`. The reporter
     uses this as the scenario's display name (replacing the v2
@@ -180,7 +180,7 @@ class StageScenarioResult:
     bridge_class: str | None = None
     """Class name of the `CorrelationBridge` in effect for the Stage
     scope this result came from. The reporter emits the value in
-    `scenario.stage.bridge_class` (PRD-012 §1.4)."""
+    `scenario.stage.bridge_class`."""
     registered_transports: tuple[str, ...] = ()
     """The transports registered on the Stage at scope open, in
     registration order. Distinct from `by_transport.keys()` which only
@@ -190,19 +190,19 @@ class StageScenarioResult:
     fire on one of them."""
     timeline: tuple[TimelineEntry, ...] = ()
     """Observed events recorded during the scope's lifetime, in
-    observation order (PRD-013 §2.4). Each entry's `transport` field
+    observation order. Each entry's `transport` field
     carries the per-transport attribution for transport-scoped events
     and is omitted (`None`) for scope-level events such as `DEADLINE`
-    (PRD-013 §D-3). Empty for scopes that did not exercise any
+   . Empty for scopes that did not exercise any
     instrumented path."""
     timeline_dropped: int = 0
     """Count of events the per-scope `_Timeline` ring buffer had to
     drop because the per-scope cap (256) was hit. Distinct from the
     per-run aggregate cap policed at the reporter boundary
-    (PRD-013 §D-4)."""
+   ."""
     kind: Literal["stage"] = field(default="stage", init=False)
     """Explicit discriminator (`"stage"`) the admiral-reporter uses for
-    dispatch in place of duck-typed hasattr checks (PRD-012 §2.8)."""
+    dispatch in place of duck-typed hasattr checks."""
 
     @property
     def by_transport(self) -> Mapping[str, tuple[Handle, ...]]:
@@ -244,8 +244,8 @@ class StageScenarioResult:
         raise AssertionError("Stage scenario did not pass; failing handles:\n" + "\n".join(failed))
 
 
-# Backward-compat alias for the pre-PRD-012 underscored name. In-tree
+# Backward-compat alias for the previous underscored name. In-tree
 # imports (`from admiral.stage import _StageScenarioResult`) continue to
 # resolve to the public class. Aliased for two minor versions per
-# PRD-012 §2.8.
+#  §2.8.
 _StageScenarioResult = StageScenarioResult

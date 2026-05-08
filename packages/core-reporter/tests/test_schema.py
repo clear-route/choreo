@@ -1,4 +1,4 @@
-"""JSON Schema tests — PRD-007 §3 / testing strategy.
+"""JSON Schema tests.
 
 The schema is the hand-off contract to any future aggregator; these
 tests catch drift between the schema file, the appendix example, and

@@ -1,6 +1,6 @@
-"""Stage rendering contract for the HTML report (PRD-012 §3).
+"""Stage rendering contract for the HTML report.
 
-The renderer is JS-driven from inlined JSON (PRD-007 §7), so static
+The renderer is JS-driven from inlined JSON, so static
 HTML parsing alone cannot assert on runtime DOM. These tests assert
 two complementary contracts:
 
@@ -11,11 +11,11 @@ two complementary contracts:
    round-trip through `render_html`.
 2. The JS source contains the Stage-rendering branches and
    `data-*` contract names so the runtime path will produce the
-   stable-tier attributes promised in PRD-012 §3.6.
+   stable-tier attributes promised in  §3.6.
 
 Runtime DOM correctness (Playwright/JSDOM) is a follow-up;
 `html.escape` defence-in-depth is satisfied by `el()`'s use of
-`setAttribute()` and `textContent` (PRD-007 §9 §FORBIDDEN_JS_SINKS).
+`setAttribute()` and `textContent`.
 """
 
 from __future__ import annotations
@@ -270,7 +270,7 @@ def test_the_renderer_js_should_emit_failing_reply_subbadge():
 
 
 # ---------------------------------------------------------------------------
-# PR 2.2: Stage timeline visibility (PRD-013 §4.3 banner) + DEADLINE safety
+# PR 2.2: Stage timeline visibility + DEADLINE safety
 # ---------------------------------------------------------------------------
 
 
@@ -305,7 +305,7 @@ def test_a_stage_scenario_timeline_entry_should_carry_transport_in_the_inlined_j
 
 
 def test_a_stage_deadline_entry_should_omit_topic_in_the_inlined_json():
-    """PRD-013 §D-3: scope-level events omit the `topic` JSON key.
+    """ §D-3: scope-level events omit the `topic` JSON key.
     The renderer must be DEADLINE-safe (Phase 1->2 transitional UX)."""
     html = _render(_stage_report_json())
     soup = BeautifulSoup(html, "html.parser")
@@ -318,7 +318,7 @@ def test_a_stage_deadline_entry_should_omit_topic_in_the_inlined_json():
 
 def test_the_renderer_js_should_guard_against_missing_topic_on_timeline_entries():
     """`buildWaterfall` groups events by `entry.topic` to reconstruct
-    the causal tree. PRD-013 §D-3 introduces topic-less entries
+    the causal tree.  §D-3 introduces topic-less entries
     (DEADLINE). The JS must not crash on `undefined` topic - it skips
     the entry from the per-topic waterfall (rendered separately as a
     scope-level event in the swim-lane mode shipped in PR 2.3)."""
@@ -331,7 +331,7 @@ def test_the_renderer_js_should_guard_against_missing_topic_on_timeline_entries(
 
 
 def test_the_renderer_should_emit_a_stage_timeline_banner_for_stage_scenarios():
-    """PRD-013 §4.3 visibility banner: Stage scenarios with timeline
+    """ §4.3 visibility banner: Stage scenarios with timeline
     data render a `data-stage-timeline-banner` element so consumers
     can see the timeline was captured even before Phase 2's swim-lane
     layout ships. The banner is additive to the existing waterfall
@@ -362,12 +362,12 @@ def test_the_renderer_should_not_emit_a_stage_timeline_banner_for_single_harness
 
 
 # ---------------------------------------------------------------------------
-# PR 2.3a: Swim-lane mode (PRD-013 §4.1, §D-3a)
+# PR 2.3a: Swim-lane mode
 # ---------------------------------------------------------------------------
 
 
 def test_the_renderer_js_should_emit_a_swim_lane_wrapper_class_for_stage_mode():
-    """PRD-013 §4.1: when the timeline contains entries whose
+    """ §4.1: when the timeline contains entries whose
     `transport` matches `scenario.stage.transports`, the renderer
     activates swim-lane mode and wraps rows in `hr-waterfall-lane`
     elements (DOM additions per §4.1; reuses the existing
@@ -397,7 +397,7 @@ def test_the_renderer_js_should_propagate_transport_onto_individual_rows():
 
 
 def test_the_renderer_should_emit_one_lane_per_registered_transport_in_stage_mode():
-    """PRD-013 §D-3a + §4.1: swim-lane mode produces one
+    """ §D-3a + §4.1: swim-lane mode produces one
     `hr-waterfall-lane[data-transport=<name>]` per entry in
     `scenario.stage.transports`. Pinned via the JS source's
     `el(..., {'data-transport': t}, ...)` construction so the
@@ -416,7 +416,7 @@ def test_the_renderer_should_emit_one_lane_per_registered_transport_in_stage_mod
 
 
 def test_the_renderer_js_should_emit_a_separate_lane_for_scope_level_events():
-    """PRD-013 §D-3 + §4.1: scope-level events (DEADLINE) have no
+    """ §D-3 + §4.1: scope-level events (DEADLINE) have no
     transport attribution. They render in a dedicated lane with
     `data-transport=""` (empty) or a `data-scope-lane="true"` marker
     so the swim-lane consumer can route them appropriately."""
@@ -427,7 +427,7 @@ def test_the_renderer_js_should_emit_a_separate_lane_for_scope_level_events():
 def test_the_renderer_should_not_activate_swim_lane_mode_for_single_harness():
     """Mode detection requires `scenario.stage`. Without it, the
     renderer falls through to the legacy per-topic layout that
-    PRD-007 v1.0 ships. The DOM still contains the `hr-waterfall-lane`
+     v1.0 ships. The DOM still contains the `hr-waterfall-lane`
     class definition (CSS lives at module scope), but the JS does not
     construct lane wrappers for non-Stage scenarios."""
     report = _stage_report_json()
@@ -449,12 +449,12 @@ def test_the_renderer_should_not_activate_swim_lane_mode_for_single_harness():
 
 
 # ---------------------------------------------------------------------------
-# PR 2.3b: Cross-transport reply-arrow pairing (PRD-013 §4.2, §4.2.1)
+# PR 2.3b: Cross-transport reply-arrow pairing
 # ---------------------------------------------------------------------------
 
 
 def test_the_renderer_js_should_emit_a_reply_arrow_count_attribute_on_the_overlay():
-    """PRD-013 §4.2.1: the SVG overlay carries `data-reply-arrow-count`
+    """ §4.2.1: the SVG overlay carries `data-reply-arrow-count`
     indicating the pair count produced by the linear-scan pairing
     algorithm. This is the observable behavioural contract; the
     consumer can query overlay presence + pair count without depending
@@ -464,7 +464,7 @@ def test_the_renderer_js_should_emit_a_reply_arrow_count_attribute_on_the_overla
 
 
 def test_the_renderer_js_should_render_an_svg_overlay_for_reply_arrows():
-    """PRD-013 §4.2: reply linkage uses an SVG path overlay above the
+    """ §4.2: reply linkage uses an SVG path overlay above the
     waterfall lanes. The container carries the
     `hr-waterfall-reply-arrows` class so consumers can target it."""
     html = _render(_stage_report_json())
@@ -472,7 +472,7 @@ def test_the_renderer_js_should_render_an_svg_overlay_for_reply_arrows():
 
 
 def test_the_renderer_js_should_emit_data_reply_from_and_data_reply_to_on_arrows():
-    """PRD-013 §4.2: each arrow path carries `data-reply-link-from`
+    """ §4.2: each arrow path carries `data-reply-link-from`
     (the RECEIVED node id) and `data-reply-link-to` (the REPLIED
     node id) so consumers can trace the pairing without relying on
     SVG geometry."""
@@ -505,7 +505,7 @@ def test_a_single_harness_scenario_should_not_carry_a_stage_block_in_the_inlined
 
 
 # ---------------------------------------------------------------------------
-# PR 2.4: Virtualisation under cap-saturated workloads (PRD-013 §4.1.1)
+# PR 2.4: Virtualisation under cap-saturated workloads
 # ---------------------------------------------------------------------------
 
 
@@ -536,7 +536,7 @@ def test_the_renderer_js_should_emit_an_expansion_control_carrying_data_virtuali
 
 def test_the_renderer_should_not_mark_a_short_timeline_as_virtualised():
     """The eager-mount path is preserved for timelines under the
-    threshold (PRD-013 §4.1.1: lower latency for the common case).
+    threshold.
     A short timeline must not produce a `data-virtualised="true"`
     attribute literal in the rendered output, nor a
     `data-virtualised-expand` button. The fixture's 6-entry timeline
@@ -551,7 +551,7 @@ def test_the_renderer_should_not_mark_a_short_timeline_as_virtualised():
 
 
 # ---------------------------------------------------------------------------
-# PRD-013 v1.3 / schema v1.3: source attribution in the renderer
+#  v1.3 / schema v1.3: source attribution in the renderer
 # ---------------------------------------------------------------------------
 
 
@@ -593,7 +593,7 @@ def test_the_renderer_js_should_render_a_source_badge_with_human_readable_text()
 
 
 def test_a_single_harness_timeline_entry_should_omit_the_source_key():
-    """Byte-identity: single-Harness entries pre-date PRD-013 §1.6;
+    """Byte-identity: single-Harness entries pre-date  §1.6;
     they emit no `source` field and the JSON key is omitted (not
     null) so v1.0/v1.1/v1.2-pinned consumers see no surprise field."""
     report = _stage_report_json()
@@ -613,7 +613,7 @@ def test_a_single_harness_timeline_entry_should_omit_the_source_key():
 
 
 def test_the_renderer_js_should_apply_failed_class_to_response_badge():
-    """PRD-012 US-2 AC3: response-transport badge for `reply_failed`
+    """ US-2 AC3: response-transport badge for `reply_failed`
     carries class `hr-reply-transport-badge--failed` (the class name
     is the asserted contract, not the visual property)."""
     html = _render(_stage_report_json())
@@ -626,7 +626,7 @@ def test_the_renderer_js_should_define_collectFailingTransports():
 
 
 # ---------------------------------------------------------------------------
-# CSS: stable-tier classes are styled (PRD-007 §9: every selector
+# CSS: stable-tier classes are styled ( §9: every selector
 # scoped under .harness-report)
 # ---------------------------------------------------------------------------
 
@@ -657,19 +657,19 @@ def test_the_css_should_style_failing_side_subbadge():
 
 
 # ---------------------------------------------------------------------------
-# XSS canary (PRD-012 §3 §Mandatory escaping)
+# XSS canary
 # ---------------------------------------------------------------------------
 
 
 def test_a_malicious_transport_name_should_not_break_out_of_the_inlined_json_or_a_data_attribute():
-    """PRD-012 §3 mandates a renderer test fixturing
+    """ §3 mandates a renderer test fixturing
     `transport: '<script>alert(1)</script>'` and asserting no script
     execution surface lands in the HTML. Defence in depth above the
     Pydantic + JSON-Schema regex (which the reporter ships with v1.1).
 
     Two contracts here:
     * The inlined JSON's `<` is escaped to `\\u003c` so a `</script>`
-      cannot break out of the harness-results script tag (PRD-007 §9).
+      cannot break out of the harness-results script tag.
     * No raw `<script>alert(1)</script>` substring appears anywhere
       in the HTML output. The renderer's runtime DOM-building uses
       `setAttribute()` and `textContent` (FORBIDDEN_JS_SINKS), so
@@ -694,7 +694,7 @@ def test_a_malicious_transport_name_should_not_break_out_of_the_inlined_json_or_
     # `<` (six literal characters) so the `</script>` closing
     # tag cannot terminate the surrounding <script type="application/json">
     # element. The trailing `>` is allowed unescaped — only the leading
-    # `<` matters for break-out (PRD-007 §9 / FORBIDDEN_JS_SINKS).
+    # `<` matters for break-out.
     assert "\\u003cscript>alert(1)\\u003c/script>" in html
 
 
@@ -775,12 +775,12 @@ def test_the_lifecycle_css_should_distinguish_status_with_distinct_colours():
 
 
 # ---------------------------------------------------------------------------
-# Stable-tier `data-*` contract — full surface coverage (PRD-012 §3.6)
+# Stable-tier `data-*` contract — full surface coverage
 # ---------------------------------------------------------------------------
 
 
 def test_the_renderer_js_should_emit_data_stage_transports_on_the_breadcrumb():
-    """Stable-tier per PRD-012 §3.6. Space-separated for [~=] selector
+    """Stable-tier 6. Space-separated for [~=] selector
     compat. Distinct from the singular `data-stage-transport` on
     individual pills."""
     html = _render(_stage_report_json())
@@ -829,12 +829,12 @@ def test_the_meta_harness_schema_version_should_be_1_3():
 
 # ---------------------------------------------------------------------------
 # Stable-tier static contract: data-grouping-mode emitted on the root
-# even before the toggle implementation ships (PRD-012 §3.6).
+# even before the toggle implementation ships.
 # ---------------------------------------------------------------------------
 
 
 def test_the_root_should_carry_data_grouping_mode_by_scenario_initially():
-    """Stable-tier per PRD-012 §3.6. Lands now (the toggle UI is
+    """Stable-tier 6. Lands now (the toggle UI is
     deferred) so consumers can pin the attribute name."""
     html = _render(_stage_report_json())
     soup = BeautifulSoup(html, "html.parser")

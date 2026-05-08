@@ -371,7 +371,7 @@ class KafkaTransport:
         # mental model. Without this, in a self-loopback reply chain the
         # consumer's reader task could fire the inner reply's `on_sent`
         # before the outer publish's `on_sent`, inverting the rendered
-        # timeline. PRD-013 §2.3.1 / Phase 2 review cycle 2026-05-05.
+        # timeline.  §2.3.1 / Phase 2 review cycle 2026-05-05.
         if on_sent is not None:
             on_sent()
 

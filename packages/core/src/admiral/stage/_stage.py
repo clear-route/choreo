@@ -3,7 +3,7 @@
 Holds an ordered named registry of Harness instances and a bridge that
 translates a logical scope id into per-transport wire ids. Drives the
 harnesses through their public surface — single-transport callers see
-nothing new. See ADR-0027 for the full design.
+nothing new. 
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ class Stage:
         collides on real logical ids will pass this check;
         `_StageScenarioScope._mint_all_children` re-runs the same check
         against the actual logical id at scope entry to catch in-flight
-        collisions. See ADR-0027 §Security Considerations.
+        collisions. 
         """
         # Exhaust the generator — we do not retain the (name, wire)
         # pairs at construction; the per-scope mint is the one that

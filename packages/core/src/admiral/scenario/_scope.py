@@ -1,12 +1,12 @@
 """DSL surface — `Scenario`, `ReplyChain`, and `_ScenarioScope`.
 
-ADR-0012 specified four state classes; the implementation was reduced to a
+ specified four state classes; the implementation was reduced to a
 single `Scenario` with a `_state` flag that raises `AttributeError` on illegal
 calls — the same guarantee at runtime without sacrificing the
-`handle = s.expect(...)` pattern from PRD-002. ADR-0012's "Notes" records the
+`handle = s.expect(...)` pattern from . the "Notes" records the
 correction.
 
-ADR-0014 (Handle) and ADR-0015 (deadline via `asyncio.timeout_at`) are also
+ (Handle) and  (deadline via `asyncio.timeout_at`) are also
 implemented here.
 """
 
@@ -54,7 +54,7 @@ class Scenario:
         triggered → (await_all returns ScenarioResult)
 
     `publish` and `await_all` raise `AttributeError` when called in the wrong
-    state (ADR-0012). `expect` returns a Handle (ADR-0014); the scenario is
+    state. `expect` returns a Handle; the scenario is
     mutated in place so subsequent `s.publish(...)` works without reassignment.
     """
 
@@ -78,14 +78,14 @@ class Scenario:
         if self._state == _STATE_TRIGGERED:
             raise AttributeError(
                 "'Scenario' in 'triggered' state has no attribute 'expect' — "
-                "register expectations before publish() (ADR-0012)"
+                "register expectations before publish()"
             )
         handle = _register_expectation(self._context, topic, matcher)
         if self._state == _STATE_BUILDER:
             self._state = _STATE_EXPECTING
         return handle
 
-    # ---- on / reply registration (ADR-0016) ------------------------------
+    # ---- on / reply registration ------------------------------
 
     def on(self, topic: str, matcher: Matcher | None = None) -> ReplyChain:
         """Register a reply: observe `topic` and publish a response.
@@ -93,12 +93,12 @@ class Scenario:
         Returns a `ReplyChain` terminated by `.publish(reply_topic, payload)`.
         Callable from BUILDER or EXPECTING state; raises AttributeError from
         TRIGGERED state (replies must be armed before the trigger fires —
-        ADR-0016). `matcher=None` matches every inbound on the topic.
+        ). `matcher=None` matches every inbound on the topic.
         """
         if self._state == _STATE_TRIGGERED:
             raise AttributeError(
                 "'Scenario' in 'triggered' state has no attribute 'on' — "
-                "register replies before publish() (ADR-0016)"
+                "register replies before publish()"
             )
         if self._state == _STATE_BUILDER:
             self._state = _STATE_EXPECTING
@@ -111,7 +111,7 @@ class Scenario:
         if self._state == _STATE_BUILDER:
             raise AttributeError(
                 "'Scenario' in 'builder' state has no attribute 'publish' — "
-                "register at least one expectation first (ADR-0012)"
+                "register at least one expectation first"
             )
         return self._do_publish
 
@@ -120,7 +120,7 @@ class Scenario:
 
         Accepts either raw `bytes` (passed through verbatim, the caller owns
         encoding) or a `dict` (encoded via the harness codec). The active
-        `CorrelationPolicy` (ADR-0019) decides what happens to dict payloads:
+        `CorrelationPolicy` decides what happens to dict payloads:
         under the library default `NoCorrelationPolicy` the payload reaches
         the wire unchanged; under `DictFieldPolicy` the policy stamps its
         configured field (unless the caller already set it). A policy with a
@@ -168,7 +168,7 @@ class Scenario:
         if self._state != _STATE_TRIGGERED:
             raise AttributeError(
                 f"'Scenario' in {self._state!r} state has no attribute 'await_all' — "
-                "call publish() first (ADR-0012)"
+                "call publish() first"
             )
         return self._do_await_all
 
@@ -186,7 +186,7 @@ class ReplyChain:
 
     Terminated by `.publish(reply_topic, payload)`, which registers the
     reply on the scope and returns the live `Scenario`. Single-use —
-    calling `publish()` twice raises `ReplyAlreadyBoundError` (ADR-0016).
+    calling `publish()` twice raises `ReplyAlreadyBoundError`.
     """
 
     def __init__(
@@ -208,7 +208,7 @@ class ReplyChain:
         if self._bound:
             raise ReplyAlreadyBoundError(
                 "this reply chain already has a payload bound; chains are "
-                "single-use (ADR-0016). Register a second reply via a "
+                "single-use. Register a second reply via a "
                 "fresh .on() call."
             )
         self._bound = True
@@ -226,7 +226,7 @@ class _ScenarioScope:
     def __init__(self, harness: Harness, name: str) -> None:
         self._harness = harness
         # Correlation id is generated in __aenter__ because policies may
-        # resolve ids asynchronously (ADR-0019). Placeholder until then.
+        # resolve ids asynchronously. Placeholder until then.
         self._context = _ScenarioContext(
             name=name,
             harness=harness,
@@ -257,7 +257,7 @@ class _ScenarioScope:
 
     async def __aexit__(self, exc_type: Any, exc: Any, tb: Any) -> None:
         # Reply never-fired WARNINGs before teardown, so the log line
-        # includes the topic + redacted matcher for diagnosis (ADR-0017
+        # includes the topic + redacted matcher for diagnosis (
         # §Warning-log behaviour). Replied entries are silent here —
         # any over-count is visible on the report. Builder errors have
         # already logged at ERROR from the dispatcher.
@@ -279,7 +279,7 @@ class _ScenarioScope:
 
         # Unsubscribe every callback the scope registered. A transport that
         # raises here previously left the failure silent, leaking subscribers
-        # into subsequent scopes. Log at WARNING (class name only, ADR-0017)
+        # into subsequent scopes. Log at WARNING (class name only)
         # and continue — one failing unsubscribe must not abort the rest.
         for topic, cb in self._context.subscriber_refs:
             try:

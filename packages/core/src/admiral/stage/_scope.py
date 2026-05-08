@@ -5,7 +5,7 @@ The scope owns:
   * the logical scope id (minted via `bridge.fresh()` at __aenter__),
   * one `_StageChild` per registered transport (minted from the logical
     id via `bridge.to_wire(...)`),
-  * the per-scope `_Timeline` (PRD-013 §2.2) and its seal-on-exit
+  * the per-scope `_Timeline` and its seal-on-exit
     semantics (§2.4),
   * the dispatcher subscriptions registered via `expect()` and `on()`,
     cleaned up via per-pair try/except in `_teardown`.
@@ -91,7 +91,7 @@ class _StageScenarioScope:
         self._logical_id: Any | None = None
         self._children: dict[str, _StageChild] = {}
         self._entered = False
-        # PRD-013 §2.2: per-scope event timeline. Anchored on first
+        #  §2.2: per-scope event timeline. Anchored on first
         # recorded event (via `_Timeline.record`'s lazy anchoring), so
         # an empty scope does not consume any t0 slot.
         self._timeline = _Timeline()
@@ -173,7 +173,7 @@ class _StageScenarioScope:
         """Mint a per-transport wire id for every registered transport
         from the scope's single logical id. Re-validates per-scope
         distinctness against the actual logical id — the second pass of
-        ADR-0027 §Security Considerations' two-pass distinctness check,
+         §Security Considerations' two-pass distinctness check,
         catching bridges that pass startup smoke-test but collide on
         real input.
         """
@@ -314,7 +314,7 @@ class _StageScenarioScope:
         Stamps the per-child wire id into the outbound envelope via the
         harness's `CorrelationPolicy.write()` before delegating to
         `harness.publish()`. The default `NoCorrelationPolicy` (per
-        ADR-0019) is a no-op write — payload passes through unchanged
+        ) is a no-op write — payload passes through unchanged
         — so single-transport-per-Stage tests are unaffected. Consumers
         wanting parallel-scope isolation across multiple Stages on
         shared infrastructure configure each harness with a
@@ -337,12 +337,12 @@ class _StageScenarioScope:
             Envelope(topic=topic, payload=payload),
             child.wire_id,
         )
-        # PRD-013 §2.3 row 1 (PUBLISHED) + §2.3.1: record at the
+        #  §2.3 row 1 (PUBLISHED) + §2.3.1: record at the
         # post-wire `on_sent` boundary so semantics match
         # single-Harness scenario.py:716. If the harness/transport
         # raises before invoking `on_sent`, no PUBLISHED is recorded
         # and the exception propagates — consistent with the "the
-        # bytes have left the wire" reading PRD-013 documents.
+        # bytes have left the wire" reading  documents.
         timeline = self._timeline
         published_topic = envelope.topic
 
@@ -381,7 +381,7 @@ class _StageScenarioScope:
                     await asyncio.wait(futures, return_when=asyncio.ALL_COMPLETED)
             except TimeoutError:
                 # Some expectations did not fire within the budget.
-                # PRD-013 §2.3 row 6: record one scope-level DEADLINE
+                #  §2.3 row 6: record one scope-level DEADLINE
                 # event. Both `transport` and `topic` are OMITTED
                 # (None) for scope-level events per §D-3 — symmetric
                 # treatment, no in-band signalling on either field.
@@ -398,7 +398,7 @@ class _StageScenarioScope:
         for exp in all_expectations:
             _resolve_pending_handle(expectation=exp, now_t=now_t, timeout_ms=timeout_ms)
 
-        # Replies live on the TRIGGER child only (per ADR-0016
+        # Replies live on the TRIGGER child only (per 
         # single-writer invariant); response children have empty reply
         # lists by construction.
         all_replies: list[_StageReply] = []
@@ -413,9 +413,9 @@ class _StageScenarioScope:
         # `_logical_id` is the scope's logical id minted by
         # `bridge.fresh()` at __aenter__. It may be any type the bridge
         # returns; coerce to str for the schema's `["string", "null"]`
-        # contract (PRD-012 §1.4.1).
+        # contract.
         correlation_id: str | None = str(self._logical_id) if self._logical_id is not None else None
-        # PRD-012 §1.4: `bridge_class` is an advisory-tier audit field
+        #  §1.4: `bridge_class` is an advisory-tier audit field
         # carrying the consumer-supplied bridge's class name. Read here
         # so the reporter does not have to reach across the private
         # boundary.
@@ -426,7 +426,7 @@ class _StageScenarioScope:
         # report should show the configured shape, not the executed
         # subset.
         registered_transports = tuple(self._stage._harnesses.keys())
-        # PRD-013 §2.2: freeze the per-scope timeline into the result.
+        #  §2.2: freeze the per-scope timeline into the result.
         # Seal BEFORE snapshotting so any in-flight inbound callback
         # (subscriptions stay live until `__aexit__` runs the
         # unsubscribe loop) sees `sealed=True` and becomes a silent
@@ -449,7 +449,7 @@ class _StageScenarioScope:
             timeline=timeline,
             timeline_dropped=timeline_dropped,
         )
-        # Notify the reporter (PRD-007 §2 observer seam). Mirrors the
+        # Notify the reporter. Mirrors the
         # single-Harness `Scenario._do_await_all` emission at
         # scenario.py:734-736 so Stage scenarios appear in
         # `results.json`. Wrapped in try/except: a reporter failure
@@ -497,7 +497,7 @@ class StageReplyChain:
 
     The `on=` on the trigger may differ from the `on=` on the response —
     that is the cross-transport bridge case (trigger on Kafka, response
-    on NATS). See ADR-0027 §Implementation StageReplyChain.
+    on NATS). 
     """
 
     def __init__(

@@ -46,7 +46,7 @@ async def test_two_concurrent_scenarios_on_the_same_kafka_topic_should_only_fulf
     # DictFieldPolicy is what exercises the per-scope correlation filter;
     # the harness's default is NoCorrelationPolicy (broadcast). Without an
     # explicit policy here the "foreign correlation dropped" expectation
-    # doesn't hold — every scope sees every message (ADR-0019).
+    # doesn't hold — every scope sees every message.
     harness = Harness(
         KafkaTransport(bootstrap_servers=[kafka_bootstrap], allowlist_path=allowlist_yaml_path),
         correlation=test_namespace(),
@@ -453,7 +453,7 @@ async def test_a_timed_out_handle_should_remain_timed_out_even_after_a_late_mess
     handle must stay TIMEOUT — it must not flip back to PASS.
 
     Opts into `test_namespace()` because the late publish echoes
-    `s.correlation_id` onto its payload (ADR-0019)."""
+    `s.correlation_id` onto its payload."""
     from admiral import Harness, test_namespace
     from admiral.matchers import field_equals
     from admiral.scenario import Outcome

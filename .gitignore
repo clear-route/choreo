@@ -33,7 +33,7 @@ coverage.xml
 
 .scratch/
 
-# admiral-reporter output (PRD-007)
+# admiral-reporter output
 test-report/
 
 # Node / React (Chronicle frontend)

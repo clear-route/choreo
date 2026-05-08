@@ -1,6 +1,6 @@
-"""PRD-013 PR 1.1 - additive `transport` field on TimelineEntry / _Timeline.record.
+""" PR 1.1 - additive `transport` field on TimelineEntry / _Timeline.record.
 
-Red tests for the smallest framework change in PRD-013 §2.1: an optional,
+Red tests for the smallest framework change in  §2.1: an optional,
 kwarg-only `transport: str | None = None` on `TimelineEntry` and
 `_Timeline.record(...)`. The field is the per-transport attribution that
 Stage scopes will populate when the hook-point work in subsequent PRs lands.
@@ -45,9 +45,9 @@ def test_a_timeline_entry_should_accept_a_transport_name_via_kwarg():
 
 
 def test_a_timeline_entry_should_remain_frozen_after_adding_transport():
-    """Frozen dataclass contract from PRD-012 is preserved; consumer-side
+    """Frozen dataclass contract from  is preserved; consumer-side
     post-hoc mutation of `transport` raises (consistent with Handle.transport
-    read-only posture per ADR-0027 §Security Considerations)."""
+    read-only posture """
     entry = TimelineEntry(
         offset_ms=0.0,
         _wall_clock_epoch=0.0,
@@ -67,7 +67,7 @@ def test_a_timeline_entry_should_remain_frozen_after_adding_transport():
 def test_recording_without_transport_should_produce_an_entry_with_transport_none():
     """Existing single-Harness call sites in scenario.py do not pass the
     kwarg; the resulting entry must carry `transport=None`. This is the
-    byte-identity contract PRD-012's snapshot test pins for the JSON output."""
+    byte-identity contract the snapshot test pins for the JSON output."""
     timeline = _Timeline()
     timeline.record(
         now=0.0,
@@ -79,7 +79,7 @@ def test_recording_without_transport_should_produce_an_entry_with_transport_none
 
 
 def test_recording_with_transport_should_round_trip_the_value_to_the_entry():
-    """Stage hook points (PRD-013 PRs 1.2+) will call record(transport=...)
+    """Stage hook points ( PRs 1.2+) will call record(transport=...)
     with the per-transport child name; the kwarg must reach the entry."""
     timeline = _Timeline()
     timeline.record(
@@ -113,7 +113,7 @@ def test_recording_should_accept_transport_only_as_a_keyword_argument():
 
 
 def test_a_timeline_entry_should_accept_topic_none_for_scope_level_events():
-    """PRD-013 §D-3: scope-level events such as DEADLINE OMIT the
+    """ §D-3: scope-level events such as DEADLINE OMIT the
     `topic` field (Python `None`, JSON key omitted at the reporter
     boundary). Symmetric with the `transport` field's omission for
     scope-level events."""
@@ -147,7 +147,7 @@ def test_recording_with_topic_none_should_round_trip_to_the_entry():
 
 def test_a_timeline_entry_should_default_logical_topic_to_none():
     """The `logical_topic` field is additive groundwork for translating
-    bridges (PRD-013 follow-up). Today's `MappedBridge` does not
+    bridges ( follow-up). Today's `MappedBridge` does not
     translate topic names, so all Phase 1 entries leave it at `None`
     and the reporter omits the JSON key."""
     entry = TimelineEntry(
@@ -186,7 +186,7 @@ def test_recording_with_logical_topic_should_round_trip_to_the_entry():
 
 
 # ---------------------------------------------------------------------------
-# TimelineEntry: `source` attribution (PRD-013 v1.3, schema v1.3)
+# TimelineEntry: `source` attribution ( v1.3, schema v1.3)
 # ---------------------------------------------------------------------------
 
 
@@ -216,7 +216,7 @@ def test_a_timeline_entry_should_accept_a_source_via_kwarg():
 def test_recording_with_source_should_round_trip_to_the_entry():
     """The kwarg-only `source` on `_Timeline.record` reaches the
     recorded entry. Stage hook sites pass one of {"publish", "expect",
-    "reply", "scope"} per PRD-013 §1.6."""
+    "reply", "scope"} 6."""
     timeline = _Timeline()
     timeline.record(
         now=0.0,
@@ -253,8 +253,8 @@ def test_a_timeline_entry_should_truncate_an_oversized_detail_at_construction():
 
 
 def test_recording_a_failing_event_should_not_propagate_the_exception():
-    """An observability seam must never break the AUT (PRD-013 §2.3
-    notes mirror ADR-0017's reply-diagnostic posture). If recording
+    """An observability seam must never break the AUT ( §2.3
+    notes mirror the reply-diagnostic posture). If recording
     raises internally, `record_errors` increments and the exception
     is swallowed."""
     timeline = _Timeline()

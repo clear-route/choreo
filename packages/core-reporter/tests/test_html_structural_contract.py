@@ -1,4 +1,4 @@
-"""HTML structural contract — PRD-007 §4 (data-* attribute contract).
+"""HTML structural contract).
 
 These tests parse the generated `index.html` with BeautifulSoup and
 assert structural invariants that machine consumers (and the reporter
@@ -145,7 +145,7 @@ def test_each_status_filter_pill_should_be_present(run_with) -> None:
 
 
 def test_the_passed_pill_should_be_unpressed_by_default(run_with) -> None:
-    """Default filter = non-passing only (PRD-007 Decision #26)."""
+    """Default filter = non-passing only ( Decision #26)."""
     _, html, _ = run_with()
     soup = BeautifulSoup(html, "html.parser")
     assert soup.select_one('button[data-pill="passed"]')["aria-pressed"] == "false"
@@ -190,7 +190,7 @@ def test_every_css_rule_should_live_under_the_harness_report_scope(
     run_with,
 ) -> None:
     """Embedding the HTML in a CI provider's iframe must not bleed styles
-    in either direction (PRD-007 §7). Every selector in the bundled CSS
+    in either direction. Every selector in the bundled CSS
     starts with `.harness-report` (possibly followed by descendants)."""
     _, html, _ = run_with()
     soup = BeautifulSoup(html, "html.parser")

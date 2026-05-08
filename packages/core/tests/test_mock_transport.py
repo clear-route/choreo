@@ -131,7 +131,7 @@ async def test_a_mock_transport_should_record_every_publish_for_later_assertion(
 
 
 # ---------------------------------------------------------------------------
-# Auth parity tests (ADR-0020)
+# Auth parity tests
 # ---------------------------------------------------------------------------
 
 

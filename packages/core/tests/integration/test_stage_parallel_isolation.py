@@ -17,7 +17,7 @@ response.
 
 J2 is a canary documenting the framework's failure mode under the
 documented misuse of a collision-prone `bridge.fresh()`. The contract
-that ADR-0027 §Security Considerations spells out is "if `fresh()` is
+that  §Security Considerations spells out is "if `fresh()` is
 collision-prone, two scopes can land on the same logical id and
 therefore the same per-transport wire ids; inbound traffic destined
 for one scope's transport then matches the other scope's
@@ -182,7 +182,7 @@ async def test_stage_should_isolate_one_hundred_concurrent_scopes(
 async def test_stage_should_leak_across_scopes_when_bridge_fresh_is_collision_prone(
     allowlist_yaml_path: Path,
 ) -> None:
-    """J2. Documents the failure mode named in ADR-0027 §Security
+    """J2. Documents the failure mode named in  §Security
     Considerations: a buggy bridge whose `fresh()` returns the same
     value for every scope means every scope ends up with the same
     per-transport wire ids — and the correlation filter therefore

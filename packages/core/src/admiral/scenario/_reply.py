@@ -1,4 +1,4 @@
-"""Reply types and lifecycle (PRD-008, ADR-0016, ADR-0017)."""
+"""Reply types and lifecycle."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class _ReplyState(StrEnum):
-    """Runtime state of a live reply (ADR-0016 §Fire-once enforcement).
+    """Runtime state of a live reply.
 
     Distinct from the terminal `ReplyReportState` derived at scope exit:
     this tracks what a reply is doing *while it is armed*, the report
@@ -24,7 +24,7 @@ class _ReplyState(StrEnum):
 
 
 class ReplyReportState(StrEnum):
-    """Terminal state on `ReplyReport`, derived at scope exit (ADR-0017).
+    """Terminal state on `ReplyReport`, derived at scope exit.
 
     The four states distinguish failure modes that look identical from
     outside the reply: wrong topic (no candidates arrived) vs wrong shape
@@ -41,7 +41,7 @@ class ReplyAlreadyBoundError(RuntimeError):
     """Raised when `ReplyChain.publish()` is called more than once.
 
     Chains are single-use: one `on()` binds one reply. Multi-hop chains are
-    a follow-up (see PRD-008 §Future Considerations).
+    a follow-up.
     """
 
 
@@ -52,7 +52,7 @@ class ReplyReport:
     Carries state, counts, topics and a redacted-for-logging matcher
     description. It does NOT carry the triggering payload or the published
     reply payload — `__repr__` and `summary()` must not leak payload content
-    (ADR-0017 §Security Considerations). `builder_error` is the exception
+   . `builder_error` is the exception
     class name alone (never `str(e)`) so a builder raising with a
     payload-derived message does not leak through the report.
     """
@@ -99,7 +99,7 @@ class _Reply:
 
 
 def _derive_reply_state(reply: _Reply) -> ReplyReportState:
-    """Map the runtime state + counts onto the terminal report state (ADR-0017)."""
+    """Map the runtime state + counts onto the terminal report state."""
     if reply.state is _ReplyState.FAILED:
         return ReplyReportState.REPLY_FAILED
     if reply.state is _ReplyState.REPLIED:

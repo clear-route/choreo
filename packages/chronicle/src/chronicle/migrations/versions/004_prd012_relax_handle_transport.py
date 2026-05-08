@@ -1,4 +1,4 @@
-"""PRD-012 follow-up: relax handle_measurements.transport NOT NULL.
+""" follow-up: relax handle_measurements.transport NOT NULL.
 
 Mixed-mode runs (single-Harness scenarios + Stage scenarios in the
 same pytest session) emit `run.transport: null` plus a `run.transports`

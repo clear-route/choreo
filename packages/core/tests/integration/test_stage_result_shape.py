@@ -151,14 +151,14 @@ async def test_stage_handle_repr_should_include_transport_name(
 
 
 # ---------------------------------------------------------------------------
-# K5 (PRD-012) — Stage result carries the scope's logical id as correlation_id
+# K5 — Stage result carries the scope's logical id as correlation_id
 # ---------------------------------------------------------------------------
 
 
 async def test_a_stage_scenario_result_should_expose_the_scope_logical_id_as_correlation_id(
     two_harnesses: dict[str, Harness],
 ) -> None:
-    """K5 (PRD-012 §2.6). The reporter populates
+    """K5. The reporter populates
     `scenario.correlation_id` for Stage scenarios from
     `result.correlation_id`. The value is the logical id minted by
     `bridge.fresh()` at scope entry — the same id that maps to per-

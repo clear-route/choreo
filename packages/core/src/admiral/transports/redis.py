@@ -271,7 +271,7 @@ class RedisTransport:
         # registered the subscription and returns zero recipients.
         in_flight = [f for f in self._pending_ready if not f.done()]
 
-        # PRD-013 §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
+        #  §2.3.1: fire `on_sent` SYNCHRONOUSLY at call time so
         # timeline ordering is deterministic. See KafkaTransport.publish
         # for the rationale.
         if on_sent is not None:

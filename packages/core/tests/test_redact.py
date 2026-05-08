@@ -1,4 +1,4 @@
-"""Unit tests for matcher-description redaction (ADR-0017).
+"""Unit tests for matcher-description redaction.
 
 The regex-based redactor is deliberately conservative: it must collapse
 every `=value` fragment to `=<value>`, even when the value contains

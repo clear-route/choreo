@@ -15,7 +15,7 @@ The public surface is small by design:
         test_namespace,
     )
 
-Multi-transport scenarios (ADR-0027 / PRD-011) — opt-in:
+Multi-transport scenarios — opt-in:
 
     from admiral import Stage, MappedBridge, IdentityBridge, CorrelationBridge
     from admiral import (

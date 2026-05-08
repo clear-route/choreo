@@ -2,7 +2,7 @@
 
 These tests verify the auth lifecycle, redaction, and safety properties
 that every transport must honour.  Parametrised over transport factories
-so each transport runs the identical suite.  See ADR-0020 §Validation.
+so each transport runs the identical suite.  
 """
 
 from __future__ import annotations

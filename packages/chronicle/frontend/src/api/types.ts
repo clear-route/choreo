@@ -45,7 +45,7 @@ export interface RunSummary {
   total_skipped: number;
   total_slow: number;
   anomaly_count: number;
-  // PRD-010 additions
+  //  additions
   pass_rate: number;
   topic_count: number;
   p50_ms: number | null;

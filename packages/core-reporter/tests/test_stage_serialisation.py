@@ -1,4 +1,4 @@
-"""Stage scenario serialisation (PRD-012 §2).
+"""Stage scenario serialisation.
 
 Unit tests for the reporter's Stage support: kind-based dispatch,
 reply-state mapping (StageReplyState → schema strings, no enum
@@ -43,7 +43,7 @@ _REDACTED_PATTERN = re.compile(r"^sha256:[0-9a-f]{16}$")
 
 
 # ---------------------------------------------------------------------------
-# Reply state mapping (PRD-012 §1.7, §2.2)
+# Reply state mapping
 # ---------------------------------------------------------------------------
 
 
@@ -73,14 +73,14 @@ def test_serialise_reply_state_should_raise_on_None():
 
 def test_serialise_reply_state_should_raise_on_unknown_string():
     """The reporter does not silently coerce; freeze-path bugs surface
-    immediately. Per PRD-012 §2.2."""
+    immediately. 2."""
     with pytest.raises(ValueError):
         _serialise_reply_state("nonsense")
 
 
 def test_serialise_reply_state_should_raise_assertion_error_on_StageReplyState_ARMED():
     """ARMED is a runtime-only state; encountering it at serialisation
-    is a freeze-path bug in the framework's __aexit__. PRD-012 §1.7
+    is a freeze-path bug in the framework's __aexit__.  §1.7
     requires AssertionError (programmer-error class) rather than
     ValueError (input-error class) so the distinction is preserved
     in CI logs."""
@@ -89,7 +89,7 @@ def test_serialise_reply_state_should_raise_assertion_error_on_StageReplyState_A
 
 
 # ---------------------------------------------------------------------------
-# Reply transport fields (PRD-012 §1.2)
+# Reply transport fields
 # ---------------------------------------------------------------------------
 
 
@@ -134,7 +134,7 @@ def test_a_single_harness_reply_report_should_omit_transport_fields():
 
 
 # ---------------------------------------------------------------------------
-# Stage scenario emission (PRD-012 §1.4, §2.3)
+# Stage scenario emission
 # ---------------------------------------------------------------------------
 
 
@@ -248,7 +248,7 @@ def test_a_stage_block_should_carry_sorted_transports():
 
 
 def test_stage_block_correlation_ids_should_be_hash_redacted():
-    """Per PRD-012 §1.5.1: every per-transport correlation id in the
+    """5.1: every per-transport correlation id in the
     report is redacted via `admiral.redaction.redact_correlation_id`.
     Shape: `sha256:<16 hex>`."""
     handles = (
@@ -269,7 +269,7 @@ def test_stage_block_correlation_ids_should_be_hash_redacted():
 
 
 def test_a_stage_handle_correlation_id_should_be_hash_redacted():
-    """Per PRD-012 §1.5.1 / Goal 6: Stage handles' correlation_id is
+    """5.1 / Goal 6: Stage handles' correlation_id is
     hash-redacted at the report boundary; v2's leakage path closed."""
     handles = (_make_handle(transport="nats", wire_id="nats-orders-3f2a91b8"),)
     result = _stage_scenario_result(handles=handles)
@@ -285,7 +285,7 @@ def test_a_stage_handle_correlation_id_should_be_hash_redacted():
 
 
 # ---------------------------------------------------------------------------
-# Redaction sites canary (PRD-012 §2.4 / §Testing Strategy)
+# Redaction sites canary
 # ---------------------------------------------------------------------------
 
 
@@ -294,7 +294,7 @@ def test_a_secret_marker_in_a_stage_handle_correlation_id_should_not_appear_verb
     `SECRET-CANARY-XYZ` is set on every Stage handle's correlation_id;
     after serialisation, the marker must NOT appear in the emitted
     JSON for that handle (the value is replaced by the `sha256:<hex>`
-    redacted form). Per PRD-012 §1.5.1, §2.4."""
+    redacted form). 5.1, §2.4."""
     import json as _json
 
     canary = "SECRET-CANARY-XYZ-3f2a91b8c4d50e1f"
@@ -340,7 +340,7 @@ def test_a_secret_marker_in_stage_correlation_ids_should_not_appear_verbatim_in_
 
 def test_a_single_harness_handle_correlation_id_should_be_unchanged():
     """Backward compat: single-Harness handle correlation_ids are NOT
-    redacted in the report (PRD-012 §1.5.1)."""
+    redacted in the report."""
     handle = Handle(
         topic="orders.settled",
         matcher_description="any",
@@ -380,7 +380,7 @@ def test_a_stage_handle_should_emit_a_transport_field():
 
 
 def test_a_single_harness_handle_should_omit_the_transport_field():
-    """Backward compat: byte-identical to v1.0 emission (PRD-012 §2.3)."""
+    """Backward compat: byte-identical to v1.0 emission."""
     handle = Handle(
         topic="orders.settled",
         matcher_description="any",
@@ -402,8 +402,8 @@ def test_a_single_harness_handle_should_omit_the_transport_field():
     )
     handle_out = out["handles"][0]
     # Single-Harness handles MUST OMIT the transport key entirely
-    # (not emit `null`) — keeps JSON byte-identical pre/post PRD-012
-    # (PRD-012 §2.3, §1.1).
+    # (not emit `null`) — keeps JSON byte-identical pre/post 
+    #.
     assert "transport" not in handle_out
 
 
@@ -431,7 +431,7 @@ def test_a_single_harness_scenario_should_omit_the_stage_block():
 
 
 # ---------------------------------------------------------------------------
-# Run-level transports + schema_version bump (PRD-012 §1.5, §1.6, §0)
+# Run-level transports + schema_version bump
 # ---------------------------------------------------------------------------
 
 
@@ -463,7 +463,7 @@ def test_emitted_reports_should_carry_schema_version_1_3():
 
 
 # ---------------------------------------------------------------------------
-# Stage timeline serialisation (PRD-013 §3.1)
+# Stage timeline serialisation
 # ---------------------------------------------------------------------------
 
 
@@ -487,7 +487,7 @@ def _make_timeline_entry(
 
 
 def test_a_stage_scenario_should_serialise_its_timeline_entries():
-    """PRD-013 §3.1: the reporter populates `scenario.timeline` from
+    """ §3.1: the reporter populates `scenario.timeline` from
     `StageScenarioResult.timeline`. The Phase-1-deferral marker
     (`timeline: []`) is removed."""
     entry = _make_timeline_entry(action=TimelineAction.PUBLISHED, transport="kafka")
@@ -537,7 +537,7 @@ def test_a_stage_scenario_should_round_trip_timeline_dropped():
 
 def test_a_stage_timeline_entry_should_emit_the_transport_field_when_set():
     """Stage entries produced by a per-transport child carry the
-    child's transport name in the JSON. PRD-013 §1.1."""
+    child's transport name in the JSON.  §1.1."""
     entry = _make_timeline_entry(transport="kafka")
     result = StageScenarioResult(
         handles=(_make_handle(transport="nats"),),
@@ -559,7 +559,7 @@ def test_a_stage_timeline_entry_should_emit_the_transport_field_when_set():
 
 
 def test_a_stage_scope_level_event_should_omit_the_transport_key_entirely():
-    """PRD-013 §D-3: scope-level events (DEADLINE) omit the `transport`
+    """ §D-3: scope-level events (DEADLINE) omit the `transport`
     JSON key entirely - not `null`. Symmetric `topic` omission applies."""
     entry = _make_timeline_entry(
         action=TimelineAction.DEADLINE,
@@ -641,7 +641,7 @@ def test_a_stage_timeline_entry_should_omit_logical_topic_when_unset():
 
 
 def test_a_single_harness_timeline_entry_should_omit_the_transport_key():
-    """Byte-identity contract from PRD-012: single-`Harness` entries
+    """Byte-identity contract from : single-`Harness` entries
     have `transport=None` and the reporter omits the JSON key entirely
     (no surprise `null` regression for v1.1-pinned consumers)."""
     from admiral_reporter._serialise import serialise_timeline_entry
@@ -655,7 +655,7 @@ def test_a_single_harness_timeline_entry_should_omit_the_transport_key():
     out = serialise_timeline_entry(entry)
     assert "transport" not in out
     assert "logical_topic" not in out
-    # PRD-013 §1.6 / schema v1.3: single-Harness entries also omit
+    #  §1.6 / schema v1.3: single-Harness entries also omit
     # `source` for byte-identity with v1.0/v1.1/v1.2.
     assert "source" not in out
 
@@ -805,7 +805,7 @@ def test_a_stage_timeline_should_round_trip_through_the_full_reporter_to_rendere
     deadline_entry = TimelineEntry(
         offset_ms=200.0,
         _wall_clock_epoch=0.2,
-        topic=None,  # scope-level event omits topic per PRD-013 §D-3
+        topic=None,  # scope-level event omits topic per  §D-3
         action=TimelineAction.DEADLINE,
         detail="timeout_ms=200",
     )
@@ -836,7 +836,7 @@ def test_a_stage_timeline_should_round_trip_through_the_full_reporter_to_rendere
 
 
 def test_a_run_with_stage_scenarios_should_emit_redaction_version():
-    """Per PRD-012 §1.5.1 / §2.4. Consumers detect algorithm changes
+    """5.1 / §2.4. Consumers detect algorithm changes
     via this string. Only emitted for runs that carry hash-redacted
     wire ids (i.e. any run with a Stage scenario)."""
     handles = (_make_handle(transport="nats"),)
@@ -889,7 +889,7 @@ def test_a_run_with_a_stage_scenario_should_emit_transports_and_null_transport()
 
 
 def test_a_mixed_run_should_emit_both_transport_and_transports():
-    """Mixed-mode runs: transport=null, transports=sorted union (PRD-012
+    """Mixed-mode runs: transport=null, transports=sorted union (
     §1.6 — `populates run.transports with the union of every transport
     name encountered`). The union includes the single-Harness transport
     class name AND every Stage transport, alphabetically sorted."""

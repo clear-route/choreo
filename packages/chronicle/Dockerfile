@@ -29,6 +29,6 @@ USER chronicle
 
 EXPOSE 8000
 
-# Single worker — required for in-memory SSE fan-out (ADR-0021).
+# Single worker — required for in-memory SSE fan-out.
 # Multi-worker requires a LISTEN/NOTIFY bridge not included in v1.
 CMD ["uvicorn", "chronicle.app:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,4 +1,4 @@
-"""Git metadata lookup — PRD-007 §11.
+"""Git metadata lookup.
 
 Runs in a background thread started at `pytest_sessionstart` so the git
 shell-out is already resolved by `pytest_sessionfinish` — the critical

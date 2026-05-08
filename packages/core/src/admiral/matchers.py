@@ -1,4 +1,4 @@
-"""Matcher Strategy pattern — ADR-0013.
+"""Matcher Strategy pattern.
 
 Pure predicates over decoded payloads. Every matcher implements the same
 Protocol; composition happens via `all_of`, `any_of`, `not_`, `every`,
@@ -84,9 +84,9 @@ class MatchResult:
 # Protocols (R2 — ISP split).
 #
 # `Matcher` is the execution contract every matcher satisfies. `Reportable`
-# is an optional capability the test-report writer (PRD-007) consumes to
+# is an optional capability the test-report writer consumes to
 # render a side-by-side expected/actual diff. Splitting them per ISP makes
-# it explicit that a custom matcher written before PRD-007 is still a valid
+# it explicit that a custom matcher written before  is still a valid
 # `Matcher` — it is simply not `Reportable`.
 # ---------------------------------------------------------------------------
 
@@ -138,7 +138,7 @@ def _is_matcher(obj: Any) -> bool:
     no more permissive in practice and keeps the check trivially fast.
 
     `expected_shape` is intentionally not part of this test — it is a
-    Reportable capability, not a Matcher requirement (ISP-split per PRD-007).
+    Reportable capability, not a Matcher requirement (ISP-split 
     """
     return callable(getattr(obj, "match", None)) and hasattr(obj, "description")
 

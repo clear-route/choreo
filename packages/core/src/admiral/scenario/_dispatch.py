@@ -1,4 +1,4 @@
-"""Subscriber registration, policy wrapping, and await_all (PRD-006/008/013).
+"""Subscriber registration, policy wrapping, and await_all (/008/013).
 
 The big function bodies — `_register_expectation`, `_register_reply`,
 `_await_all` — live here so the DSL surface in `_scope` stays readable.
@@ -191,7 +191,7 @@ def _register_reply(
 ) -> None:
     """Register a reply subscription on the scope's trigger topic.
 
-    Dispatch rules (ADR-0016 §Fire-once enforcement, ADR-0018):
+    Dispatch rules:
       1. Correlation filter identical to `expect`; foreign messages never
          become candidates.
       2. `candidate_count` increments unconditionally for every routed

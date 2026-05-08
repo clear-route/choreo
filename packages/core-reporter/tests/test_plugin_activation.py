@@ -1,4 +1,4 @@
-"""Plugin activation and CLI-surface tests — PRD-007 §1, §6.
+"""Plugin activation and CLI-surface tests, §6.
 
 Uses pytester to spin up inner pytest sessions so the outer session's
 reporter state is isolated.
@@ -89,7 +89,7 @@ def test_the_env_var_should_be_used_when_the_cli_flag_is_absent(
 def test_the_json_output_should_declare_schema_version_1_3(
     pytester: pytest.Pytester,
 ) -> None:
-    """PRD-013 bumped schema_version to '1.3' (additive minor over
+    """ bumped schema_version to '1.3' (additive minor over
     v1.2; new optional timeline_entry.source field, no v1.2 contract
     breakage)."""
     _, report_dir = _run_inner(pytester, args=[])

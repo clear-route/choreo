@@ -1,4 +1,4 @@
-"""Report-boundary redaction (PRD-012 §1.5.1).
+"""Report-boundary redaction.
 
 The framework's in-process `_redact()` (head=8, tail=4, length
 annotation; defined in `admiral.stage`) is designed for short-lived
